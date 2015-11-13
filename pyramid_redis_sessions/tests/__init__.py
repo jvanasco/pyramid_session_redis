@@ -3,6 +3,10 @@
 from ..compat import cPickle
 
 
+class DummySessionState(object):
+    please_persist = None
+    please_refresh = None
+
 class DummySession(object):
     def __init__(self, session_id, redis, timeout=300,
                  serialize=cPickle.dumps):
@@ -12,6 +16,7 @@ class DummySession(object):
         self.serialize = serialize
         self.managed_dict = {}
         self.created = float()
+        self._session_state = DummySessionState()
 
     def to_redis(self):
         return self.serialize({

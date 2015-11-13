@@ -341,9 +341,6 @@ def _finished_callback(
     `request` is appended by add_finished_callback
     """
     if session._session_state.please_persist:
-        with session.redis.pipeline() as pipe:
-            pipe.set(session.session_id, session.to_redis())
-            pipe.expire(session.session_id, session.timeout)
-            pipe.execute()
+        session.do_persist()
     elif session._session_state.please_refresh:
-        session.redis.expire(session.session_id, session.timeout)
+        session.do_refresh()
