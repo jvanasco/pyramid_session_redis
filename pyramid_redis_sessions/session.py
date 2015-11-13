@@ -9,6 +9,7 @@ from pyramid.interfaces import ISession
 from zope.interface import implementer
 
 from .compat import cPickle
+from .exceptions import InvalidSession
 from .util import (
     persist,
     refresh,
@@ -143,6 +144,8 @@ class RedisSession(object):
         """Get and deserialize the persisted data for this session from Redis.
         """
         persisted = self.redis.get(session_id or self.session_id)
+        if persisted is None:
+            raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
         deserialized = self.deserialize(persisted)
         return deserialized
 
