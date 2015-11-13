@@ -217,6 +217,7 @@ def RedisSessionFactory(
 
         set_cookie = functools.partial(
             _set_cookie,
+            session,
             cookie_name=cookie_name,
             cookie_max_age=cookie_max_age,
             cookie_path=cookie_path,
@@ -233,12 +234,19 @@ def RedisSessionFactory(
             )
         cookie_callback = functools.partial(
             _cookie_callback,
+            session,
             session_cookie_was_valid=session_cookie_was_valid,
             cookie_on_exception=cookie_on_exception,
             set_cookie=set_cookie,
             delete_cookie=delete_cookie,
             )
         request.add_response_callback(cookie_callback)
+
+        finished_callback = functools.partial(
+            _finished_callback,
+            session
+            )
+        request.add_finished_callback(finished_callback)
 
         return session
 
@@ -264,6 +272,7 @@ def _get_session_id_from_cookie(request, cookie_name, secret):
 
 
 def _set_cookie(
+    session,
     request,
     response,
     cookie_name,
@@ -274,7 +283,11 @@ def _set_cookie(
     cookie_httponly,
     secret,
     ):
-    cookieval = signed_serialize(request.session.session_id, secret)
+    """
+    `session` is via functools.partial
+    `request` and `response` are appended by add_response_callback
+    """
+    cookieval = signed_serialize(session.session_id, secret)
     response.set_cookie(
         cookie_name,
         value=cookieval,
@@ -291,6 +304,7 @@ def _delete_cookie(response, cookie_name, cookie_path, cookie_domain):
 
 
 def _cookie_callback(
+    session,
     request,
     response,
     session_cookie_was_valid,
@@ -298,8 +312,11 @@ def _cookie_callback(
     set_cookie,
     delete_cookie,
     ):
-    """Response callback to set the appropriate Set-Cookie header."""
-    session = request.session
+    """
+    Response callback to set the appropriate Set-Cookie header.
+    `session` is via functools.partial
+    `request` and `response` are appended by add_response_callback
+    """
     if session._invalidated:
         if session_cookie_was_valid:
             delete_cookie(response=response)
@@ -313,3 +330,20 @@ def _cookie_callback(
             # still need to delete the existing cookie for the session that the
             # request started with (as the session has now been invalidated).
             delete_cookie(response=response)
+
+
+def _finished_callback(
+    session,
+    request,
+    ):
+    """Finished callback to persist a cookie if needed.
+    `session` is via functools.partial
+    `request` is appended by add_finished_callback
+    """
+    if session._session_state.please_persist:
+        with session.redis.pipeline() as pipe:
+            pipe.set(session.session_id, session.to_redis())
+            pipe.expire(session.session_id, session.timeout)
+            pipe.execute()
+    elif session._session_state.please_refresh:
+        session.redis.expire(session.session_id, session.timeout)

@@ -17,6 +17,10 @@ from .util import (
 
 
 class _SessionState(object):
+    # markers for update
+    please_persist = None
+    please_refresh = None
+
     def __init__(self, session_id, managed_dict, created, timeout, new):
         self.session_id = session_id
         self.managed_dict = managed_dict

@@ -139,7 +139,7 @@ def refresh(wrapped):
     """
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        session.redis.expire(session.session_id, session.timeout)
+        session._session_state.please_refresh = True
         return result
 
     return wrapped_refresh
@@ -151,10 +151,7 @@ def persist(wrapped):
     """
     def wrapped_persist(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        with session.redis.pipeline() as pipe:
-            pipe.set(session.session_id, session.to_redis())
-            pipe.expire(session.session_id, session.timeout)
-            pipe.execute()
+        session._session_state.please_persist = True
         return result
 
     return wrapped_persist
