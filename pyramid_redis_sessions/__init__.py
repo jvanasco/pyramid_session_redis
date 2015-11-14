@@ -252,6 +252,12 @@ def RedisSessionFactory(
             )
         request.add_response_callback(cookie_callback)
 
+        finished_callback = functools.partial(
+            _finished_callback,
+            session
+            )
+        request.add_finished_callback(finished_callback)
+
         return session
 
     return factory
@@ -334,3 +340,17 @@ def _cookie_callback(
             # still need to delete the existing cookie for the session that the
             # request started with (as the session has now been invalidated).
             delete_cookie(response=response)
+
+
+def _finished_callback(
+    session,
+    request,
+    ):
+    """Finished callback to persist a cookie if needed.
+    `session` is via functools.partial
+    `request` is appended by add_finished_callback
+    """
+    if session._session_state.please_persist:
+        session.do_persist()
+    elif session._session_state.please_refresh:
+        session.do_refresh()

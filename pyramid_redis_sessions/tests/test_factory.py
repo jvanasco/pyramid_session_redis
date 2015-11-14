@@ -465,6 +465,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         request = self._make_request()
         inst = self._makeOne(request)
         inst.adjust_timeout_for_session(555)
+        inst.do_persist()
         session_id = inst.session_id
         cookieval = self._serialize(session_id)
         request.cookies['session'] = cookieval

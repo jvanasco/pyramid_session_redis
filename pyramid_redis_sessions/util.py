@@ -133,28 +133,33 @@ def _parse_settings(settings):
 
     return options
 
+
 def refresh(wrapped):
     """
     Decorator to reset the expire time for this session's key in Redis.
+    This will mark the `_session_state.please_refresh` as True, to be 
+    handled in a callback.
+    To immediately persist a session, call `session.do_refresh`.
     """
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        session.redis.expire(session.session_id, session.timeout)
+        session._session_state.please_refresh = True
         return result
 
     return wrapped_refresh
+
 
 def persist(wrapped):
     """
     Decorator to persist in Redis all the data that needs to be persisted for
     this session and reset the expire time.
+    This will mark the `_session_state.please_persist` as True, to be 
+    handled in a callback.
+    To immediately persist a session, call `session.do_persist`.
     """
     def wrapped_persist(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        with session.redis.pipeline() as pipe:
-            pipe.set(session.session_id, session.to_redis())
-            pipe.expire(session.session_id, session.timeout)
-            pipe.execute()
+        session._session_state.please_persist = True
         return result
 
     return wrapped_persist

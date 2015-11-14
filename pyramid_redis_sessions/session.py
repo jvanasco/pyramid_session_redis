@@ -18,6 +18,10 @@ from .util import (
 
 
 class _SessionState(object):
+    # markers for update
+    please_persist = None
+    please_refresh = None
+
     def __init__(self, session_id, managed_dict, created, timeout, new):
         self.session_id = session_id
         self.managed_dict = managed_dict
@@ -158,6 +162,19 @@ class RedisSession(object):
         # .managed_dict, .created, .timeout and .new (i.e. anything stored in
         # self._session_state) after this will trigger the creation of a new
         # session with a new session_id.
+
+    def do_persist(self):
+        """actually and immediately persist to Redis backend"""
+        with self.redis.pipeline() as pipe:
+            pipe.set(self.session_id, self.to_redis())
+            pipe.expire(self.session_id, self.timeout)
+            pipe.execute()
+        self._session_state.please_persist = False
+    
+    def do_refresh(self):
+        """actually and immediately refresh the TTL to Redis backend"""
+        self.redis.expire(self.session_id, self.timeout)
+        self._session_state.please_refresh = False
 
     # dict modifying methods decorated with @persist
     @persist
