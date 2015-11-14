@@ -9,6 +9,7 @@ from pyramid.session import (
 
 from .compat import cPickle
 from .connection import get_default_connection
+from .exceptions import InvalidSession
 from .session import RedisSession
 from .util import (
     _generate_session_id,
@@ -199,22 +200,31 @@ def RedisSessionFactory(
             generator=id_generator,
             )
 
-        if session_id_from_cookie and redis.exists(session_id_from_cookie):
+        try:
+            if not session_id_from_cookie:
+                raise InvalidSession('initial new session')
             session_id = session_id_from_cookie
             session_cookie_was_valid = True
-        else:
+            session = RedisSession(
+                redis=redis,
+                session_id=session_id,
+                new=not session_cookie_was_valid,
+                new_session=new_session,
+                serialize=serialize,
+                deserialize=deserialize,
+                )
+        except InvalidSession, e:
             session_id = new_session()
             session_cookie_was_valid = False
-
-        session = RedisSession(
-            redis=redis,
-            session_id=session_id,
-            new=not session_cookie_was_valid,
-            new_session=new_session,
-            serialize=serialize,
-            deserialize=deserialize,
-            )
-
+            session = RedisSession(
+                redis=redis,
+                session_id=session_id,
+                new=not session_cookie_was_valid,
+                new_session=new_session,
+                serialize=serialize,
+                deserialize=deserialize,
+                )
+    
         set_cookie = functools.partial(
             _set_cookie,
             session,
