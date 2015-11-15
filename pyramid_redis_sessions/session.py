@@ -162,10 +162,7 @@ class RedisSession(object):
 
     def do_persist(self):
         """actually and immediately persist to Redis backend"""
-        with self.redis.pipeline() as pipe:
-            pipe.set(self.session_id, self.to_redis())
-            pipe.expire(self.session_id, self.timeout)
-            pipe.execute()
+        self.redis.setex(self.session_id, self.to_redis(), self.timeout)
         self._session_state.please_persist = False
     
     def do_refresh(self):
