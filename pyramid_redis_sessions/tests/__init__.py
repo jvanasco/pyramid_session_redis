@@ -7,6 +7,7 @@ class DummySessionState(object):
     please_persist = None
     please_refresh = None
 
+
 class DummySession(object):
     def __init__(self, session_id, redis, timeout=300,
                  serialize=cPickle.dumps):
@@ -46,6 +47,10 @@ class DummyRedis(object):
 
     def set(self, key, value):
         self.store[key] = value
+
+    def setex(self, key, value, timeout):
+        self.store[key] = value
+        self.timeouts[key] = timeout
 
     def delete(self, *keys):
         for key in keys:
