@@ -48,7 +48,10 @@ class DummyRedis(object):
     def set(self, key, value):
         self.store[key] = value
 
-    def setex(self, key, value, timeout):
+    def setex(self, key, timeout, value):
+        # Redis is `key, value, timeout`
+        # StrictRedis is `key, timeout, value`
+        # this package uses StrictRedis
         self.store[key] = value
         self.timeouts[key] = timeout
 
