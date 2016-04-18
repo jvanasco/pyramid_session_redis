@@ -143,7 +143,8 @@ def refresh(wrapped):
     """
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        session._session_state.please_refresh = True
+        if not session.assume_redis_lru:
+            session._session_state.please_refresh = True
         return result
 
     return wrapped_refresh

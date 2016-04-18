@@ -70,6 +70,10 @@ class RedisSession(object):
     ``deserialize``
     The dual of ``serialize``, to convert serialized strings back to Python
     objects. Default: ``cPickle.loads``.
+    
+    ``assume_redis_lru``
+    If ``True``, assumes redis is configured as a LRU and does not update the
+    expiry data. Default: ``None``
     """
 
     def __init__(
@@ -79,13 +83,15 @@ class RedisSession(object):
         new,
         new_session,
         serialize=cPickle.dumps,
-        deserialize=cPickle.loads
+        deserialize=cPickle.loads,
+        assume_redis_lru=None,
         ):
 
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
         self._new_session = new_session
+        self.assume_redis_lru = assume_redis_lru
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,

@@ -81,6 +81,7 @@ def RedisSessionFactory(
     serialize=cPickle.dumps,
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
+    assume_redis_lru=None,
     ):
     """
     Constructs and returns a session factory that will provide session data
@@ -158,6 +159,12 @@ def RedisSessionFactory(
     Default: private function that uses sha1 with the time and random elements
     to create a 40 character unique ID.
 
+    ``assume_redis_lru``
+    Boolean value. If set to ``True``, will assume that redis is configured as
+    a least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
+    sent EXPIRY data for sessions.
+    Default: ``None``
+
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
@@ -212,6 +219,7 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
+                assume_redis_lru=assume_redis_lru,
                 )
         except InvalidSession, e:
             session_id = new_session()
@@ -223,8 +231,9 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
+                assume_redis_lru=assume_redis_lru,
                 )
-    
+
         set_cookie = functools.partial(
             _set_cookie,
             session,
