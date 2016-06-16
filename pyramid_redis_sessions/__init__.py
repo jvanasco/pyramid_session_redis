@@ -361,5 +361,11 @@ def _finished_callback(
     """
     if session._session_state.please_persist:
         session.do_persist()
-    elif session._session_state.please_refresh:
+        session._session_state.please_refresh = False
+    else:
+        serialized_session = session._session_state.should_persist(session)
+        if serialized_session:
+            session.do_persist(serialized_session=serialized_session)
+            session._session_state.please_refresh = False
+    if session._session_state.please_refresh:
         session.do_refresh()

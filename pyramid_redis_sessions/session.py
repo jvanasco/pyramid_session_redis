@@ -2,6 +2,7 @@
 
 import binascii
 import os
+import hashlib
 
 from pyramid.compat import text_
 from pyramid.decorator import reify
@@ -17,17 +18,47 @@ from .util import (
     )
 
 
+def hashed_value(serialized):
+    """
+    quick hash of serialized data
+    only used for comparison
+    """
+    return hashlib.md5(serialized).hexdigest()
+
+
 class _SessionState(object):
     # markers for update
     please_persist = None
     please_refresh = None
 
-    def __init__(self, session_id, managed_dict, created, timeout, new):
+    def __init__(
+        self,
+        session_id,
+        managed_dict,
+        created,
+        timeout,
+        new,
+        persisted_hash
+        ):
+
         self.session_id = session_id
         self.managed_dict = managed_dict
         self.created = created
         self.timeout = timeout
         self.new = new
+        self.persisted_hash = persisted_hash
+        
+    
+    def should_persist(self, session):
+        """
+        compares the persisted hash with a hash of the current value
+        returns `False` or `serialized_session`
+        """
+        serialized_session = session.to_redis()
+        serialized_hash = hashed_value(serialized_session)
+        if serialized_hash == self.persisted_hash:
+            return False
+        return serialized_session
 
 
 @implementer(ISession)
@@ -105,7 +136,11 @@ class RedisSession(object):
             )
 
     def _make_session_state(self, session_id, new):
-        persisted = self.from_redis(session_id=session_id)
+        (persisted,
+         persisted_hash
+         ) = self.from_redis(session_id=session_id,
+                             persisted_hash=True,
+                             )
         # self.from_redis needs to take a session_id here, because otherwise it
         # would look up self.session_id, which is not ready yet as
         # session_state has not been created yet.
@@ -115,6 +150,7 @@ class RedisSession(object):
             created=persisted['created'],
             timeout=persisted['timeout'],
             new=new,
+            persisted_hash=persisted_hash,
             )
 
     @property
@@ -150,13 +186,15 @@ class RedisSession(object):
             'timeout': self.timeout,
             })
 
-    def from_redis(self, session_id=None):
+    def from_redis(self, session_id=None, persisted_hash=None):
         """Get and deserialize the persisted data for this session from Redis.
         """
         persisted = self.redis.get(session_id or self.session_id)
         if persisted is None:
             raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
         deserialized = self.deserialize(persisted)
+        if persisted_hash:
+            return (deserialized, hashed_value(persisted))
         return deserialized
 
     def invalidate(self):
@@ -169,12 +207,14 @@ class RedisSession(object):
         # self._session_state) after this will trigger the creation of a new
         # session with a new session_id.
 
-    def do_persist(self):
+    def do_persist(self, serialized_session=None):
         """actually and immediately persist to Redis backend"""
         # Redis is `key, value, timeout`
         # StrictRedis is `key, timeout, value`
         # this package uses StrictRedis
-        self.redis.setex(self.session_id, self.timeout, self.to_redis(), )
+        if serialized_session is None:
+            serialized_session = self.to_redis()
+        self.redis.setex(self.session_id, self.timeout, serialized_session, )
         self._session_state.please_persist = False
     
     def do_refresh(self):

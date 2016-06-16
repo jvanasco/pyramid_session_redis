@@ -157,3 +157,17 @@ Changelog
 
              * Updated to official/stable release version after successful
                alpha period and in order to support pip installs
+
+
+
+-06/16/2016: Changes for jvanasco branch
+
+	* changed `persist` from being "on demand" into a single callback via pyramid's `add_finished_callback` 
+	* changed `refresh` from being "on demand" into a single callback via pyramid's `add_finished_callback` 
+	* decoupled active `session` from being a particular named attribute on the "request".
+	* removed an initial call to redis' `EXISTS`. Instead of "If EXISTS then GET", we simply GET the active session and create a new one if it does not exist.
+	* replaced separate calls to "SET" and "EXPIRE" with single "SETEX"
+	* added a feature to assume redis is operating as a LRU cache, therefore not sending expiry data
+	* ensure nested session values trigger a persist by calculating an md5 hash of the serialized session data on load; then again in the finished callback
+
+

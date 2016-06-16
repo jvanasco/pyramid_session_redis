@@ -1,3 +1,24 @@
+IMPORTANT
+=========
+
+This is an actively maintained fork of `pyramid_redis_sessions`, with many improvements designed for servers under load.
+
+The original version communicated with Redis on every attribute access.
+
+
+TODO
+====
+
+tests are needed against `_finished_callback` handling nested dictionary value updates.
+
+ie:
+	# after making and persisting a session
+	session({'a': {'A': 1, 'B': 2, })
+
+	# ensure future changes are caught
+	session['a']['B'] = 1
+
+
 Overview
 ========
 
