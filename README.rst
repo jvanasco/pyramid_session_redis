@@ -5,6 +5,10 @@ This is an actively maintained fork of `pyramid_redis_sessions`, with many impro
 
 The original version communicated with Redis on every attribute access.
 
+The master branch for `jvanasco/pyramid_redis_sessions` is "custom_deployment"
+
+The branched named "master" is the upstream source from ericrasmussen
+
 
 TODO
 ====
