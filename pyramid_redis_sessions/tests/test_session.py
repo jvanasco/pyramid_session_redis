@@ -278,6 +278,21 @@ class TestRedisSession(unittest.TestCase):
         self.assertNotIn(first_session_id, inst.redis.store)
         self.assertIs(inst._invalidated, True)
 
+    def test_dict_multilevel(self):
+        inst = self._set_up_session_in_Redis_and_makeOne(session_id='test1')
+        inst['dict'] = {'foo': {'bar': 1}}
+        inst.do_persist()
+        get_from_inst = inst['dict']['foo']['bar']
+        self.assertEqual(get_from_inst, 1)
+        session_dict_in_redis = inst.from_redis()['managed_dict']
+        get_from_redis = session_dict_in_redis['dict']['foo']['bar']
+        self.assertEqual(get_from_redis, 1)
+        inst['dict']['foo']['bar'] = 2
+        inst.do_persist()
+        session_dict_in_redis2 = inst.from_redis()['managed_dict']
+        get_from_redis2 = session_dict_in_redis2['dict']['foo']['bar']
+        self.assertEqual(get_from_redis2, 2)
+
     def test_new_session_after_invalidate(self):
         inst = self._set_up_session_in_Redis_and_makeOne()
         first_session_id = inst.session_id
