@@ -3,7 +3,16 @@ IMPORTANT
 
 This is an actively maintained fork of `pyramid_redis_sessions`, with many improvements designed for servers under load.
 
-The original version communicated with Redis on every attribute access.
+Key Differences:
+
+* The original version communicated with Redis on every attribute access; this version queues a persist or refresh using a finished callback mechanism
+* The original version used `EXISTS` to check if a session exists or not.  This simply `GET`S and will create a new session on failure.
+* Separate calls to SET and EXPIRE were replaced with a single SETEX
+* A flag can be set to enable LRU mode. No expiry data will be sent to Redis, allowing it to handle the LRU logic itself
+* The active `session` is decoupled from the request attribute (ie, this can handle a session set up on alternate attributes)
+* The original does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur
+
+Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app.
 
 The master branch for `jvanasco/pyramid_redis_sessions` is "custom_deployment"
 
