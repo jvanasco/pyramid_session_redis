@@ -13,15 +13,18 @@ from redis.exceptions import WatchError
 
 PY3 = sys.version_info[0] == 3
 
-def to_binary(value, enc="UTF-8"): # pragma: no cover
+
+def to_binary(value, enc="UTF-8"):  # pragma: no cover
     if PY3 and isinstance(value, str):
         value = value.encode(enc)
     return value
 
-def to_unicode(value): # pragma: no cover
+
+def to_unicode(value):  # pragma: no cover
     if not PY3:
         value = unicode(value)
     return value
+
 
 def _generate_session_id():
     """
@@ -34,6 +37,7 @@ def _generate_session_id():
     rand = os.urandom(20)
     return sha256(sha256(rand).digest()).hexdigest()
 
+
 def prefixed_id(prefix='session:'):
     """
     Adds a prefix to the unique session id, for cases where you want to
@@ -43,12 +47,13 @@ def prefixed_id(prefix='session:'):
     prefixed_id = prefix + session_id
     return prefixed_id
 
+
 def _insert_session_id_if_unique(
     redis,
     timeout,
     session_id,
     serialize,
-    ):
+):
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``."""
     with redis.pipeline() as pipe:
@@ -69,12 +74,13 @@ def _insert_session_id_if_unique(
         except WatchError:
             return None
 
+
 def get_unique_session_id(
     redis,
     timeout,
     serialize,
     generator=_generate_session_id,
-    ):
+):
     """
     Returns a unique session id after inserting it successfully in Redis.
     """
@@ -88,6 +94,7 @@ def get_unique_session_id(
             )
         if attempt is not None:
             return attempt
+
 
 def _parse_settings(settings):
     """
@@ -137,13 +144,13 @@ def _parse_settings(settings):
 def refresh(wrapped):
     """
     Decorator to reset the expire time for this session's key in Redis.
-    This will mark the `_session_state.please_refresh` as True, to be 
+    This will mark the `_session_state.please_refresh` as True, to be
     handled in a callback.
     To immediately persist a session, call `session.do_refresh`.
     """
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        if not session.assume_redis_lru:
+        if not session._assume_redis_lru:
             session._session_state.please_refresh = True
         return result
 
@@ -154,7 +161,7 @@ def persist(wrapped):
     """
     Decorator to persist in Redis all the data that needs to be persisted for
     this session and reset the expire time.
-    This will mark the `_session_state.please_persist` as True, to be 
+    This will mark the `_session_state.please_persist` as True, to be
     handled in a callback.
     To immediately persist a session, call `session.do_persist`.
     """

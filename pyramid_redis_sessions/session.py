@@ -39,21 +39,24 @@ class _SessionState(object):
         timeout,
         new,
         persisted_hash
-        ):
-
+    ):
         self.session_id = session_id
         self.managed_dict = managed_dict
         self.created = created
         self.timeout = timeout
         self.new = new
         self.persisted_hash = persisted_hash
-        
-    
+
     def should_persist(self, session):
         """
+        this is a backup routine
         compares the persisted hash with a hash of the current value
         returns `False` or `serialized_session`
         """
+        if self.please_persist:
+            return True
+        if not session._detect_changes:
+            return False
         serialized_session = session.to_redis()
         serialized_hash = hashed_value(serialized_session)
         if serialized_hash == self.persisted_hash:
@@ -101,10 +104,13 @@ class RedisSession(object):
     ``deserialize``
     The dual of ``serialize``, to convert serialized strings back to Python
     objects. Default: ``cPickle.loads``.
-    
+
     ``assume_redis_lru``
     If ``True``, assumes redis is configured as a LRU and does not update the
     expiry data. Default: ``None``
+
+    ``detect_changes``
+    If ``True``, supports change detection Default: ``True``
     """
 
     def __init__(
@@ -116,13 +122,15 @@ class RedisSession(object):
         serialize=cPickle.dumps,
         deserialize=cPickle.loads,
         assume_redis_lru=None,
-        ):
+        detect_changes=True,
+    ):
 
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
         self._new_session = new_session
-        self.assume_redis_lru = assume_redis_lru
+        self._assume_redis_lru = assume_redis_lru
+        self._detect_changes = detect_changes
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
@@ -139,7 +147,8 @@ class RedisSession(object):
         (persisted,
          persisted_hash
          ) = self.from_redis(session_id=session_id,
-                             persisted_hash=True,
+                             persisted_hash=(True if self._detect_changes
+                                             else False),
                              )
         # self.from_redis needs to take a session_id here, because otherwise it
         # would look up self.session_id, which is not ready yet as
@@ -187,14 +196,20 @@ class RedisSession(object):
             })
 
     def from_redis(self, session_id=None, persisted_hash=None):
-        """Get and deserialize the persisted data for this session from Redis.
+        """
+        Get and deserialize the persisted data for this session from Redis.
+        If ``persisted_hash`` is ``None`` (default), returns a single
+        variable `deserialized`.
+        If set to ``True`` or ``False``, returns a tuple.
         """
         persisted = self.redis.get(session_id or self.session_id)
         if persisted is None:
             raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
         deserialized = self.deserialize(persisted)
-        if persisted_hash:
+        if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
+        elif persisted_hash is False:
+            return (deserialized, None)
         return deserialized
 
     def invalidate(self):
@@ -216,7 +231,7 @@ class RedisSession(object):
             serialized_session = self.to_redis()
         self.redis.setex(self.session_id, self.timeout, serialized_session, )
         self._session_state.please_persist = False
-    
+
     def do_refresh(self):
         """actually and immediately refresh the TTL to Redis backend"""
         self.redis.expire(self.session_id, self.timeout)
@@ -288,7 +303,7 @@ class RedisSession(object):
     def itervalues(self):
         try:
             values = self.managed_dict.itervalues()
-        except AttributeError: # pragma: no cover
+        except AttributeError:  # pragma: no cover
             values = self.managed_dict.values()
         return values
 
@@ -296,7 +311,7 @@ class RedisSession(object):
     def iteritems(self):
         try:
             items = self.managed_dict.iteritems()
-        except AttributeError: # pragma: no cover
+        except AttributeError:  # pragma: no cover
             items = self.managed_dict.items()
         return items
 
@@ -304,7 +319,7 @@ class RedisSession(object):
     def iterkeys(self):
         try:
             keys = self.managed_dict.iterkeys()
-        except AttributeError: # pragma: no cover
+        except AttributeError:  # pragma: no cover
             keys = self.managed_dict.keys()
         return keys
 

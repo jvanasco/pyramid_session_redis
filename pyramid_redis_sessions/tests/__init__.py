@@ -17,7 +17,7 @@ class DummySession(object):
         self.serialize = serialize
         self.managed_dict = {}
         self.created = float()
-        self.assume_redis_lru = None
+        self._assume_redis_lru = None
         self._session_state = DummySessionState()
 
     def to_redis(self):
@@ -33,7 +33,7 @@ class DummyRedis(object):
         self.url = None
         self.timeouts = {}
         self.store = {}
-        self.pipeline = lambda : DummyPipeline(self.store, raise_watcherror)
+        self.pipeline = lambda: DummyPipeline(self.store, raise_watcherror)
         self.__dict__.update(kw)
 
     @classmethod

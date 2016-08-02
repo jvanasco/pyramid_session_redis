@@ -42,6 +42,7 @@ def includeme(config):
     session_factory = session_factory_from_settings(settings)
     config.set_session_factory(session_factory)
 
+
 def session_factory_from_settings(settings):
     """
     Convenience method to construct a ``RedisSessionFactory`` from Paste config
@@ -56,6 +57,7 @@ def session_factory_from_settings(settings):
     """
     options = _parse_settings(settings)
     return RedisSessionFactory(**options)
+
 
 def RedisSessionFactory(
     secret,
@@ -82,7 +84,8 @@ def RedisSessionFactory(
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
     assume_redis_lru=None,
-    ):
+    detect_changes=True,
+):
     """
     Constructs and returns a session factory that will provide session data
     from a Redis server. The returned factory can be supplied as the
@@ -165,6 +168,11 @@ def RedisSessionFactory(
     sent EXPIRY data for sessions.
     Default: ``None``
 
+    ``detect_changes``
+    Boolean value. If set to ``True``, will calculate nested changes after
+    serialization to ensure persistence of nested data.
+    Default: ``True``
+
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
@@ -220,6 +228,7 @@ def RedisSessionFactory(
                 serialize=serialize,
                 deserialize=deserialize,
                 assume_redis_lru=assume_redis_lru,
+                detect_changes=detect_changes,
                 )
         except InvalidSession, e:
             session_id = new_session()
@@ -232,6 +241,7 @@ def RedisSessionFactory(
                 serialize=serialize,
                 deserialize=deserialize,
                 assume_redis_lru=assume_redis_lru,
+                detect_changes=detect_changes,
                 )
 
         set_cookie = functools.partial(
@@ -301,7 +311,7 @@ def _set_cookie(
     cookie_secure,
     cookie_httponly,
     secret,
-    ):
+):
     """
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
@@ -330,7 +340,7 @@ def _cookie_callback(
     cookie_on_exception,
     set_cookie,
     delete_cookie,
-    ):
+):
     """
     Response callback to set the appropriate Set-Cookie header.
     `session` is via functools.partial
@@ -354,7 +364,7 @@ def _cookie_callback(
 def _finished_callback(
     session,
     request,
-    ):
+):
     """Finished callback to persist a cookie if needed.
     `session` is via functools.partial
     `request` is appended by add_finished_callback

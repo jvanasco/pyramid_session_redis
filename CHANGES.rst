@@ -170,4 +170,5 @@ Changelog
 	* added a feature to assume redis is operating as a LRU cache, therefore not sending expiry data
 	* ensure nested session values trigger a persist by calculating an md5 hash of the serialized session data on load; then again in the finished callback
 
-
+-08/02/2016: Changes for jvanasco branch
+	* made the detection of nested changes configurable. by default this is set to True.

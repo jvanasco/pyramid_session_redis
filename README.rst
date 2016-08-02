@@ -1,7 +1,7 @@
 IMPORTANT
 =========
 
-This is an actively maintained fork of `pyramid_redis_sessions`, with many improvements designed for servers under load.
+This is an actively maintained fork of `pyramid_redis_sessions`, with many improvements designed for servers under load and developer convenience.
 
 Key Differences:
 
@@ -10,7 +10,7 @@ Key Differences:
 * Separate calls to SET and EXPIRE were replaced with a single SETEX
 * A flag can be set to enable LRU mode. No expiry data will be sent to Redis, allowing it to handle the LRU logic itself
 * The active `session` is decoupled from the request attribute (ie, this can handle a session set up on alternate attributes)
-* The original does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur
+* The original does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur. This can be disabled by setting `detect_changes` to False.
 
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app.
 

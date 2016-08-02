@@ -9,7 +9,8 @@ from ..compat import cPickle
 
 class TestRedisSession(unittest.TestCase):
     def _makeOne(self, redis, session_id, new, new_session,
-                 serialize=cPickle.dumps, deserialize=cPickle.loads):
+                 serialize=cPickle.dumps, deserialize=cPickle.loads,
+                 detect_changes=True, ):
         from ..session import RedisSession
         return RedisSession(
             redis=redis,
@@ -18,6 +19,7 @@ class TestRedisSession(unittest.TestCase):
             new_session=new_session,
             serialize=serialize,
             deserialize=deserialize,
+            detect_changes=detect_changes,
             )
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
@@ -37,7 +39,7 @@ class TestRedisSession(unittest.TestCase):
 
     def _set_up_session_in_Redis_and_makeOne(self, session_id=None,
                                              session_dict=None, new=True,
-                                             timeout=300):
+                                             timeout=300, detect_changes=True):
         from . import DummyRedis
         redis = DummyRedis()
         id_generator = self._make_id_generator()
@@ -57,6 +59,7 @@ class TestRedisSession(unittest.TestCase):
             session_id=session_id,
             new=new,
             new_session=new_session,
+            detect_changes=detect_changes,
             )
 
     def test_init_new_session(self):
@@ -292,6 +295,42 @@ class TestRedisSession(unittest.TestCase):
         session_dict_in_redis2 = inst.from_redis()['managed_dict']
         get_from_redis2 = session_dict_in_redis2['dict']['foo']['bar']
         self.assertEqual(get_from_redis2, 2)
+
+    def test_dict_multilevel_detect_changes_on(self):
+        inst = self._set_up_session_in_Redis_and_makeOne(session_id='test1',
+                                                         detect_changes=True,
+                                                         )
+        # set a base dict and ensure it worked
+        inst['dict'] = {'foo': {'bar': 1}}
+        inst.do_persist()
+        get_from_inst = inst['dict']['foo']['bar']
+        self.assertEqual(get_from_inst, 1)
+        # grab the dict and edit it
+        session_dict_in_redis = inst.from_redis()['managed_dict']
+        get_from_redis = session_dict_in_redis['dict']['foo']['bar']
+        self.assertEqual(get_from_redis, 1)
+        inst['dict']['foo']['bar'] = 2
+        # ensure the change was detected
+        should_persist = inst._session_state.should_persist(inst)
+        self.assertTrue(should_persist)
+
+    def test_dict_multilevel_detect_changes_off(self):
+        inst = self._set_up_session_in_Redis_and_makeOne(session_id='test1',
+                                                         detect_changes=False,
+                                                         )
+        # set a base dict and ensure it worked
+        inst['dict'] = {'foo': {'bar': 1}}
+        inst.do_persist()
+        get_from_inst = inst['dict']['foo']['bar']
+        self.assertEqual(get_from_inst, 1)
+        # grab the dict and edit it
+        session_dict_in_redis = inst.from_redis()['managed_dict']
+        get_from_redis = session_dict_in_redis['dict']['foo']['bar']
+        self.assertEqual(get_from_redis, 1)
+        inst['dict']['foo']['bar'] = 2
+        # ensure the change was NOT detected
+        should_persist = inst._session_state.should_persist(inst)
+        self.assertFalse(should_persist)
 
     def test_new_session_after_invalidate(self):
         inst = self._set_up_session_in_Redis_and_makeOne()
