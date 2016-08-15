@@ -111,6 +111,9 @@ class RedisSession(object):
 
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
+    
+    ``deserialized_fails_new``
+    If ``True`` will handle deserializtion errors by creating a new session.
     """
 
     def __init__(
@@ -123,6 +126,7 @@ class RedisSession(object):
         deserialize=cPickle.loads,
         assume_redis_lru=None,
         detect_changes=True,
+        deserialized_fails_new=None,
     ):
 
         self.redis = redis
@@ -131,6 +135,7 @@ class RedisSession(object):
         self._new_session = new_session
         self._assume_redis_lru = assume_redis_lru
         self._detect_changes = detect_changes
+        self._deserialized_fails_new = deserialized_fails_new
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
@@ -205,7 +210,12 @@ class RedisSession(object):
         persisted = self.redis.get(session_id or self.session_id)
         if persisted is None:
             raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
-        deserialized = self.deserialize(persisted)
+        try:
+            deserialized = self.deserialize(persisted)
+        except Exception, e:
+            if self._deserialized_fails_new:
+                raise InvalidSession("`session_id` (%s) did not deserialize correctly" % session_id)
+            raise e
         if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
         elif persisted_hash is False:

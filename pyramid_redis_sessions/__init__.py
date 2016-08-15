@@ -85,6 +85,7 @@ def RedisSessionFactory(
     id_generator=_generate_session_id,
     assume_redis_lru=None,
     detect_changes=True,
+    deserialized_fails_new=None,
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -173,6 +174,9 @@ def RedisSessionFactory(
     serialization to ensure persistence of nested data.
     Default: ``True``
 
+    ``deserialized_fails_new``
+    If ``True`` will handle deserializtion errors by creating a new session.
+
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
@@ -229,6 +233,7 @@ def RedisSessionFactory(
                 deserialize=deserialize,
                 assume_redis_lru=assume_redis_lru,
                 detect_changes=detect_changes,
+                deserialized_fails_new=deserialized_fails_new,
                 )
         except InvalidSession, e:
             session_id = new_session()

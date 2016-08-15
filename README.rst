@@ -11,6 +11,7 @@ Key Differences:
 * A flag can be set to enable LRU mode. No expiry data will be sent to Redis, allowing it to handle the LRU logic itself
 * The active `session` is decoupled from the request attribute (ie, this can handle a session set up on alternate attributes)
 * The original does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur. This can be disabled by setting `detect_changes` to False.
+* The original raises a fatal error if a session can not be deserialized.  by passing in `deserialized_fails_new` to the constructor, you can create a new session on deserialization errors.
 
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app.
 

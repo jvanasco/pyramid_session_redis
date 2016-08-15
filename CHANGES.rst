@@ -172,3 +172,7 @@ Changelog
 
 -08/02/2016: Changes for jvanasco branch
 	* made the detection of nested changes configurable. by default this is set to True.
+
+-08/15/2016: Changes for jvanasco branch
+	* added `deserialized_fails_new` to handle deserialization errors
+
