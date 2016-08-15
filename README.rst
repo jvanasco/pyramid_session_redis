@@ -19,19 +19,6 @@ The master branch for `jvanasco/pyramid_redis_sessions` is "custom_deployment"
 The branched named "master" is the upstream source from ericrasmussen
 
 
-TODO
-====
-
-tests are needed against `_finished_callback` handling nested dictionary value updates.
-
-ie:
-	# after making and persisting a session
-	session({'a': {'A': 1, 'B': 2, })
-
-	# ensure future changes are caught
-	session['a']['B'] = 1
-
-
 Overview
 ========
 
