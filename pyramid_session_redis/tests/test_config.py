@@ -7,8 +7,8 @@ from pyramid.threadlocal import get_current_request
 
 
 # dotted paths to dummy callables
-_id_path = 'pyramid_redis_sessions.tests.test_config.dummy_id_generator'
-_client_path ='pyramid_redis_sessions.tests.test_config.dummy_client_callable'
+_id_path = 'pyramid_session_redis.tests.test_config.dummy_id_generator'
+_client_path ='pyramid_session_redis.tests.test_config.dummy_client_callable'
 
 
 class Test_includeme(unittest.TestCase):
@@ -23,7 +23,7 @@ class Test_includeme(unittest.TestCase):
             'redis.sessions.id_generator': _id_path,
             'redis.sessions.client_callable': _client_path,
         }
-        self.config.include('pyramid_redis_sessions')
+        self.config.include('pyramid_session_redis')
         self.settings = self.config.registry.settings
 
     def tearDown(self):

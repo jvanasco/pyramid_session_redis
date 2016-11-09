@@ -1,5 +1,8 @@
-People who have kindly contributed to pyramid_redis_sessions:
+Jonathan Vanasco is the maintainer of pyramid_session_redis.
 
+Eric Rasmussen is the original author and maintainer of pyramid_redis_sessions.
+
+People who have kindly contributed to pyramid_redis_sessions:
 Chris McDonough (March 2012)
 Joe Dallago (January 2013)
 Ch. König (March 2013)

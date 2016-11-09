@@ -21,9 +21,9 @@ from .util import (
 def includeme(config):
     """
     This function is detected by Pyramid so that you can easily include
-    `pyramid_redis_sessions` in your `main` method like so::
+    `pyramid_session_redis` in your `main` method like so::
 
-        config.include('pyramid_redis_sessions')
+        config.include('pyramid_session_redis')
 
     Parameters:
 

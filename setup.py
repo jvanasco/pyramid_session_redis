@@ -29,7 +29,7 @@ docs_extras = ['sphinx']
 def main():
 
     setup(
-        name='pyramid_redis_sessions',
+        name='pyramid_session_redis',
         version=package_version,
         description='Pyramid web framework session factory backed by Redis',
         long_description=README + '\n\n' + CHANGES,
@@ -41,12 +41,12 @@ def main():
             "Programming Language :: Python :: 3.4",
             ],
         keywords='pyramid session redis',
-        author='Eric Rasmussen',
-        author_email='eric@chromaticleaves.com',
-        url='https://github.com/ericrasmussen/pyramid_redis_sessions',
+        author='Jonathan Vanasco',
+        author_email='jonathan@findmeon.com',
+        url='https://github.com/jvanasco/pyramid_session_redis',
         license='FreeBSD',
         packages=find_packages(),
-        #test_suite='pyramid_redis_sessions.tests',
+        #test_suite='pyramid_session_redis.tests',
         test_suite='nose.collector',
         include_package_data=True,
         zip_safe=False,

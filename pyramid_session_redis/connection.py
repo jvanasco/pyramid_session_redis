@@ -16,15 +16,15 @@ The callable must return an instance of StrictRedis or must implement the same
 interface.
 
 To use your custom connection function, you can pass it in directly as the
-``client_callable`` argument to ``pyramid_redis_sessions.RedisSessionFactory``
-or ``pyramid_redis_sessions.session_factory_from_settings``, or in your config
+``client_callable`` argument to ``pyramid_session_redis.RedisSessionFactory``
+or ``pyramid_session_redis.session_factory_from_settings``, or in your config
 file you can specify a dotted python path as a string.
 
 
 Example configuration in python::
 
     from my_cool_app import my_redis_connection_getter
-    from pyramid_redis_sessions import session_factory_from_settings
+    from pyramid_session_redis import session_factory_from_settings
 
     def main(global_config, **settings):
         config = Configurator(**settings)

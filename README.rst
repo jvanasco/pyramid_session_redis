@@ -1,7 +1,7 @@
 IMPORTANT
 =========
 
-This is an actively maintained fork of `pyramid_redis_sessions`, with many improvements designed for servers under load and developer convenience.
+`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements designed for servers under load and developer convenience.
 
 Key Differences:
 
@@ -15,9 +15,18 @@ Key Differences:
 
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app.
 
-The master branch for `jvanasco/pyramid_redis_sessions` is "custom_deployment"
+For more information about Redis performance under python please see an associated project:
 
-The branched named "master" is the upstream source from ericrasmussen
+* https://github.com/jvanasco/dogpile_backend_redis_advanced
+
+Until Nov 2016 this was maintained as jvanasco/pyramid_redis_sessions
+
+* The master branch for `jvanasco/pyramid_redis_sessions` is "custom_deployment"
+* The branched named "master" is the upstream source from ericrasmussen
+
+As of Nov 2016, this was forked into it's own project to allow for distribution.
+
+
 
 
 Overview
