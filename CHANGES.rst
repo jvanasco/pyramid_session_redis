@@ -3,6 +3,10 @@ Changelog
 =========
 
 -11/10/2016:
+	* version 1.1.2
+	release error fix. 
+
+-11/10/2016:
 	* version 1.1.1
 	* integrated/rewrote pr from pyramid_redis_sessions for session leakage on cdns
 		https://github.com/ericrasmussen/pyramid_redis_sessions/pull/74/files
