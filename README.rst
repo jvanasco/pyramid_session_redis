@@ -37,8 +37,7 @@ All support is handled via GitHub : https://github.com/jvanasco/pyramid_session_
 ToDo
 =====
 
-[] streamline the new-session code in `util.py`
-
+pass
 
 
 Overview
