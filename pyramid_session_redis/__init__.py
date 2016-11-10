@@ -18,6 +18,24 @@ from .util import (
     )
 
 
+def check_response_allow_cookies(response):
+    """
+    reference implementation for func_check_response_allow_cookies
+    If view has set any of these response headers do not add a session
+    cookie on this response. This way views generating cacheable content,
+    like images, can signal the downstream web server that this content
+    is safe. Otherwise if we set a cookie on these responses it could
+    result to user session leakage.
+    """
+    # The view signals this is cacheable response
+    # and we should not stamp a session cookie on it
+    cookieless_headers = ["expires", "cache-control", ]
+    for header in cookieless_headers:
+        if header in response.headers:
+            return False
+    return True
+
+
 def includeme(config):
     """
     This function is detected by Pyramid so that you can easily include
@@ -86,6 +104,7 @@ def RedisSessionFactory(
     assume_redis_lru=None,
     detect_changes=True,
     deserialized_fails_new=None,
+    func_check_response_allow_cookies=None,
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -177,6 +196,14 @@ def RedisSessionFactory(
     ``deserialized_fails_new``
     If ``True`` will handle deserializtion errors by creating a new session.
 
+    ``func_check_response_allow_cookies``
+    A callable function that accepts a response, returning ``True`` if the 
+    cookie can be sent and ``False`` if it should not.  This defaults to 
+    ``None``.  An example callable is available in 
+    ``check_response_allow_cookies``, which checks for `expires` and 
+    `cache-control` cookies.
+
+    
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
@@ -273,6 +300,7 @@ def RedisSessionFactory(
             cookie_on_exception=cookie_on_exception,
             set_cookie=set_cookie,
             delete_cookie=delete_cookie,
+            func_check_response_allow_cookies=func_check_response_allow_cookies,
             )
         request.add_response_callback(cookie_callback)
 
@@ -345,12 +373,16 @@ def _cookie_callback(
     cookie_on_exception,
     set_cookie,
     delete_cookie,
+    func_check_response_allow_cookies,
 ):
     """
     Response callback to set the appropriate Set-Cookie header.
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
+    if func_check_response_allow_cookies is not None:
+        if not func_check_response_allow_cookies(response):
+            return
     if session._invalidated:
         if session_cookie_was_valid:
             delete_cookie(response=response)
@@ -358,6 +390,16 @@ def _cookie_callback(
     if session.new:
         if cookie_on_exception is True or request.exception is None:
             set_cookie(request=request, response=response)
+
+            # If we set a cookie we need to make sure that downstream
+            # web servicess do not serve this response from a cache
+            # for requests coming in with a different session cookie.
+            # Otherwise we might leak sessions between users.
+            varies = ("Cookie", )
+            vary = set(response.vary if response.vary is not None else [])
+            vary |= set(varies)
+            response.vary = vary
+
         elif session_cookie_was_valid:
             # We don't set a cookie for the new session here (as
             # cookie_on_exception is False and an exception was raised), but we

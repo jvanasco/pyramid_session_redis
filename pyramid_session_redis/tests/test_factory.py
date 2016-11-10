@@ -6,6 +6,7 @@ from pyramid import testing
 
 
 class TestRedisSessionFactory(unittest.TestCase):
+
     def _makeOne(self, request, secret='secret', **kw):
         from .. import RedisSessionFactory
         return RedisSessionFactory(secret, **kw)(request)
@@ -487,3 +488,88 @@ class TestRedisSessionFactory(unittest.TestCase):
                     'redis.sessions.timeout': '999'}
         inst = session_factory_from_settings(settings)(request)
         self.assertEqual(inst.timeout, 999)
+
+    def test_check_response(self):
+        from .. import check_response_allow_cookies
+        from .. import RedisSessionFactory
+        import webob
+
+        factory = RedisSessionFactory('secret',
+            func_check_response_allow_cookies=check_response_allow_cookies,
+        )
+        
+        # first check we can create a cookie
+        request = self._make_request()
+        session = factory(request)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        hdrs_sc = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(hdrs_sc), 1)
+
+        # then check we can't set a cookie
+        for hdr_exclude in ('expires', 'cache-control'):
+            request = self._make_request()
+            session = factory(request)
+            response = webob.Response()
+            response.headers.add(hdr_exclude, '1')
+            request.response_callbacks[0](request, response)
+            hdrs_sc = response.headers.getall('Set-Cookie')
+            self.assertEqual(len(hdrs_sc), 0)
+
+        # just to be safe
+        for hdr_dontcare in ('foo', 'bar', ):
+            request = self._make_request()
+            session = factory(request)
+            response = webob.Response()
+            response.headers.add(hdr_dontcare, '1')
+            request.response_callbacks[0](request, response)
+            hdrs_sc = response.headers.getall('Set-Cookie')
+            self.assertEqual(len(hdrs_sc), 1)
+
+    def test_check_response_custom(self):
+        from .. import RedisSessionFactory
+        import webob
+
+        def check_response_allow_cookies(response):
+            """
+            private response
+            """
+            # The view signals this is cacheable response
+            # and we should not stamp a session cookie on it
+            cookieless_headers = ["foo", ]
+            for header in cookieless_headers:
+                if header in response.headers:
+                    return False
+            return True
+
+        factory = RedisSessionFactory('secret',
+            func_check_response_allow_cookies=check_response_allow_cookies,
+        )
+        
+        # first check we can create a cookie
+        request = self._make_request()
+        session = factory(request)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        hdrs_sc = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(hdrs_sc), 1)
+
+        # then check we can't set a cookie
+        for hdr_exclude in ('foo', ):
+            request = self._make_request()
+            session = factory(request)
+            response = webob.Response()
+            response.headers.add(hdr_exclude, '1')
+            request.response_callbacks[0](request, response)
+            hdrs_sc = response.headers.getall('Set-Cookie')
+            self.assertEqual(len(hdrs_sc), 0)
+
+        # just to be safe
+        for hdr_dontcare in ('bar', ):
+            request = self._make_request()
+            session = factory(request)
+            response = webob.Response()
+            response.headers.add(hdr_dontcare, '1')
+            request.response_callbacks[0](request, response)
+            hdrs_sc = response.headers.getall('Set-Cookie')
+            self.assertEqual(len(hdrs_sc), 1)

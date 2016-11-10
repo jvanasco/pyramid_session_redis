@@ -2,6 +2,9 @@
 Changelog
 =========
 
+-11/09/2016: integrated pr from pyramid_redis_sessions
+	https://github.com/ericrasmussen/pyramid_redis_sessions/pull/74/files
+
 -11/09/2016: renamed to pyramid_session_redis
 
 -08/15/2016: Changes for jvanasco branch
