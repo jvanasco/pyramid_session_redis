@@ -31,6 +31,10 @@ class _SessionState(object):
     please_persist = None
     please_refresh = None
 
+    # these markers are consulted in cleanup routines
+    dont_persist = None
+    dont_refresh = None
+
     def __init__(
         self,
         session_id,
@@ -53,6 +57,8 @@ class _SessionState(object):
         compares the persisted hash with a hash of the current value
         returns `False` or `serialized_session`
         """
+        if self.dont_persist:
+            return False
         if self.please_persist:
             return True
         if not session._detect_changes:

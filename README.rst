@@ -1,19 +1,24 @@
 IMPORTANT
 =========
 
-`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements designed for servers under load and developer convenience.
+`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for servers under load and developer convenience.
 
 Key Differences:
 
-* The original version communicated with Redis on every attribute access; this version queues a persist or refresh using a finished callback mechanism
-* The original version used `EXISTS` to check if a session exists or not.  This simply `GET`S and will create a new session on failure.
-* Separate calls to SET and EXPIRE were replaced with a single SETEX
-* A flag can be set to enable LRU mode. No expiry data will be sent to Redis, allowing it to handle the LRU logic itself
-* The active `session` is decoupled from the request attribute (ie, this can handle a session set up on alternate attributes)
-* The original does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur. This can be disabled by setting `detect_changes` to False.
+* The original version communicated with Redis on every attribute access; `pyramid_session_redis` will queue a single `persist` or `refresh` task using Pyramid's `add_finished_callback` hook.
+* The original version used `EXISTS` to check if a session existed or not, then proceeded to `GET` or create a new session.  `pyramid_session_redis` will immediately attempt a `GET`, and will create a new session on failure.  This cuts down a Redis traffic.
+* Separate calls to `SET` and `EXPIRE` were replaced with a single `SETEX`
+* A flag can be set to enable a LRU Cache (least recently used) mode. No expiry data will be sent to Redis, allowing the Redis server to handle the LRU logic itself
+* The active `session` is decoupled from the request attribute (ie, this can handle a "session" set up on alternate attributes)
+* The original library does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur. This can be disabled by setting `detect_changes` to False.
 * The original raises a fatal error if a session can not be deserialized.  by passing in `deserialized_fails_new` to the constructor, you can create a new session on deserialization errors.
 
-Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app.
+Other Updates:
+
+* support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
+
+
+Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.
 
 For more information about Redis performance under python please see an associated project:
 
@@ -26,6 +31,13 @@ Until Nov 2016 this was maintained as jvanasco/pyramid_redis_sessions
 
 As of Nov 2016, this was forked into it's own project to allow for distribution.
 
+All support is handled via GitHub : https://github.com/jvanasco/pyramid_session_redis
+
+
+ToDo
+=====
+
+[] streamline the new-session code in `util.py`
 
 
 

@@ -56,20 +56,24 @@ def _insert_session_id_if_unique(
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``."""
+    _payload = serialize({'managed_dict': {},
+                          'created': time.time(),
+                          'timeout': timeout,
+                          })
     with redis.pipeline() as pipe:
         try:
+            # start pipeline with a watch
             pipe.watch(session_id)
+            # after `watch` the pipline is in immediate execution mode
             value = pipe.get(session_id)
             if value is not None:
                 return None
+            # enter buffered mode
             pipe.multi()
-            pipe.set(session_id, serialize({
-                'managed_dict': {},
-                'created': time.time(),
-                'timeout': timeout,
-                }))
-            pipe.expire(session_id, timeout)
+            pipe.setex(session_id, timeout, _payload)
             pipe.execute()
+            # if a WatchError wasn't raised during execution, everything
+            # we just did happened atomically
             return session_id
         except WatchError:
             return None

@@ -20,8 +20,8 @@ from .util import (
 
 def check_response_allow_cookies(response):
     """
-    reference implementation for func_check_response_allow_cookies
-    If view has set any of these response headers do not add a session
+    reference implementation for ``func_check_response_allow_cookies``
+    If view has set any of these response headers, do not add a session
     cookie on this response. This way views generating cacheable content,
     like images, can signal the downstream web server that this content
     is safe. Otherwise if we set a cookie on these responses it could
@@ -382,6 +382,10 @@ def _cookie_callback(
     """
     if func_check_response_allow_cookies is not None:
         if not func_check_response_allow_cookies(response):
+            # if we don't want to send cookies on this response,
+            # we should also not persist or refresh
+            session._session_state.dont_persist = True
+            session._session_state.dont_refresh = True
             return
     if session._invalidated:
         if session_cookie_was_valid:
@@ -416,13 +420,15 @@ def _finished_callback(
     `session` is via functools.partial
     `request` is appended by add_finished_callback
     """
-    if session._session_state.please_persist:
-        session.do_persist()
-        session._session_state.please_refresh = False
-    else:
-        serialized_session = session._session_state.should_persist(session)
-        if serialized_session:
-            session.do_persist(serialized_session=serialized_session)
+    if not session._session_state.dont_persist:
+        if session._session_state.please_persist:
+            session.do_persist()
             session._session_state.please_refresh = False
-    if session._session_state.please_refresh:
-        session.do_refresh()
+        else:
+            serialized_session = session._session_state.should_persist(session)
+            if serialized_session:
+                session.do_persist(serialized_session=serialized_session)
+                session._session_state.please_refresh = False
+    if not session._session_state.dont_refresh:
+        if session._session_state.please_refresh:
+            session.do_refresh()

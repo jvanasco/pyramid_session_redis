@@ -93,6 +93,9 @@ class DummyPipeline(object):
     def expire(self, key, timeout):
         pass
 
+    def setex(self, key, timeout, value):
+        self.store[key] = value
+
     def watch(self, key):
         if self.raise_watcherror:
             from redis.exceptions import WatchError

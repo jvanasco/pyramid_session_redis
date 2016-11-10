@@ -2,8 +2,10 @@
 Changelog
 =========
 
--11/09/2016: integrated pr from pyramid_redis_sessions
+-11/09/2016: integrated/rewrote pr from pyramid_redis_sessions for session leakage on cdns
 	https://github.com/ericrasmussen/pyramid_redis_sessions/pull/74/files
+	* response.vary will now ensure `Cookie`
+	* Session factory now accepts `func_check_response_allow_cookies(response)` a callable which can disable setting the cookie.
 
 -11/09/2016: renamed to pyramid_session_redis
 

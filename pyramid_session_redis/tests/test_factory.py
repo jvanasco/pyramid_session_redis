@@ -505,6 +505,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         request.response_callbacks[0](request, response)
         hdrs_sc = response.headers.getall('Set-Cookie')
         self.assertEqual(len(hdrs_sc), 1)
+        self.assertEqual(response.vary, ('Cookie', ))
 
         # then check we can't set a cookie
         for hdr_exclude in ('expires', 'cache-control'):
@@ -515,6 +516,7 @@ class TestRedisSessionFactory(unittest.TestCase):
             request.response_callbacks[0](request, response)
             hdrs_sc = response.headers.getall('Set-Cookie')
             self.assertEqual(len(hdrs_sc), 0)
+            self.assertEqual(response.vary, None)
 
         # just to be safe
         for hdr_dontcare in ('foo', 'bar', ):
@@ -525,6 +527,7 @@ class TestRedisSessionFactory(unittest.TestCase):
             request.response_callbacks[0](request, response)
             hdrs_sc = response.headers.getall('Set-Cookie')
             self.assertEqual(len(hdrs_sc), 1)
+            self.assertEqual(response.vary, ('Cookie', ))
 
     def test_check_response_custom(self):
         from .. import RedisSessionFactory
@@ -553,6 +556,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         request.response_callbacks[0](request, response)
         hdrs_sc = response.headers.getall('Set-Cookie')
         self.assertEqual(len(hdrs_sc), 1)
+        self.assertEqual(response.vary, ('Cookie', ))
 
         # then check we can't set a cookie
         for hdr_exclude in ('foo', ):
@@ -563,6 +567,7 @@ class TestRedisSessionFactory(unittest.TestCase):
             request.response_callbacks[0](request, response)
             hdrs_sc = response.headers.getall('Set-Cookie')
             self.assertEqual(len(hdrs_sc), 0)
+            self.assertEqual(response.vary, None)
 
         # just to be safe
         for hdr_dontcare in ('bar', ):
@@ -573,3 +578,4 @@ class TestRedisSessionFactory(unittest.TestCase):
             request.response_callbacks[0](request, response)
             hdrs_sc = response.headers.getall('Set-Cookie')
             self.assertEqual(len(hdrs_sc), 1)
+            self.assertEqual(response.vary, ('Cookie', ))
