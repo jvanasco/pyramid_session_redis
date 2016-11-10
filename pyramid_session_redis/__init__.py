@@ -383,9 +383,9 @@ def _cookie_callback(
     if func_check_response_allow_cookies is not None:
         if not func_check_response_allow_cookies(response):
             # if we don't want to send cookies on this response,
-            # we should also not persist or refresh
-            session._session_state.dont_persist = True
-            session._session_state.dont_refresh = True
+            # we might not want to persist or refresh
+            # session._session_state.dont_persist = True
+            # session._session_state.dont_refresh = True
             return
     if session._invalidated:
         if session_cookie_was_valid:
