@@ -117,7 +117,7 @@ class RedisSession(object):
 
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
-    
+
     ``deserialized_fails_new``
     If ``True`` will handle deserializtion errors by creating a new session.
     """
@@ -218,10 +218,10 @@ class RedisSession(object):
             raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
         try:
             deserialized = self.deserialize(persisted)
-        except Exception, e:
+        except Exception:
             if self._deserialized_fails_new:
                 raise InvalidSession("`session_id` (%s) did not deserialize correctly" % session_id)
-            raise e
+            raise
         if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
         elif persisted_hash is False:

@@ -197,13 +197,13 @@ def RedisSessionFactory(
     If ``True`` will handle deserializtion errors by creating a new session.
 
     ``func_check_response_allow_cookies``
-    A callable function that accepts a response, returning ``True`` if the 
-    cookie can be sent and ``False`` if it should not.  This defaults to 
-    ``None``.  An example callable is available in 
-    ``check_response_allow_cookies``, which checks for `expires` and 
+    A callable function that accepts a response, returning ``True`` if the
+    cookie can be sent and ``False`` if it should not.  This defaults to
+    ``None``.  An example callable is available in
+    ``check_response_allow_cookies``, which checks for `expires` and
     `cache-control` cookies.
 
-    
+
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
@@ -262,7 +262,7 @@ def RedisSessionFactory(
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
                 )
-        except InvalidSession, e:
+        except InvalidSession:
             session_id = new_session()
             session_cookie_was_valid = False
             session = RedisSession(
