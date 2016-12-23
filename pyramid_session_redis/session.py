@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import binascii
-import os
 import hashlib
 
-from pyramid.compat import text_
 from pyramid.decorator import reify
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
-from .compat import cPickle
+from .compat import cPickle, token_hex
 from .exceptions import InvalidSession
 from .util import (
     persist,
@@ -348,7 +345,7 @@ class RedisSession(object):
 
     # session methods persist or refresh using above dict methods
     def new_csrf_token(self):
-        token = text_(binascii.hexlify(os.urandom(20)))
+        token = token_hex(32)
         self['_csrft_'] = token
         return token
 

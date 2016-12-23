@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from functools import partial
-import base64
-import os
-import sys
 import time
 
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
-
-
-PY3 = sys.version_info[0] == 3
+from .compat import PY3, token_urlsafe
 
 
 def to_binary(value, enc="UTF-8"):  # pragma: no cover
@@ -28,7 +23,7 @@ def to_unicode(value):  # pragma: no cover
 
 def _generate_session_id():
     """
-    Produces a base64 encoded, urlsafe random string with 20-byte
+    Produces a base64 encoded, urlsafe random string with 32-byte
     cryptographically strong randomness as the session id. See
 
         http://security.stackexchange.com/questions/24850/
@@ -36,18 +31,12 @@ def _generate_session_id():
 
     for the algorithm of choosing a session id.
 
-    The code is adapted from the standard library secrets of python3.6, see
-
-        https://docs.python.org/3.6/library/secrets.html
-
     The implementation of `os.urandom` varies by system, but you can always
     supply your own function in your ini file with:
 
         redis.sessions.id_generator = my_random_id_generator
     """
-    rand = os.urandom(20)
-    session_id = base64.urlsafe_b64encode(rand).rstrip(b'=')
-    return session_id.decode('ascii') if PY3 else session_id
+    return token_urlsafe(32)
 
 
 def prefixed_id(prefix='session:'):
