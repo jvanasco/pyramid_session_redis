@@ -1,5 +1,11 @@
 Jonathan Vanasco is the maintainer of pyramid_session_redis.
 
+Contributors include:
+
+	github.com/hongyuan1306
+
+
+
 Eric Rasmussen is the original author and maintainer of pyramid_redis_sessions.
 
 People who have kindly contributed to pyramid_redis_sessions:

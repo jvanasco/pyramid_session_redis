@@ -23,7 +23,7 @@ def to_unicode(value):  # pragma: no cover
 
 def _generate_session_id():
     """
-    Produces a base64 encoded, urlsafe random string with 32-byte
+    Produces a base64 encoded, urlsafe random string with 48-byte
     cryptographically strong randomness as the session id. See
 
         http://security.stackexchange.com/questions/24850/
@@ -35,8 +35,14 @@ def _generate_session_id():
     supply your own function in your ini file with:
 
         redis.sessions.id_generator = my_random_id_generator
+    
+    This uses 48 bytes instead of 32 to maintain backwards 
+    compatibility to pyramid_redis_sessions.  The earlier packaged used 
+    a 64character digest; however 48bits using the new method will
+    encode to a 64 character url-safe string, while 32 bits will only be encoded
+    to a 40 character string.
     """
-    return token_urlsafe(32)
+    return token_urlsafe(48)
 
 
 def prefixed_id(prefix='session:'):

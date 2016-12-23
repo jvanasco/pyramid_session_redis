@@ -16,7 +16,7 @@ Key Differences:
 Other Updates:
 
 * support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
-
+* thankts to github/hongyuan1306, token generation has been consolidated to use python3's stdlib (or reimplemented if not available).  tokens are also 32, not 20, chars.
 
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.
 

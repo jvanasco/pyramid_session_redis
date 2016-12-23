@@ -2,6 +2,14 @@
 Changelog
 =========
 
+-12/23/2016:
+	* version 1.2.0
+	* merged PR1 from hongyuan1306 (https://github.com/jvanasco/pyramid_session_redis/pull/1)
+		* Make the package Python3 compatible
+		* Consolidate token/session generation
+		* Leverage token/session generation from python3.6 stdlib; fallback otherwise.
+	* updated the bits on token_urlsafe from 32 to 48; this encodes to a 64 character string
+
 -11/10/2016:
 	* version 1.1.2
 	release error fix. 

@@ -6,7 +6,7 @@ from setuptools import find_packages
 from setuptools import setup
 
 # manage package version
-package_version = '1.1.2'
+package_version = '1.2.0'
 
 
 # get readme and changes
