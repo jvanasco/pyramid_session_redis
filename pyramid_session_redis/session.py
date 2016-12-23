@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import binascii
-import os
 import hashlib
 
-from pyramid.compat import text_
 from pyramid.decorator import reify
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
-from .compat import cPickle
+from .compat import cPickle, token_hex
 from .exceptions import InvalidSession
 from .util import (
     persist,
@@ -117,7 +114,7 @@ class RedisSession(object):
 
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
-    
+
     ``deserialized_fails_new``
     If ``True`` will handle deserializtion errors by creating a new session.
     """
@@ -218,10 +215,10 @@ class RedisSession(object):
             raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
         try:
             deserialized = self.deserialize(persisted)
-        except Exception, e:
+        except Exception:
             if self._deserialized_fails_new:
                 raise InvalidSession("`session_id` (%s) did not deserialize correctly" % session_id)
-            raise e
+            raise
         if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
         elif persisted_hash is False:
@@ -348,7 +345,7 @@ class RedisSession(object):
 
     # session methods persist or refresh using above dict methods
     def new_csrf_token(self):
-        token = text_(binascii.hexlify(os.urandom(20)))
+        token = token_hex(32)
         self['_csrft_'] = token
         return token
 
