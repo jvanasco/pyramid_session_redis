@@ -11,6 +11,15 @@ class TestRedisSessionFactory(unittest.TestCase):
         from .. import RedisSessionFactory
         return RedisSessionFactory(secret, **kw)(request)
 
+    def _register_callback(self, request, session):
+        import functools
+        from .. import _finished_callback
+        finished_callback = functools.partial(
+            _finished_callback,
+            session
+            )
+        request.add_finished_callback(finished_callback)
+
     def _assert_is_a_header_to_set_cookie(self, header_value):
         # The negative assertion below is the least complicated option for
         # asserting that a Set-Cookie header sets a cookie rather than deletes
@@ -110,11 +119,13 @@ class TestRedisSessionFactory(unittest.TestCase):
 
         # Make another response and .set_cookie() using the same values and
         # settings to get the expected header to compare against
+        
+        # note - webob 1.7 no longer supports name+value kwargs
         response_to_check_against = webob.Response()
         response_to_check_against.set_cookie(
-            key=cookie_name,
-            value=self._serialize(session_id=request.session.session_id,
-                                  secret=secret),
+            cookie_name,
+            self._serialize(session_id=request.session.session_id,
+                            secret=secret),
             max_age=cookie_max_age,
             path=cookie_path,
             domain=cookie_domain,
@@ -341,6 +352,45 @@ class TestRedisSessionFactory(unittest.TestCase):
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn('Max-Age=0', set_cookie_headers[0])
 
+    def test_existing_session_invalidate_nodupe(self):
+        """
+        This tests against an edge-case caused when a session is invalidated,
+        but no new session interaction takes place. in this situation, the
+        callback function introduced by `pyramid_session_redis` can create an
+        unwanted placeholder value in redis.
+
+        python -m unittest pyramid_session_redis.tests.test_factory.TestRedisSessionFactory.test_existing_session_invalidate_nodupe
+        """
+        # existing session -> invalidate()
+        import webob
+        request = self._make_request()
+        session_id = self._get_session_id(request)
+        self._set_session_cookie(request=request,
+                                 session_id=session_id)
+        request.session = self._makeOne(request)
+        self._register_callback(request, request.session)
+        persisted = request.session.redis.get(session_id)
+        self.assertIsNotNone(persisted)
+
+        # invalidate
+        request.session.invalidate()
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn('Max-Age=0', set_cookie_headers[0])
+
+        # manually execute the callbacks
+        request._process_finished_callbacks()
+
+        # make sure this isn't in redis
+        persisted = request.session.redis.get(session_id)
+        self.assertIsNone(persisted)
+
+        # make sure we don't have any keys in redis
+        keys = request.session.redis.keys()
+        self.assertEqual(len(keys), 0)
+
     def test_existing_session_session_after_invalidate_coe_True_no_exception(
         self
         ):
@@ -497,7 +547,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         factory = RedisSessionFactory('secret',
             func_check_response_allow_cookies=check_response_allow_cookies,
         )
-        
+
         # first check we can create a cookie
         request = self._make_request()
         session = factory(request)
@@ -548,7 +598,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         factory = RedisSessionFactory('secret',
             func_check_response_allow_cookies=check_response_allow_cookies,
         )
-        
+
         # first check we can create a cookie
         request = self._make_request()
         session = factory(request)

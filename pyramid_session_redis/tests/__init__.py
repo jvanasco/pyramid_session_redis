@@ -69,6 +69,8 @@ class DummyRedis(object):
     def ttl(self, key):
         return self.timeouts.get(key)
 
+    def keys(self):
+        return self.store.keys()
 
 class DummyPipeline(object):
     def __init__(self, store, raise_watcherror=False):

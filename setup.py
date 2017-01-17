@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import os
+import re
 
 from setuptools import find_packages
 from setuptools import setup
 
 # manage package version
-package_version = '1.2.0'
+# store version in the init.py
+with open(
+        os.path.join(
+            os.path.dirname(__file__),
+            'pyramid_session_redis', '__init__.py')) as v_file:
+    package_version = re.compile(
+        r".*__VERSION__ = '(.*?)'",
+        re.S).match(v_file.read()).group(1)
 
 
 # get readme and changes

@@ -18,6 +18,9 @@ from .util import (
     )
 
 
+__VERSION__ = '1.2.1'
+
+
 def check_response_allow_cookies(response):
     """
     reference implementation for ``func_check_response_allow_cookies``
@@ -352,7 +355,7 @@ def _set_cookie(
     cookieval = signed_serialize(session.session_id, secret)
     response.set_cookie(
         cookie_name,
-        value=cookieval,
+        cookieval,
         max_age=cookie_max_age,
         path=cookie_path,
         domain=cookie_domain,
@@ -420,6 +423,16 @@ def _finished_callback(
     `session` is via functools.partial
     `request` is appended by add_finished_callback
     """
+    if '_session_state' not in session.__dict__:
+        # _session_state is a reified property, which is saved into the dict
+        # if we call `session.invalidate()` the session is immediately deleted
+        # however, accessing it here will trigger a new _session_state creation
+        # and insert a placeholder for the session_id into redis.  this would be
+        # ok in certain situations, however since we don't access any actual
+        # data in the session, it won't have the cookie callback triggered --
+        # which means the cookie will never get sent to the user, and a phantom
+        # session_id+placeholder will be in redis until it times out.
+        return
     if not session._session_state.dont_persist:
         if session._session_state.please_persist:
             session.do_persist()

@@ -2,43 +2,51 @@
 Changelog
 =========
 
+-1/17/2017:
+    * version 1.2.1
+    * fixed bug with session.invalidate that caused placeholder sessions to be created( https://github.com/jvanasco/pyramid_session_redis/issues/2 )
+    * added test to guard against above bug
+    * fixed some whitespace issues (trailing spaces, tabs-not-spaces)
+    * migrated pacakge version id from setup.py into __init__.py as "__VERSION__" variable.
+    * migrated tests and code to handle webob 1.7's deprecation of cookie values
+
 -12/23/2016:
-	* version 1.2.0
-	* merged PR1 from hongyuan1306 (https://github.com/jvanasco/pyramid_session_redis/pull/1)
-		* Make the package Python3 compatible
-		* Consolidate token/session generation
-		* Leverage token/session generation from python3.6 stdlib; fallback otherwise.
-	* updated the bits on token_urlsafe from 32 to 48; this encodes to a 64 character string
+    * version 1.2.0
+    * merged PR1 from hongyuan1306 (https://github.com/jvanasco/pyramid_session_redis/pull/1)
+        * Make the package Python3 compatible
+        * Consolidate token/session generation
+        * Leverage token/session generation from python3.6 stdlib; fallback otherwise.
+    * updated the bits on token_urlsafe from 32 to 48; this encodes to a 64 character string
 
 -11/10/2016:
-	* version 1.1.2
-	release error fix. 
+    * version 1.1.2
+    release error fix.
 
 -11/10/2016:
-	* version 1.1.1
-	* integrated/rewrote pr from pyramid_redis_sessions for session leakage on cdns
-		https://github.com/ericrasmussen/pyramid_redis_sessions/pull/74/files
-	* response.vary will now ensure `Cookie`
-	* Session factory now accepts `func_check_response_allow_cookies(response)` a callable which can disable setting the cookie.
-	* streamlined some work in utils
+    * version 1.1.1
+    * integrated/rewrote pr from pyramid_redis_sessions for session leakage on cdns
+        https://github.com/ericrasmussen/pyramid_redis_sessions/pull/74/files
+    * response.vary will now ensure `Cookie`
+    * Session factory now accepts `func_check_response_allow_cookies(response)` a callable which can disable setting the cookie.
+    * streamlined some work in utils
 
 -11/09/2016: renamed to pyramid_session_redis
 
 -08/15/2016: Changes for jvanasco branch
-	* added `deserialized_fails_new` to handle deserialization errors
+    * added `deserialized_fails_new` to handle deserialization errors
 
 -08/02/2016: Changes for jvanasco branch
-	* made the detection of nested changes configurable. by default this is set to True.
+    * made the detection of nested changes configurable. by default this is set to True.
 
 -06/16/2016: Changes for jvanasco branch
 
-	* changed `persist` from being "on demand" into a single callback via pyramid's `add_finished_callback` 
-	* changed `refresh` from being "on demand" into a single callback via pyramid's `add_finished_callback` 
-	* decoupled active `session` from being a particular named attribute on the "request".
-	* removed an initial call to redis' `EXISTS`. Instead of "If EXISTS then GET", we simply GET the active session and create a new one if it does not exist.
-	* replaced separate calls to "SET" and "EXPIRE" with single "SETEX"
-	* added a feature to assume redis is operating as a LRU cache, therefore not sending expiry data
-	* ensure nested session values trigger a persist by calculating an md5 hash of the serialized session data on load; then again in the finished callback
+    * changed `persist` from being "on demand" into a single callback via pyramid's `add_finished_callback`
+    * changed `refresh` from being "on demand" into a single callback via pyramid's `add_finished_callback`
+    * decoupled active `session` from being a particular named attribute on the "request".
+    * removed an initial call to redis' `EXISTS`. Instead of "If EXISTS then GET", we simply GET the active session and create a new one if it does not exist.
+    * replaced separate calls to "SET" and "EXPIRE" with single "SETEX"
+    * added a feature to assume redis is operating as a LRU cache, therefore not sending expiry data
+    * ensure nested session values trigger a persist by calculating an md5 hash of the serialized session data on load; then again in the finished callback
 
 ----------
 

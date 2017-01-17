@@ -131,7 +131,6 @@ class RedisSession(object):
         detect_changes=True,
         deserialized_fails_new=None,
     ):
-
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
