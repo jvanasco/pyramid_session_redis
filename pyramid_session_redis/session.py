@@ -108,10 +108,6 @@ class RedisSession(object):
     The dual of ``serialize``, to convert serialized strings back to Python
     objects. Default: ``cPickle.loads``.
 
-    ``assume_redis_lru``
-    If ``True``, assumes redis is configured as a LRU and does not update the
-    expiry data. Default: ``None``
-
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
 
@@ -127,7 +123,6 @@ class RedisSession(object):
         new_session,
         serialize=cPickle.dumps,
         deserialize=cPickle.loads,
-        assume_redis_lru=None,
         detect_changes=True,
         deserialized_fails_new=None,
     ):
@@ -135,7 +130,6 @@ class RedisSession(object):
         self.serialize = serialize
         self.deserialize = deserialize
         self._new_session = new_session
-        self._assume_redis_lru = assume_redis_lru
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
         self._session_state = self._make_session_state(
@@ -164,7 +158,7 @@ class RedisSession(object):
             session_id=session_id,
             managed_dict=persisted['managed_dict'],
             created=persisted['created'],
-            timeout=persisted['timeout'],
+            timeout=persisted.get('timeout'),
             new=new,
             persisted_hash=persisted_hash,
             )
@@ -196,11 +190,14 @@ class RedisSession(object):
         Primarily used by the ``@persist`` decorator to save the current
         session state to Redis.
         """
-        return self.serialize({
+        data = {
             'managed_dict': self.managed_dict,
             'created': self.created,
-            'timeout': self.timeout,
-            })
+        }
+        if self.timeout:
+            data['timeout'] = self.timeout
+
+        return self.serialize(data)
 
     def from_redis(self, session_id=None, persisted_hash=None):
         """
@@ -236,17 +233,23 @@ class RedisSession(object):
 
     def do_persist(self, serialized_session=None):
         """actually and immediately persist to Redis backend"""
-        # Redis is `key, value, timeout`
-        # StrictRedis is `key, timeout, value`
-        # this package uses StrictRedis
         if serialized_session is None:
             serialized_session = self.to_redis()
-        self.redis.setex(self.session_id, self.timeout, serialized_session, )
+
+        if self.timeout:
+            self.redis.setex(self.session_id, self.timeout, serialized_session)
+        else:
+            self.redis.set(self.session_id, serialized_session)
+
         self._session_state.please_persist = False
 
     def do_refresh(self):
-        """actually and immediately refresh the TTL to Redis backend"""
-        self.redis.expire(self.session_id, self.timeout)
+        """
+        Actually and immediately refresh the TTL to Redis backend.
+        Does nothing if no timeout set (in LRU mode).
+        """
+        if self.timeout:
+            self.redis.expire(self.session_id, self.timeout)
         self._session_state.please_refresh = False
 
     # dict modifying methods decorated with @persist

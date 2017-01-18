@@ -104,7 +104,7 @@ def RedisSessionFactory(
     serialize=cPickle.dumps,
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
-    assume_redis_lru=None,
+    assume_redis_lru=False,
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
@@ -188,8 +188,8 @@ def RedisSessionFactory(
     ``assume_redis_lru``
     Boolean value. If set to ``True``, will assume that redis is configured as
     a least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
-    sent EXPIRY data for sessions.
-    Default: ``None``
+    send EXPIRY data for sessions (so the value of `timeout` will be ignored).
+    Default: ``False``
 
     ``detect_changes``
     Boolean value. If set to ``True``, will calculate nested changes after
@@ -216,6 +216,10 @@ def RedisSessionFactory(
       errors
       unix_socket_path
     """
+    # ignore the value of `timeout` if configured for LRU mode
+    if assume_redis_lru:
+        timeout = None
+
     def factory(request, new_session_id=get_unique_session_id):
         redis_options = dict(
             host=host,
@@ -261,7 +265,6 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
-                assume_redis_lru=assume_redis_lru,
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
                 )
@@ -275,7 +278,6 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
-                assume_redis_lru=assume_redis_lru,
                 detect_changes=detect_changes,
                 )
 

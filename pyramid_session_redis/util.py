@@ -63,10 +63,14 @@ def _insert_session_id_if_unique(
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``."""
-    _payload = serialize({'managed_dict': {},
-                          'created': time.time(),
-                          'timeout': timeout,
-                          })
+    data = {
+        'managed_dict': {},
+        'created': time.time(),
+    }
+    if timeout:
+        data['timeout'] = timeout
+    _payload = serialize(data)
+
     with redis.pipeline() as pipe:
         try:
             # start pipeline with a watch
@@ -77,7 +81,10 @@ def _insert_session_id_if_unique(
                 return None
             # enter buffered mode
             pipe.multi()
-            pipe.setex(session_id, timeout, _payload)
+            if timeout:
+                pipe.setex(session_id, timeout, _payload)
+            else:
+                pipe.set(session_id, _payload)
             pipe.execute()
             # if a WatchError wasn't raised during execution, everything
             # we just did happened atomically
@@ -126,7 +133,8 @@ def _parse_settings(settings):
         raise ConfigurationError('redis.sessions.secret is a required setting')
 
     # coerce bools
-    for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception'):
+    for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception',
+              'assume_redis_lru'):
         if b in options:
             options[b] = asbool(options[b])
 
@@ -142,6 +150,9 @@ def _parse_settings(settings):
     # check for settings conflict
     if 'prefix' in options and 'id_generator' in options:
         err = 'cannot specify custom id_generator and a key prefix'
+        raise ConfigurationError(err)
+    if 'timeout' in options and options.get('assume_redis_lru'):
+        err = 'cannot specify timeout and enable assume_redis_lru'
         raise ConfigurationError(err)
 
     # convenience setting for overriding key prefixes
@@ -161,8 +172,7 @@ def refresh(wrapped):
     """
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        if not session._assume_redis_lru:
-            session._session_state.please_refresh = True
+        session._session_state.please_refresh = True
         return result
 
     return wrapped_refresh
