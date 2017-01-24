@@ -108,9 +108,13 @@ class RedisSession(object):
     The dual of ``serialize``, to convert serialized strings back to Python
     objects. Default: ``cPickle.loads``.
 
+    ``set_redis_ttl``
+     If ``True`` sets TTL data in Redis.  If ``False`` assumes redis is
+     configured as a LRU and does not update the expiry data via SETEX.
+     Default: ``True``
+
     ``assume_redis_lru``
-     If ``True``, assumes redis is configured as a LRU and does not update the
-     expiry data via SETEX. Default: ``None``
+    Boolean value.  Deprecated in 1.2.2.  The inverse of ``set_redis_ttl``
 
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
@@ -127,15 +131,22 @@ class RedisSession(object):
         new_session,
         serialize=cPickle.dumps,
         deserialize=cPickle.loads,
-        assume_redis_lru=None,
+        set_redis_ttl=True,
         detect_changes=True,
         deserialized_fails_new=None,
+        assume_redis_lru = None,
     ):
+        if assume_redis_lru is not None:
+            # warn("assume_redis_lru" is deprecated. please use `set_redis_tl`")
+            # there is an inverse relationship here
+            set_redis_ttl = not assume_redis_lru
+            if set_redis_ttl is not None:
+                raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_tl` at the same time")
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
         self._new_session = new_session
-        self._assume_redis_lru = assume_redis_lru
+        self._set_redis_ttl = set_redis_ttl
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
         self._session_state = self._make_session_state(
@@ -247,7 +258,7 @@ class RedisSession(object):
         if serialized_session is None:
             serialized_session = self.to_redis()
 
-        serverside_timeout = True if self.timeout is not None and not self._assume_redis_lru else False
+        serverside_timeout = True if self.timeout is not None and self._set_redis_ttl else False
         if serverside_timeout:
             self.redis.setex(self.session_id, self.timeout, serialized_session)
         else:
@@ -266,8 +277,8 @@ class RedisSession(object):
             self.redis.expire(self.session_id, force_redis_ttl)
         else:
             if self.timeout is not None:
-                if not self._assume_redis_lru:
-                    # don't set a TTL if we're in LRU mode
+                if self._set_redis_ttl:
+                    # set a TTL if unless we're in LRU mode
                     self.redis.expire(self.session_id, self.timeout)
         self._session_state.please_refresh = False
 

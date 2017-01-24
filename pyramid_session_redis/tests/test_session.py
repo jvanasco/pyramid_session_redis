@@ -518,7 +518,7 @@ class TestRedisSessionNew(unittest.TestCase):
 
     def _makeOne(self, redis, session_id, new, new_session,
                  serialize=cPickle.dumps, deserialize=cPickle.loads,
-                 detect_changes=True, assume_redis_lru=None, ):
+                 detect_changes=True, set_redis_ttl=True, ):
         from ..session import RedisSession
         return RedisSession(
             redis=redis,
@@ -528,7 +528,7 @@ class TestRedisSessionNew(unittest.TestCase):
             serialize=serialize,
             deserialize=deserialize,
             detect_changes=detect_changes,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
@@ -552,7 +552,7 @@ class TestRedisSessionNew(unittest.TestCase):
     def _set_up_session_in_Redis_and_makeOne(self, session_id=None,
                                              session_dict=None, new=True,
                                              timeout=60, detect_changes=True,
-                                             assume_redis_lru=None):
+                                             set_redis_ttl=True):
         from . import DummyRedis
         redis = DummyRedis()
         id_generator = self._make_id_generator()
@@ -573,7 +573,7 @@ class TestRedisSessionNew(unittest.TestCase):
             new=new,
             new_session=new_session,
             detect_changes=detect_changes,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
 
     def _deserialize_session(self, session, deserialize=cPickle.loads):
@@ -586,12 +586,12 @@ class TestRedisSessionNew(unittest.TestCase):
         session_id = 'session_id'
         new = True
         timeout = 0
-        assume_redis_lru = None
+        set_redis_ttl = True
         session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
         session.do_persist()  # trigger the real session's set/setex
         self.assertEqual(session.session_id, session_id)
@@ -627,12 +627,12 @@ class TestRedisSessionNew(unittest.TestCase):
         session_id = 'session_id'
         new = True
         timeout = 0
-        assume_redis_lru = True
+        set_redis_ttl = False
         session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
         session.do_persist()  # trigger the real session's set/setex
         self.assertEqual(session.session_id, session_id)
@@ -665,12 +665,12 @@ class TestRedisSessionNew(unittest.TestCase):
         session_id = 'session_id'
         new = True
         timeout = 60
-        assume_redis_lru = None
+        set_redis_ttl = True
         session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
         session.do_persist()  # trigger the real session's set/setex
         self.assertEqual(session.session_id, session_id)
@@ -706,12 +706,12 @@ class TestRedisSessionNew(unittest.TestCase):
         session_id = 'session_id'
         new = True
         timeout = 60
-        assume_redis_lru = True
+        set_redis_ttl = False
         session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
         session.do_persist()  # trigger the real session's set/setex
         self.assertEqual(session.session_id, session_id)
@@ -723,7 +723,7 @@ class TestRedisSessionNew(unittest.TestCase):
         _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'set')
 
-        # clear the history, `do_refresh` should do nothing (timeout=60, assume_redis_lru=True)
+        # clear the history, `do_refresh` should do nothing (timeout=60, set_redis_ttl=False)
         session.redis._history_reset()
         session.do_refresh()  # trigger the real session's set/setex
         self.assertEquals(len(session.redis._history), 0)

@@ -60,7 +60,7 @@ def _insert_session_id_if_unique(
     timeout,
     session_id,
     serialize,
-    assume_redis_lru,
+    set_redis_ttl,
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
@@ -100,7 +100,7 @@ def get_unique_session_id(
     timeout,
     serialize,
     generator=_generate_session_id,
-    assume_redis_lru=None
+    set_redis_ttl=True
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
@@ -112,7 +112,7 @@ def get_unique_session_id(
             timeout,
             session_id,
             serialize,
-            assume_redis_lru,
+            set_redis_ttl,
             )
         if attempt is not None:
             return attempt
@@ -138,7 +138,7 @@ def _parse_settings(settings):
 
     # coerce bools
     for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception',
-              'assume_redis_lru'):
+              'set_redis_ttl'):
         if b in options:
             options[b] = asbool(options[b])
 

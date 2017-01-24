@@ -104,10 +104,11 @@ def RedisSessionFactory(
     serialize=cPickle.dumps,
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
-    assume_redis_lru=None,
+    set_redis_ttl=True,
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
+    assume_redis_lru=None,  # deprecated in 1.2.2
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -186,15 +187,18 @@ def RedisSessionFactory(
     Default: private function that uses sha1 with the time and random elements
     to create a 40 character unique ID.
 
-    ``assume_redis_lru``
-    Boolean value.  Default `None`. If set to ``True``, will assume that redis
-    is configured as a least-recently-used cache
-    [http://redis.io/topics/lru-cache] and will NOT send EXPIRY data of
-    sessions to Redis (the value of `timeout` will be ignored).
-    This does not require or imply that no ``timeout`` data is handled within
-    the Python payload, it just determines if Redis will be involved with
-    timeouts.
+    ``set_redis_ttl``
+    Boolean value.  Default `True`. If set to ``True``, will set a TTL. If 
+    ``False`` will not set a TTL and assumes that Redis is configured as a
+    least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
+    send EXPIRY data of sessions to Redis (the value of `timeout` will be
+    ignored if set). This does not require or imply that no ``timeout`` data is
+    handled within the Python payload, it just determines if Redis will be
+    involved with timeout logic.
     Default: ``False``
+    
+    ``assume_redis_lru``
+    Boolean value.  Deprecated in 1.2.2.  The inverse of ``set_redis_ttl``
 
     ``detect_changes``
     Boolean value. If set to ``True``, will calculate nested changes after
@@ -223,6 +227,13 @@ def RedisSessionFactory(
     """
     if timeout == 0:
         timeout = None
+    
+    if assume_redis_lru is not None:
+        # warn("assume_redis_lru" is deprecated. please use `set_redis_tl`")
+        # there is an inverse relationship here
+        set_redis_ttl = not assume_redis_lru
+        if set_redis_ttl is not None:
+            raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_tl` at the same time")
 
     def factory(request, new_session_id=get_unique_session_id):
         redis_options = dict(
@@ -255,7 +266,7 @@ def RedisSessionFactory(
             timeout=timeout,
             serialize=serialize,
             generator=id_generator,
-            assume_redis_lru=assume_redis_lru,
+            set_redis_ttl=set_redis_ttl,
             )
 
         try:
@@ -270,7 +281,7 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
-                assume_redis_lru=assume_redis_lru,
+                set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
                 )
@@ -284,7 +295,7 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
-                assume_redis_lru=assume_redis_lru,
+                set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
                 )
 

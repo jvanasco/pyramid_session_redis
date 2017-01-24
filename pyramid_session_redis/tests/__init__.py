@@ -17,7 +17,7 @@ class DummySession(object):
         self.serialize = serialize
         self.managed_dict = {}
         self.created = float()
-        self._assume_redis_lru = None
+        self._set_redis_ttl = True
         self._session_state = DummySessionState()
 
     def to_redis(self):
