@@ -4,6 +4,8 @@ IMPORTANT
 `pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for servers under load and developer convenience.
 
 Key Differences:
+================
+
 
 * The original version communicated with Redis on every attribute access; `pyramid_session_redis` will queue a single `persist` or `refresh` task using Pyramid's `add_finished_callback` hook.
 * The original version used `EXISTS` to check if a session existed or not, then proceeded to `GET` or create a new session.  `pyramid_session_redis` will immediately attempt a `GET`, and will create a new session on failure.  This cuts down a Redis traffic.
@@ -14,6 +16,7 @@ Key Differences:
 * The original raises a fatal error if a session can not be deserialized.  by passing in `deserialized_fails_new` to the constructor, you can create a new session on deserialization errors.
 
 Other Updates:
+==============
 
 * support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
 * thankts to github/hongyuan1306, token generation has been consolidated to use python3's stdlib (or reimplemented if not available).  tokens are also 32, not 20, chars.
@@ -21,18 +24,41 @@ Other Updates:
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.
 
 Notes:
+======
 
-`assume_redis_lru` does not imply there is no timeout, only that Redis will not store timeout data via `SETEX` or `EXPIRE`.  Timeout data can still be stored in Python.
+``assume_redis_lru`` does not imply there is no timeout, only that Redis will not store timeout data via `SETEX` or `EXPIRE`.  Timeout data can still be stored in Python.
+
 If Redis is functioning as an LRU Cache, abandoned sessions will never be seen by Python, but will eventually be cleared out to make room for new sessions.
 
-If you want to NEVER have sessions timeout, set the initial timeout to "0" or "None".
+If you want to NEVER have sessions timeout, set the initial `timeout` to "0" or "None".
+
+Examples:
+---------
+
+Timeout in Python, with Redis TTL via SETEX/EXPIRE:
+
+	timeout = 60
+
+Timeout in Python, no Redis TTL (only SET used)
+
+	timeout = 60
+	assume_redis_ttl = True
+	
+No Timeout in Python, no Redis TTL (only SET used)
+
+	timeout = 0  # or None
+	assume_redis_ttl = True
+
+
+Further Reading:
+================
 
 
 For more information about Redis performance under python please see an associated project:
 
 * https://github.com/jvanasco/dogpile_backend_redis_advanced
 
-Until Nov 2016 this was maintained as jvanasco/pyramid_redis_sessions
+Until Nov 2016 this was maintained as `jvanasco/pyramid_redis_sessions`
 
 * The master branch for `jvanasco/pyramid_redis_sessions` is "custom_deployment"
 * The branched named "master" is the upstream source from ericrasmussen

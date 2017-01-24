@@ -18,7 +18,7 @@ from .util import (
     )
 
 
-__VERSION__ = '1.2.1'
+__VERSION__ = '1.2.2-dev'
 
 
 def check_response_allow_cookies(response):

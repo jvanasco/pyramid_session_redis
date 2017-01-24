@@ -2,6 +2,11 @@
 Changelog
 =========
 
+-unreleased:
+    * version 1.2.2
+    * merged most of pull request https://github.com/jvanasco/pyramid_session_redis/pull/3 from Chad Birch (@Deimos)
+    * clarified assume_redis_lru in docs, added tests
+
 -1/17/2017:
     * version 1.2.1
     * fixed bug with session.invalidate that caused placeholder sessions to be created( https://github.com/jvanasco/pyramid_session_redis/issues/2 )
