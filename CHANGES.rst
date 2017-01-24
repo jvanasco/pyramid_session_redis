@@ -7,7 +7,7 @@ Changelog
     * merged most of pull request https://github.com/jvanasco/pyramid_session_redis/pull/3 from Chad Birch (@Deimos)
     * clarified assume_redis_lru in docs, added tests
     * added `force_redis_ttl` kwarg to `RedisSession.do_refresh`
-    * replaced `assume_redis_lru` with `set_redis_ttl`
+    * deprecating `assume_redis_lru` with it's inverse `set_redis_ttl`.  the `assume_redis_lru` kwarg will be supported until the 1.4.0 release.
 
 -1/17/2017:
     * version 1.2.1

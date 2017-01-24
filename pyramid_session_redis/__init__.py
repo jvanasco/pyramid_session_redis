@@ -15,6 +15,7 @@ from .util import (
     _generate_session_id,
     _parse_settings,
     get_unique_session_id,
+    warn_future,
     )
 
 
@@ -231,9 +232,10 @@ def RedisSessionFactory(
     if assume_redis_lru is not None:
         # warn("assume_redis_lru" is deprecated. please use `set_redis_tl`")
         # there is an inverse relationship here
-        set_redis_ttl = not assume_redis_lru
+        warn_future("""`assume_redis_lru` is being deprecated in favor it's inverse: `set_redis_ttl`""")
         if set_redis_ttl is not None:
             raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_tl` at the same time")
+        set_redis_ttl = not assume_redis_lru
 
     def factory(request, new_session_id=get_unique_session_id):
         redis_options = dict(

@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
 from functools import partial
+import warnings
 import time
 
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
 from .compat import PY3, token_urlsafe
+
+
+def warn_future(message):
+    warnings.warn(message, FutureWarning, stacklevel=2)
 
 
 def to_binary(value, enc="UTF-8"):  # pragma: no cover
