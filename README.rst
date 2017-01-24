@@ -20,6 +20,14 @@ Other Updates:
 
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.
 
+Notes:
+
+`assume_redis_lru` does not imply there is no timeout, only that Redis will not store timeout data via `SETEX` or `EXPIRE`.  Timeout data can still be stored in Python.
+If Redis is functioning as an LRU Cache, abandoned sessions will never be seen by Python, but will eventually be cleared out to make room for new sessions.
+
+If you want to NEVER have sessions timeout, set the initial timeout to "0" or "None".
+
+
 For more information about Redis performance under python please see an associated project:
 
 * https://github.com/jvanasco/dogpile_backend_redis_advanced

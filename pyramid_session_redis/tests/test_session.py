@@ -512,3 +512,175 @@ class TestRedisSession(unittest.TestCase):
         inst.do_persist()
         self.assertEqual(inst.timeout, adjusted_timeout)
         self.assertEqual(inst.from_redis()['timeout'], adjusted_timeout)
+
+
+class TestRedisSessionNew(unittest.TestCase):
+
+    def _makeOne(self, redis, session_id, new, new_session,
+                 serialize=cPickle.dumps, deserialize=cPickle.loads,
+                 detect_changes=True, assume_redis_lru=None, ):
+        from ..session import RedisSession
+        return RedisSession(
+            redis=redis,
+            session_id=session_id,
+            new=new,
+            new_session=new_session,
+            serialize=serialize,
+            deserialize=deserialize,
+            detect_changes=detect_changes,
+            assume_redis_lru=assume_redis_lru,
+            )
+
+    def _set_up_session_in_redis(self, redis, session_id, timeout,
+                                 session_dict=None, serialize=cPickle.dumps):
+        if session_dict is None:
+            session_dict = {}
+        data = {
+            'managed_dict': session_dict,
+            'created': time.time(),
+            }
+        if timeout:
+            data['timeout'] = timeout
+        redis.set(session_id, serialize(data))
+        redis._history_reset()
+        return session_id
+
+    def _make_id_generator(self):
+        ids = itertools.count(start=0, step=1)
+        return lambda: str(next(ids))
+
+    def _set_up_session_in_Redis_and_makeOne(self, session_id=None,
+                                             session_dict=None, new=True,
+                                             timeout=60, detect_changes=True,
+                                             assume_redis_lru=None):
+        from . import DummyRedis
+        redis = DummyRedis()
+        id_generator = self._make_id_generator()
+        if session_id is None:
+            session_id = id_generator()
+        self._set_up_session_in_redis(redis=redis, session_id=session_id,
+                                      session_dict=session_dict,
+                                      timeout=timeout)
+        new_session = lambda: self._set_up_session_in_redis(
+            redis=redis,
+            session_id=id_generator(),
+            session_dict=session_dict,
+            timeout=timeout,
+            )
+        return self._makeOne(
+            redis=redis,
+            session_id=session_id,
+            new=new,
+            new_session=new_session,
+            detect_changes=detect_changes,
+            assume_redis_lru=assume_redis_lru,
+            )
+
+    def _deserialize_session(self, session, deserialize=cPickle.loads):
+        _session_id = session.session_id
+        _session_data = session.redis.store[_session_id]
+        _session_serialized = deserialize(_session_data)
+        return _session_serialized
+
+    def test_init_new_session_notimeout(self):
+        session_id = 'session_id'
+        new = True
+        timeout = 0
+        assume_redis_lru = None
+        inst = self._set_up_session_in_Redis_and_makeOne(
+            session_id=session_id,
+            new=new,
+            timeout=timeout,
+            assume_redis_lru=assume_redis_lru,
+            )
+        inst.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(inst.session_id, session_id)
+        self.assertIs(inst.new, new)
+        self.assertDictEqual(dict(inst), {})
+
+        self.assertEqual(inst.timeout, None)
+
+        _deserialized = self._deserialize_session(inst)
+        self.assertNotIn('timeout', _deserialized)
+
+        self.assertEquals(len(inst.redis._history), 1)
+        _redis_op = inst.redis._history[0]
+        self.assertEquals(_redis_op[0], 'set')
+
+    def test_init_new_session_notimeout_lru(self):
+        """
+        check that a no timeout will trigger a SET if LRU enabled
+        """
+        session_id = 'session_id'
+        new = True
+        timeout = 0
+        assume_redis_lru = True
+        inst = self._set_up_session_in_Redis_and_makeOne(
+            session_id=session_id,
+            new=new,
+            timeout=timeout,
+            assume_redis_lru=assume_redis_lru,
+            )
+        inst.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(inst.session_id, session_id)
+        self.assertIs(inst.new, new)
+        self.assertDictEqual(dict(inst), {})
+
+        _deserialized = self._deserialize_session(inst)
+        self.assertNotIn('timeout', _deserialized)
+
+        self.assertEquals(len(inst.redis._history), 1)
+        _redis_op = inst.redis._history[0]
+        self.assertEquals(_redis_op[0], 'set')
+
+    def test_init_new_session_timeout(self):
+        """
+        check that a timeout will trigger a SETEX
+        """
+        session_id = 'session_id'
+        new = True
+        timeout = 60
+        assume_redis_lru = None
+        inst = self._set_up_session_in_Redis_and_makeOne(
+            session_id=session_id,
+            new=new,
+            timeout=timeout,
+            assume_redis_lru=assume_redis_lru,
+            )
+        inst.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(inst.session_id, session_id)
+        self.assertIs(inst.new, new)
+        self.assertDictEqual(dict(inst), {})
+
+        _deserialized = self._deserialize_session(inst)
+        self.assertIn('timeout', _deserialized)
+
+        self.assertEquals(len(inst.redis._history), 1)
+        _redis_op = inst.redis._history[0]
+        self.assertEquals(_redis_op[0], 'setex')
+
+    def test_init_new_session_timeout_lru(self):
+        """
+        check that a timeout will trigger a SET if LRU enabled
+        """
+        session_id = 'session_id'
+        new = True
+        timeout = 60
+        assume_redis_lru = True
+        inst = self._set_up_session_in_Redis_and_makeOne(
+            session_id=session_id,
+            new=new,
+            timeout=timeout,
+            assume_redis_lru=assume_redis_lru,
+            )
+        inst.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(inst.session_id, session_id)
+        self.assertIs(inst.new, new)
+        self.assertDictEqual(dict(inst), {})
+
+        _deserialized = self._deserialize_session(inst)
+        self.assertIn('timeout', _deserialized)
+
+        self.assertEquals(len(inst.redis._history), 1)
+        _redis_op = inst.redis._history[0]
+        self.assertEquals(_redis_op[0], 'set')

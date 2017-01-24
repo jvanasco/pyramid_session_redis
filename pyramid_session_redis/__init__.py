@@ -123,6 +123,7 @@ def RedisSessionFactory(
 
     ``timeout``
     A number of seconds of inactivity before a session times out.
+    If set to 0 or None, no timeout will occur or be managed in Redis or Python.
 
     ``cookie_name``
     The name of the cookie used for sessioning. Default: ``session``.
@@ -186,10 +187,14 @@ def RedisSessionFactory(
     to create a 40 character unique ID.
 
     ``assume_redis_lru``
-    Boolean value. If set to ``True``, will assume that redis is configured as
-    a least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
-    sent EXPIRY data for sessions.
-    Default: ``None``
+    Boolean value.  Default `None`. If set to ``True``, will assume that redis
+    is configured as a least-recently-used cache
+    [http://redis.io/topics/lru-cache] and will NOT send EXPIRY data of
+    sessions to Redis (the value of `timeout` will be ignored).
+    This does not require or imply that no ``timeout`` data is handled within
+    the Python payload, it just determines if Redis will be involved with
+    timeouts.
+    Default: ``False``
 
     ``detect_changes``
     Boolean value. If set to ``True``, will calculate nested changes after
@@ -216,6 +221,9 @@ def RedisSessionFactory(
       errors
       unix_socket_path
     """
+    if timeout == 0:
+        timeout = None
+
     def factory(request, new_session_id=get_unique_session_id):
         redis_options = dict(
             host=host,
@@ -247,6 +255,7 @@ def RedisSessionFactory(
             timeout=timeout,
             serialize=serialize,
             generator=id_generator,
+            assume_redis_lru=assume_redis_lru,
             )
 
         try:

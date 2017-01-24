@@ -60,13 +60,19 @@ def _insert_session_id_if_unique(
     timeout,
     session_id,
     serialize,
+    assume_redis_lru,
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
-    or ``None``."""
-    _payload = serialize({'managed_dict': {},
-                          'created': time.time(),
-                          'timeout': timeout,
-                          })
+    or ``None``.  ``timeout`` could be 0/None, in that case do-not track
+    the timeout data"""
+    data = {
+        'managed_dict': {},
+        'created': time.time(),
+    }
+    if timeout:
+        data['timeout'] = timeout
+    _payload = serialize(data)
+
     with redis.pipeline() as pipe:
         try:
             # start pipeline with a watch
@@ -77,7 +83,10 @@ def _insert_session_id_if_unique(
                 return None
             # enter buffered mode
             pipe.multi()
-            pipe.setex(session_id, timeout, _payload)
+            if timeout:
+                pipe.setex(session_id, timeout, _payload)
+            else:
+                pipe.set(session_id, _payload)
             pipe.execute()
             # if a WatchError wasn't raised during execution, everything
             # we just did happened atomically
@@ -91,6 +100,7 @@ def get_unique_session_id(
     timeout,
     serialize,
     generator=_generate_session_id,
+    assume_redis_lru=None
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
@@ -102,6 +112,7 @@ def get_unique_session_id(
             timeout,
             session_id,
             serialize,
+            assume_redis_lru,
             )
         if attempt is not None:
             return attempt
@@ -126,14 +137,24 @@ def _parse_settings(settings):
         raise ConfigurationError('redis.sessions.secret is a required setting')
 
     # coerce bools
-    for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception'):
+    for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception',
+              'assume_redis_lru'):
         if b in options:
             options[b] = asbool(options[b])
 
     # coerce ints
-    for i in ('timeout', 'port', 'db', 'cookie_max_age'):
+    for i in ('port', 'db', 'cookie_max_age'):
         if i in options:
             options[i] = int(options[i])
+
+    # allow "None" to be a timeout value
+    if 'timeout' in options:
+        if options['timeout'] == 'None':
+            options['timeout'] = None
+        else:
+            options['timeout'] = int(options['timeout'])
+            if not options['timeout']:
+                options['timeout'] = None
 
     # coerce float
     if 'socket_timeout' in options:
@@ -161,8 +182,7 @@ def refresh(wrapped):
     """
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
-        if not session._assume_redis_lru:
-            session._session_state.please_refresh = True
+        session._session_state.please_refresh = True
         return result
 
     return wrapped_refresh

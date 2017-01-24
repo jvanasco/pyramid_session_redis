@@ -21,11 +21,13 @@ class DummySession(object):
         self._session_state = DummySessionState()
 
     def to_redis(self):
-        return self.serialize({
+        data = {
             'managed_dict': self.managed_dict,
             'created': self.created,
-            'timeout': self.timeout,
-            })
+        }
+        if self.timeout:
+            data['timeout'] = self.timeout
+        return self.serialize(data)
 
 
 class DummyRedis(object):
@@ -35,6 +37,10 @@ class DummyRedis(object):
         self.store = {}
         self.pipeline = lambda: DummyPipeline(self.store, raise_watcherror)
         self.__dict__.update(kw)
+        self._history = []
+
+    def _history_reset(self):
+        self._history = []
 
     @classmethod
     def from_url(cls, url, **opts):
@@ -48,6 +54,7 @@ class DummyRedis(object):
 
     def set(self, key, value):
         self.store[key] = value
+        self._history.append(('set', key, ))
 
     def setex(self, key, timeout, value):
         # Redis is `key, value, timeout`
@@ -55,6 +62,7 @@ class DummyRedis(object):
         # this package uses StrictRedis
         self.store[key] = value
         self.timeouts[key] = timeout
+        self._history.append(('setex', key, timeout, ))
 
     def delete(self, *keys):
         for key in keys:
@@ -65,6 +73,7 @@ class DummyRedis(object):
 
     def expire(self, key, timeout):
         self.timeouts[key] = timeout
+        self._history.append(('expire', key, timeout, ))
 
     def ttl(self, key):
         return self.timeouts.get(key)
@@ -76,6 +85,7 @@ class DummyPipeline(object):
     def __init__(self, store, raise_watcherror=False):
         self.store = store
         self.raise_watcherror = raise_watcherror
+        self._history = []
 
     def __enter__(self):
         return self
@@ -88,15 +98,18 @@ class DummyPipeline(object):
 
     def set(self, key, value):
         self.store[key] = value
+        self._history.append(('set', key, ))
 
     def get(self, key):
         return self.store.get(key)
 
     def expire(self, key, timeout):
+        self._history.append(('expire', key, timeout, ))
         pass
 
     def setex(self, key, timeout, value):
         self.store[key] = value
+        self._history.append(('setex', key, timeout, ))
 
     def watch(self, key):
         if self.raise_watcherror:
