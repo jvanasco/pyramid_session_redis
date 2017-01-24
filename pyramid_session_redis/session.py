@@ -255,15 +255,15 @@ class RedisSession(object):
 
         self._session_state.please_persist = False
 
-    def do_refresh(self, force_timeout=None):
+    def do_refresh(self, force_redis_ttl=None):
         """
         Actually and immediately refresh the TTL to Redis backend.
         Does nothing if no timeout set (in LRU mode).
-        Optional kwarg for developers ``force_timeout`` (default None)
+        Optional kwarg for developers ``force_redis_ttl`` (default None)
         can be provided to force a new Redis TTL.
         """
-        if force_timeout is not None:
-            self.redis.expire(self.session_id, force_timeout)
+        if force_redis_ttl is not None:
+            self.redis.expire(self.session_id, force_redis_ttl)
         else:
             if self.timeout is not None:
                 if not self._assume_redis_lru:
