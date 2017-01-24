@@ -40,6 +40,7 @@ class DummyRedis(object):
         self._history = []
 
     def _history_reset(self):
+        # test method. fake. used for tests against the actual redis operations
         self._history = []
 
     @classmethod

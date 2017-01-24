@@ -587,25 +587,38 @@ class TestRedisSessionNew(unittest.TestCase):
         new = True
         timeout = 0
         assume_redis_lru = None
-        inst = self._set_up_session_in_Redis_and_makeOne(
+        session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
             assume_redis_lru=assume_redis_lru,
             )
-        inst.do_persist()  # trigger the real session's set/setex
-        self.assertEqual(inst.session_id, session_id)
-        self.assertIs(inst.new, new)
-        self.assertDictEqual(dict(inst), {})
+        session.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(session.session_id, session_id)
+        self.assertIs(session.new, new)
+        self.assertDictEqual(dict(session), {})
 
-        self.assertEqual(inst.timeout, None)
+        self.assertEqual(session.timeout, None)
 
-        _deserialized = self._deserialize_session(inst)
+        _deserialized = self._deserialize_session(session)
         self.assertNotIn('timeout', _deserialized)
 
-        self.assertEquals(len(inst.redis._history), 1)
-        _redis_op = inst.redis._history[0]
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'set')
+
+        # clear the history, `do_refresh` should do nothing (timeout=0)
+        session.redis._history_reset()
+        session.do_refresh()  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 0)  # we shouldn't have any timeout at all
+
+        # clear the history, `do_refresh+force_redis_ttl` ensures an "expire"
+        session.redis._history_reset()
+        session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
+        self.assertEquals(_redis_op[0], 'expire')
+        self.assertEquals(_redis_op[2], 47)
 
     def test_init_new_session_notimeout_lru(self):
         """
@@ -615,23 +628,35 @@ class TestRedisSessionNew(unittest.TestCase):
         new = True
         timeout = 0
         assume_redis_lru = True
-        inst = self._set_up_session_in_Redis_and_makeOne(
+        session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
             assume_redis_lru=assume_redis_lru,
             )
-        inst.do_persist()  # trigger the real session's set/setex
-        self.assertEqual(inst.session_id, session_id)
-        self.assertIs(inst.new, new)
-        self.assertDictEqual(dict(inst), {})
+        session.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(session.session_id, session_id)
+        self.assertIs(session.new, new)
+        self.assertDictEqual(dict(session), {})
 
-        _deserialized = self._deserialize_session(inst)
+        _deserialized = self._deserialize_session(session)
         self.assertNotIn('timeout', _deserialized)
-
-        self.assertEquals(len(inst.redis._history), 1)
-        _redis_op = inst.redis._history[0]
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'set')
+
+        # clear the history, `do_refresh` should do nothing (timeout=0)
+        session.redis._history_reset()
+        session.do_refresh()  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 0)  # we shouldn't have any timeout at all
+
+        # clear the history, `do_refresh+force_redis_ttl` ensures an "expire"
+        session.redis._history_reset()
+        session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
+        self.assertEquals(_redis_op[0], 'expire')
+        self.assertEquals(_redis_op[2], 47)
 
     def test_init_new_session_timeout(self):
         """
@@ -641,23 +666,38 @@ class TestRedisSessionNew(unittest.TestCase):
         new = True
         timeout = 60
         assume_redis_lru = None
-        inst = self._set_up_session_in_Redis_and_makeOne(
+        session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
             assume_redis_lru=assume_redis_lru,
             )
-        inst.do_persist()  # trigger the real session's set/setex
-        self.assertEqual(inst.session_id, session_id)
-        self.assertIs(inst.new, new)
-        self.assertDictEqual(dict(inst), {})
+        session.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(session.session_id, session_id)
+        self.assertIs(session.new, new)
+        self.assertDictEqual(dict(session), {})
 
-        _deserialized = self._deserialize_session(inst)
+        _deserialized = self._deserialize_session(session)
         self.assertIn('timeout', _deserialized)
-
-        self.assertEquals(len(inst.redis._history), 1)
-        _redis_op = inst.redis._history[0]
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'setex')
+
+        # clear the history, `do_refresh` should issue an "expire" (timeout=60)
+        session.redis._history_reset()
+        session.do_refresh()  # trigger the real session's set/setex
+        # we shouldn't have set a timeout
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
+        self.assertEquals(_redis_op[0], 'expire')
+
+        # clear the history, `do_refresh+force_redis_ttl` ensures an "expire"
+        session.redis._history_reset()
+        session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
+        self.assertEquals(_redis_op[0], 'expire')
+        self.assertEquals(_redis_op[2], 47)
 
     def test_init_new_session_timeout_lru(self):
         """
@@ -667,20 +707,33 @@ class TestRedisSessionNew(unittest.TestCase):
         new = True
         timeout = 60
         assume_redis_lru = True
-        inst = self._set_up_session_in_Redis_and_makeOne(
+        session = self._set_up_session_in_Redis_and_makeOne(
             session_id=session_id,
             new=new,
             timeout=timeout,
             assume_redis_lru=assume_redis_lru,
             )
-        inst.do_persist()  # trigger the real session's set/setex
-        self.assertEqual(inst.session_id, session_id)
-        self.assertIs(inst.new, new)
-        self.assertDictEqual(dict(inst), {})
-
-        _deserialized = self._deserialize_session(inst)
+        session.do_persist()  # trigger the real session's set/setex
+        self.assertEqual(session.session_id, session_id)
+        self.assertIs(session.new, new)
+        self.assertDictEqual(dict(session), {})
+        _deserialized = self._deserialize_session(session)
         self.assertIn('timeout', _deserialized)
-
-        self.assertEquals(len(inst.redis._history), 1)
-        _redis_op = inst.redis._history[0]
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'set')
+
+        # clear the history, `do_refresh` should do nothing (timeout=60, assume_redis_lru=True)
+        session.redis._history_reset()
+        session.do_refresh()  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 0)
+
+        # clear the history, `do_refresh` should issue an "expire" (force_redis_ttl=60)
+        session.redis._history_reset()
+        session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
+        self.assertEquals(len(session.redis._history), 1)
+        _redis_op = session.redis._history[0]
+        self.assertEquals(_redis_op[0], 'expire')
+        self.assertEquals(_redis_op[2], 47)
+
+
