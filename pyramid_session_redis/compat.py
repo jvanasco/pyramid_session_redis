@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
 try:
     # python3.6 secretc module
     from secrets import token_urlsafe, token_hex
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     import os
     import base64
     import binascii

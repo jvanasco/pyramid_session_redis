@@ -7,7 +7,7 @@ import unittest
 from . import (
     DummyRedis,
     DummySession,
-    )
+)
 
 
 class Test_parse_settings(unittest.TestCase):
@@ -17,13 +17,13 @@ class Test_parse_settings(unittest.TestCase):
 
     def _makeSettings(self):
         settings = {
-            'redis.sessions.secret'        : 'mysecret',
-            'redis.sessions.cookie_secure' : 'false',
-            'redis.sessions.host'          : 'localhost',
-            'redis.sessions.port'          : '1234',
+            'redis.sessions.secret': 'mysecret',
+            'redis.sessions.cookie_secure': 'false',
+            'redis.sessions.host': 'localhost',
+            'redis.sessions.port': '1234',
             'redis.sessions.socket_timeout': '1234',
-            'ignore.this.setting'          : '',
-            }
+            'ignore.this.setting': '',
+        }
         return settings
 
     def test_it(self):
@@ -36,7 +36,7 @@ class Test_parse_settings(unittest.TestCase):
         self.assertNotIn('ignore.this.setting', inst)
 
     def test_minimal_configuration(self):
-        settings = { 'redis.sessions.secret': 'mysecret' }
+        settings = {'redis.sessions.secret': 'mysecret', }
         inst = self._makeOne(settings)
         self.assertEqual('mysecret', inst['secret'])
 
@@ -128,6 +128,7 @@ class Test__generate_session_id(unittest.TestCase):
         result = inst()
         self.assertEqual(len(result), 64)
 
+
 class Test_prefixed_id(unittest.TestCase):
     def _makeOne(self):
         from ..util import prefixed_id
@@ -186,4 +187,3 @@ class Test_refresh_decorator(unittest.TestCase):
         ttl = session.redis.ttl(session.session_id)
         self.assertEqual(result, 'expected result')
         self.assertEqual(timeout, ttl)
-

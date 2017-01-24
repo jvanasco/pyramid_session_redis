@@ -2,13 +2,14 @@
 Changelog
 =========
 
--unreleased:
+-1/24/2017:
     * version 1.2.2
     * merged most of pull request https://github.com/jvanasco/pyramid_session_redis/pull/3 from Chad Birch (@Deimos)
     * clarified assume_redis_lru in docs, added tests
     * added `force_redis_ttl` kwarg to `RedisSession.do_refresh`
-    * deprecating `assume_redis_lru` with it's inverse `set_redis_ttl`.  the `assume_redis_lru` kwarg will be supported until the 1.4.0 release.
-
+    * added `set_redis_ttl` deprecating it's inverse: `assume_redis_lru`.  the `assume_redis_lru` kwarg will be supported until the 1.4.0 release.
+    * added `use_int_time` as session factory arg. this will cast the `created` time to int(math.ceil(time)), saving some space
+    
 -1/17/2017:
     * version 1.2.1
     * fixed bug with session.invalidate that caused placeholder sessions to be created( https://github.com/jvanasco/pyramid_session_redis/issues/2 )

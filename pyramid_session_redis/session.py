@@ -3,6 +3,7 @@
 import hashlib
 
 from pyramid.decorator import reify
+from pyramid.exceptions import ConfigurationError
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
@@ -13,7 +14,7 @@ from .util import (
     refresh,
     to_unicode,
     warn_future,
-    )
+)
 
 
 def hashed_value(serialized):
@@ -135,12 +136,13 @@ class RedisSession(object):
         set_redis_ttl=True,
         detect_changes=True,
         deserialized_fails_new=None,
-        assume_redis_lru = None,
+        assume_redis_lru=None,
     ):
         if assume_redis_lru is not None:
             warn_future("""`assume_redis_lru` is being deprecated in favor it's inverse: `set_redis_ttl`""")
-            if set_redis_ttl is not None:
-                raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_tl` at the same time")
+            if assume_redis_lru and set_redis_ttl:
+                warn_future("""You should not set both `assume_redis_lru` and `set_redis_ttl`""")
+                raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_ttl` as True the same time")
             set_redis_ttl = not assume_redis_lru
         self.redis = redis
         self.serialize = serialize
@@ -152,14 +154,14 @@ class RedisSession(object):
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
-            )
+        )
 
     @reify
     def _session_state(self):
         return self._make_session_state(
             session_id=self._new_session(),
             new=True,
-            )
+        )
 
     def _make_session_state(self, session_id, new):
         (persisted,
@@ -178,7 +180,7 @@ class RedisSession(object):
             timeout=persisted.get('timeout'),
             new=new,
             persisted_hash=persisted_hash,
-            )
+        )
 
     @property
     def session_id(self):

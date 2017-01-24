@@ -20,15 +20,19 @@ Other Updates:
 
 * support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
 * thankts to github/hongyuan1306, token generation has been consolidated to use python3's stdlib (or reimplemented if not available).  tokens are also 32, not 20, chars.
+* redis is supported in a LRU mode (see http://redis.io/topics/lru-cache) by setting the option `set_redis_ttl` to `False` (by default, it is `True`).  This will eliminate calls to EXPIRE and will use SET instead of SETEX.
+* the payload timeout can be set to an integer via `use_int_time=True`.  This will cast the `created` time via "int(math.ceil(time.time()))".  This can reduce a payload by several characters.
 
-Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.
+Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.  Some options are offered to minimize the size of payloads as well.
 
 Notes:
 ======
 
-``assume_redis_lru`` does not imply there is no timeout, only that Redis will not store timeout data via `SETEX` or `EXPIRE`.  Timeout data can still be stored in Python.
+If ``set_redis_ttl`` is False, it does not imply there is no timeout at all -- only that Redis will not be sent timeout data via `SETEX` or `EXPIRE`.  Timeout data will still be stored in Python.
 
-If Redis is functioning as an LRU Cache, abandoned sessions will never be seen by Python, but will eventually be cleared out to make room for new sessions.
+If Redis is functioning as an LRU Cache, abandoned sessions will never be seen by Python, but will eventually be cleared out to make room for new sessions by the inherent Redis LRU logic.
+
+Timeout data stored in Python is relatively small when compared to the timeout data stored in Redis.
 
 If you want to NEVER have sessions timeout, set the initial `timeout` to "0" or "None".
 
@@ -48,6 +52,14 @@ No Timeout in Python, no Redis TTL (only SET used)
 
 	timeout = 0  # or None
 	assume_redis_ttl = True
+
+
+To Do:
+================
+
+The following features are under consideration. PRs are requested
+
+[ ] A way to not create a session if the new session is empty.  Accessing the session or session-id will trigger the generation of a session_id, even if empty. In high load situations this may not be ideal, and no session/session_id should be created unless the session is populated.
 
 
 Further Reading:

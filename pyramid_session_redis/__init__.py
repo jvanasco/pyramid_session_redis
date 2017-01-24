@@ -2,10 +2,11 @@
 
 import functools
 
+from pyramid.exceptions import ConfigurationError
 from pyramid.session import (
     signed_deserialize,
     signed_serialize,
-    )
+)
 
 from .compat import cPickle
 from .connection import get_default_connection
@@ -16,10 +17,10 @@ from .util import (
     _parse_settings,
     get_unique_session_id,
     warn_future,
-    )
+)
 
 
-__VERSION__ = '1.2.2-dev'
+__VERSION__ = '1.2.2'
 
 
 def check_response_allow_cookies(response):
@@ -106,6 +107,7 @@ def RedisSessionFactory(
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
     set_redis_ttl=True,
+    use_int_time=False,
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
@@ -189,7 +191,7 @@ def RedisSessionFactory(
     to create a 40 character unique ID.
 
     ``set_redis_ttl``
-    Boolean value.  Default `True`. If set to ``True``, will set a TTL. If 
+    Boolean value.  Default `True`. If set to ``True``, will set a TTL. If
     ``False`` will not set a TTL and assumes that Redis is configured as a
     least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
     send EXPIRY data of sessions to Redis (the value of `timeout` will be
@@ -197,7 +199,12 @@ def RedisSessionFactory(
     handled within the Python payload, it just determines if Redis will be
     involved with timeout logic.
     Default: ``False``
-    
+
+    ``use_int_time``
+    Boolean value.  Default `False`. If set to ``True``, will cast the `created`
+    time to an `int` via int(math.ceil(created)).  This can result in a smaller
+    payload that is stored.
+
     ``assume_redis_lru``
     Boolean value.  Deprecated in 1.2.2.  The inverse of ``set_redis_ttl``
 
@@ -228,7 +235,7 @@ def RedisSessionFactory(
     """
     if timeout == 0:
         timeout = None
-    
+
     if assume_redis_lru is not None:
         # warn("assume_redis_lru" is deprecated. please use `set_redis_tl`")
         # there is an inverse relationship here
@@ -248,7 +255,7 @@ def RedisSessionFactory(
             charset=charset,
             errors=errors,
             unix_socket_path=unix_socket_path,
-            )
+        )
 
         # an explicit client callable gets priority over the default
         redis = client_callable(request, **redis_options) \
@@ -260,7 +267,7 @@ def RedisSessionFactory(
             request=request,
             cookie_name=cookie_name,
             secret=secret,
-            )
+        )
 
         new_session = functools.partial(
             new_session_id,
@@ -269,7 +276,8 @@ def RedisSessionFactory(
             serialize=serialize,
             generator=id_generator,
             set_redis_ttl=set_redis_ttl,
-            )
+            use_int_time=use_int_time,
+        )
 
         try:
             if not session_id_from_cookie:
@@ -286,7 +294,7 @@ def RedisSessionFactory(
                 set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
-                )
+            )
         except InvalidSession:
             session_id = new_session()
             session_cookie_was_valid = False
@@ -299,7 +307,7 @@ def RedisSessionFactory(
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
-                )
+            )
 
         set_cookie = functools.partial(
             _set_cookie,
@@ -311,13 +319,13 @@ def RedisSessionFactory(
             cookie_secure=cookie_secure,
             cookie_httponly=cookie_httponly,
             secret=secret,
-            )
+        )
         delete_cookie = functools.partial(
             _delete_cookie,
             cookie_name=cookie_name,
             cookie_path=cookie_path,
             cookie_domain=cookie_domain,
-            )
+        )
         cookie_callback = functools.partial(
             _cookie_callback,
             session,
@@ -326,13 +334,13 @@ def RedisSessionFactory(
             set_cookie=set_cookie,
             delete_cookie=delete_cookie,
             func_check_response_allow_cookies=func_check_response_allow_cookies,
-            )
+        )
         request.add_response_callback(cookie_callback)
 
         finished_callback = functools.partial(
             _finished_callback,
             session
-            )
+        )
         request.add_finished_callback(finished_callback)
 
         return session
@@ -383,7 +391,7 @@ def _set_cookie(
         domain=cookie_domain,
         secure=cookie_secure,
         httponly=cookie_httponly,
-        )
+    )
 
 
 def _delete_cookie(response, cookie_name, cookie_path, cookie_domain):

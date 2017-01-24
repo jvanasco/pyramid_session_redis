@@ -8,7 +8,7 @@ from pyramid.threadlocal import get_current_request
 
 # dotted paths to dummy callables
 _id_path = 'pyramid_session_redis.tests.test_config.dummy_id_generator'
-_client_path ='pyramid_session_redis.tests.test_config.dummy_client_callable'
+_client_path = 'pyramid_session_redis.tests.test_config.dummy_client_callable'
 
 
 class Test_includeme(unittest.TestCase):
@@ -50,6 +50,7 @@ class Test_includeme(unittest.TestCase):
 # used to ensure includeme can resolve a dotted path to an id generator
 def dummy_id_generator():
     return 42
+
 
 # used to ensure includeme can resolve a dotted path to a redis client callable
 def dummy_client_callable(request, **opts):

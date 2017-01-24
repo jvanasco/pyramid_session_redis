@@ -17,7 +17,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         finished_callback = functools.partial(
             _finished_callback,
             session
-            )
+        )
         request.add_finished_callback(finished_callback)
 
     def _assert_is_a_header_to_set_cookie(self, header_value):
@@ -110,7 +110,7 @@ class TestRedisSessionFactory(unittest.TestCase):
             cookie_secure=cookie_secure,
             cookie_httponly=cookie_httponly,
             secret=secret,
-            )
+        )
         session['key'] = 'value'
         response = webob.Response()
         request.response_callbacks[0](request, response)
@@ -159,7 +159,7 @@ class TestRedisSessionFactory(unittest.TestCase):
             cookie_name=cookie_name,
             cookie_path=cookie_path,
             cookie_domain=cookie_domain,
-            )
+        )
         session.invalidate()
         response = webob.Response()
         request.response_callbacks[0](request, response)
@@ -173,7 +173,7 @@ class TestRedisSessionFactory(unittest.TestCase):
             cookie_name,
             path=cookie_path,
             domain=cookie_domain,
-            )
+        )
         expected_header = response.headers.getall('Set-Cookie')[0]
         self.assertEqual(set_cookie_headers[0], expected_header)
 
@@ -309,7 +309,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def test_new_session_multiple_invalidates_with_no_new_session_in_between(
         self
-        ):
+    ):
         # new session -> invalidate() -> invalidate()
         # Invalidate more than once, no new session in between invalidate()s,
         # no new session after last invalidate()
@@ -322,6 +322,22 @@ class TestRedisSessionFactory(unittest.TestCase):
         request.response_callbacks[0](request, response)
         self.assertNotIn('Set-Cookie', response.headers)
 
+    def test_new_session_int_time(self):
+        # new request
+        request = self._make_request()
+
+        # default behavior: we have a float
+        session = request.session = self._makeOne(request)
+        self.assertNotEquals(session.created, int(session.created))
+
+        # use_int_time=False: we have a float
+        session = request.session = self._makeOne(request, use_int_time=False)
+        self.assertNotEquals(session.created, int(session.created))
+
+        # use_int_time=True: we have an int
+        session = request.session = self._makeOne(request, use_int_time=True)
+        self.assertEquals(session.created, int(session.created))
+
     # The tests below with names beginning with test_existing_session_ test
     # cases where first access to request.session returns an existing session,
     # as in test_ctor_with_cookie_still_valid.
@@ -332,7 +348,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         self._set_session_cookie(
             request=request,
             session_id=self._get_session_id(request),
-            )
+        )
         request.session = self._makeOne(request)
         response = webob.Response()
         request.response_callbacks[0](request, response)
@@ -393,7 +409,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def test_existing_session_session_after_invalidate_coe_True_no_exception(
         self
-        ):
+    ):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is True by default, no exception raised
         import webob
@@ -411,7 +427,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def test_existing_session_session_after_invalidate_coe_True_exception(
         self
-        ):
+    ):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is True by default, exception raised
         import webob
@@ -430,7 +446,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def test_existing_session_session_after_invalidate_coe_False_no_exception(
         self
-        ):
+    ):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is False, no exception raised
         import webob
@@ -449,7 +465,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def test_existing_session_session_after_invalidate_coe_False_exception(
         self
-        ):
+    ):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is False, exception raised
         import webob
@@ -488,7 +504,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def test_existing_session_multiple_invalidates_no_new_session_in_between(
         self
-        ):
+    ):
         # existing session -> invalidate() -> invalidate()
         # Invalidate more than once, no new session in between invalidate()s,
         # no new session after last invalidate()
@@ -550,7 +566,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
         request_0 = self._make_request()
         settings_0 = {'redis.sessions.secret': 'secret',
-                     'redis.sessions.timeout': '0'}
+                      'redis.sessions.timeout': '0'}
         inst_0 = session_factory_from_settings(settings_0)(request_0)
         self.assertEqual(inst_0.timeout, None)
 
@@ -559,7 +575,8 @@ class TestRedisSessionFactory(unittest.TestCase):
         from .. import RedisSessionFactory
         import webob
 
-        factory = RedisSessionFactory('secret',
+        factory = RedisSessionFactory(
+            'secret',
             func_check_response_allow_cookies=check_response_allow_cookies,
         )
 
@@ -610,7 +627,8 @@ class TestRedisSessionFactory(unittest.TestCase):
                     return False
             return True
 
-        factory = RedisSessionFactory('secret',
+        factory = RedisSessionFactory(
+            'secret',
             func_check_response_allow_cookies=check_response_allow_cookies,
         )
 

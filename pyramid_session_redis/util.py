@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
+# stdlib
 from functools import partial
 import warnings
 import time
+from math import ceil
 
+# pypi
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
+
+# local
 from .compat import PY3, token_urlsafe
 
 
@@ -40,9 +45,9 @@ def _generate_session_id():
     supply your own function in your ini file with:
 
         redis.sessions.id_generator = my_random_id_generator
-    
-    This uses 48 bytes instead of 32 to maintain backwards 
-    compatibility to pyramid_redis_sessions.  The earlier packaged used 
+
+    This uses 48 bytes instead of 32 to maintain backwards
+    compatibility to pyramid_redis_sessions.  The earlier packaged used
     a 64character digest; however 48bits using the new method will
     encode to a 64 character url-safe string, while 32 bits will only be encoded
     to a 40 character string.
@@ -66,13 +71,17 @@ def _insert_session_id_if_unique(
     session_id,
     serialize,
     set_redis_ttl,
+    use_int_time=False,
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
     the timeout data"""
+    _created = time.time()
+    if use_int_time:
+        _created = int(ceil(_created))
     data = {
         'managed_dict': {},
-        'created': time.time(),
+        'created': _created,
     }
     if timeout:
         data['timeout'] = timeout
@@ -105,7 +114,8 @@ def get_unique_session_id(
     timeout,
     serialize,
     generator=_generate_session_id,
-    set_redis_ttl=True
+    set_redis_ttl=True,
+    use_int_time=False,
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
@@ -118,7 +128,8 @@ def get_unique_session_id(
             session_id,
             serialize,
             set_redis_ttl,
-            )
+            use_int_time=use_int_time,
+        )
         if attempt is not None:
             return attempt
 

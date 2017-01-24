@@ -16,7 +16,7 @@ class TestConnection(unittest.TestCase):
     def test_get_default_connection(self):
         from . import DummyRedis
         from ..connection import get_default_connection
-        options = dict(host='localhost',port=999)
+        options = dict(host='localhost', port=999)
         inst = get_default_connection(self.request,
                                       redis_client=DummyRedis,
                                       **options)

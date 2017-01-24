@@ -82,6 +82,7 @@ class DummyRedis(object):
     def keys(self):
         return self.store.keys()
 
+
 class DummyPipeline(object):
     def __init__(self, store, raise_watcherror=False):
         self.store = store
