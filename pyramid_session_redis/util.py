@@ -60,9 +60,11 @@ def _insert_session_id_if_unique(
     timeout,
     session_id,
     serialize,
+    assume_redis_lru,
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
-    or ``None``."""
+    or ``None``.  ``timeout`` could be 0/None, in that case do-not track
+    the timeout data"""
     data = {
         'managed_dict': {},
         'created': time.time(),
@@ -98,6 +100,7 @@ def get_unique_session_id(
     timeout,
     serialize,
     generator=_generate_session_id,
+    assume_redis_lru=None
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
@@ -109,6 +112,7 @@ def get_unique_session_id(
             timeout,
             session_id,
             serialize,
+            assume_redis_lru,
             )
         if attempt is not None:
             return attempt
@@ -139,9 +143,18 @@ def _parse_settings(settings):
             options[b] = asbool(options[b])
 
     # coerce ints
-    for i in ('timeout', 'port', 'db', 'cookie_max_age'):
+    for i in ('port', 'db', 'cookie_max_age'):
         if i in options:
             options[i] = int(options[i])
+
+    # allow "None" to be a timeout value
+    if 'timeout' in options:
+        if options['timeout'] == 'None':
+            options['timeout'] = None
+        else:
+            options['timeout'] = int(options['timeout'])
+            if not options['timeout']:
+                options['timeout'] = None
 
     # coerce float
     if 'socket_timeout' in options:
@@ -150,9 +163,6 @@ def _parse_settings(settings):
     # check for settings conflict
     if 'prefix' in options and 'id_generator' in options:
         err = 'cannot specify custom id_generator and a key prefix'
-        raise ConfigurationError(err)
-    if 'timeout' in options and options.get('assume_redis_lru'):
-        err = 'cannot specify timeout and enable assume_redis_lru'
         raise ConfigurationError(err)
 
     # convenience setting for overriding key prefixes

@@ -62,10 +62,10 @@ class Test_parse_settings(unittest.TestCase):
 
 class Test__insert_session_id_if_unique(unittest.TestCase):
     def _makeOne(self, redis, timeout=1, session_id='id',
-                 serialize=lambda x: x):
+                 serialize=lambda x: x, assume_redis_lru=None):
         from ..util import _insert_session_id_if_unique
         return _insert_session_id_if_unique(redis, timeout, session_id,
-                                            serialize)
+                                            serialize, assume_redis_lru)
 
     def test_id_is_unique(self):
         redis = DummyRedis()

@@ -119,7 +119,7 @@ class TestRedisSessionFactory(unittest.TestCase):
 
         # Make another response and .set_cookie() using the same values and
         # settings to get the expected header to compare against
-        
+
         # note - webob 1.7 no longer supports name+value kwargs
         response_to_check_against = webob.Response()
         response_to_check_against.set_cookie(
@@ -538,6 +538,21 @@ class TestRedisSessionFactory(unittest.TestCase):
                     'redis.sessions.timeout': '999'}
         inst = session_factory_from_settings(settings)(request)
         self.assertEqual(inst.timeout, 999)
+
+    def test_session_factory_from_settings_no_timeout(self):
+        from .. import session_factory_from_settings
+        """settings should allow `None` and `0`; both becoming `None`"""
+        request_none = self._make_request()
+        settings_none = {'redis.sessions.secret': 'secret',
+                         'redis.sessions.timeout': 'None'}
+        inst_none = session_factory_from_settings(settings_none)(request_none)
+        self.assertEqual(inst_none.timeout, None)
+
+        request_0 = self._make_request()
+        settings_0 = {'redis.sessions.secret': 'secret',
+                     'redis.sessions.timeout': '0'}
+        inst_0 = session_factory_from_settings(settings_0)(request_0)
+        self.assertEqual(inst_0.timeout, None)
 
     def test_check_response(self):
         from .. import check_response_allow_cookies

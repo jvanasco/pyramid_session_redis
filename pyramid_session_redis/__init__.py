@@ -104,7 +104,7 @@ def RedisSessionFactory(
     serialize=cPickle.dumps,
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
-    assume_redis_lru=False,
+    assume_redis_lru=None,
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
@@ -123,6 +123,7 @@ def RedisSessionFactory(
 
     ``timeout``
     A number of seconds of inactivity before a session times out.
+    If set to 0 or None, no timeout will occur or be managed in Redis or Python.
 
     ``cookie_name``
     The name of the cookie used for sessioning. Default: ``session``.
@@ -186,9 +187,13 @@ def RedisSessionFactory(
     to create a 40 character unique ID.
 
     ``assume_redis_lru``
-    Boolean value. If set to ``True``, will assume that redis is configured as
-    a least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
-    send EXPIRY data for sessions (so the value of `timeout` will be ignored).
+    Boolean value.  Default `None`. If set to ``True``, will assume that redis
+    is configured as a least-recently-used cache
+    [http://redis.io/topics/lru-cache] and will NOT send EXPIRY data of
+    sessions to Redis (the value of `timeout` will be ignored).
+    This does not require or imply that no ``timeout`` data is handled within
+    the Python payload, it just determines if Redis will be involved with
+    timeouts.
     Default: ``False``
 
     ``detect_changes``
@@ -216,8 +221,7 @@ def RedisSessionFactory(
       errors
       unix_socket_path
     """
-    # ignore the value of `timeout` if configured for LRU mode
-    if assume_redis_lru:
+    if timeout == 0:
         timeout = None
 
     def factory(request, new_session_id=get_unique_session_id):
@@ -251,6 +255,7 @@ def RedisSessionFactory(
             timeout=timeout,
             serialize=serialize,
             generator=id_generator,
+            assume_redis_lru=assume_redis_lru,
             )
 
         try:
@@ -265,6 +270,7 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
+                assume_redis_lru=assume_redis_lru,
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
                 )
@@ -278,6 +284,7 @@ def RedisSessionFactory(
                 new_session=new_session,
                 serialize=serialize,
                 deserialize=deserialize,
+                assume_redis_lru=assume_redis_lru,
                 detect_changes=detect_changes,
                 )
 

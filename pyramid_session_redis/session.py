@@ -108,6 +108,10 @@ class RedisSession(object):
     The dual of ``serialize``, to convert serialized strings back to Python
     objects. Default: ``cPickle.loads``.
 
+    ``assume_redis_lru``
+     If ``True``, assumes redis is configured as a LRU and does not update the
+     expiry data via SETEX. Default: ``None``
+
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
 
@@ -123,6 +127,7 @@ class RedisSession(object):
         new_session,
         serialize=cPickle.dumps,
         deserialize=cPickle.loads,
+        assume_redis_lru=None,
         detect_changes=True,
         deserialized_fails_new=None,
     ):
@@ -130,6 +135,7 @@ class RedisSession(object):
         self.serialize = serialize
         self.deserialize = deserialize
         self._new_session = new_session
+        self._assume_redis_lru = assume_redis_lru
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
         self._session_state = self._make_session_state(
@@ -232,24 +238,37 @@ class RedisSession(object):
         # session with a new session_id.
 
     def do_persist(self, serialized_session=None):
-        """actually and immediately persist to Redis backend"""
+        """
+        Actually and immediately persist to Redis backend
+        Only set a timeout in Redis timeout if we have timeouts AND are not in LRU mode
+        Note: this package uses StrictRedis(`key, timeout, value`)
+              not Redis(`key, value, timeout`)
+        """
         if serialized_session is None:
             serialized_session = self.to_redis()
 
-        if self.timeout:
+        serverside_timeout = True if self.timeout is not None and not self._assume_redis_lru else False
+        if serverside_timeout:
             self.redis.setex(self.session_id, self.timeout, serialized_session)
         else:
             self.redis.set(self.session_id, serialized_session)
 
         self._session_state.please_persist = False
 
-    def do_refresh(self):
+    def do_refresh(self, force_timeout=None):
         """
         Actually and immediately refresh the TTL to Redis backend.
         Does nothing if no timeout set (in LRU mode).
+        Optional kwarg for developers ``force_timeout`` (default None)
+        can be provided to force a new Redis TTL.
         """
-        if self.timeout:
-            self.redis.expire(self.session_id, self.timeout)
+        if force_timeout is not None:
+            self.redis.expire(self.session_id, force_timeout)
+        else:
+            if self.timeout is not None:
+                if not self._assume_redis_lru:
+                    # don't set a TTL if we're in LRU mode
+                    self.redis.expire(self.session_id, self.timeout)
         self._session_state.please_refresh = False
 
     # dict modifying methods decorated with @persist
