@@ -98,14 +98,14 @@ class Test__insert_session_id_if_unique(unittest.TestCase):
         self.assertEqual(result, None)
 
 
-class Test_get_unique_session_id(unittest.TestCase):
+class Test_create_unique_session_id(unittest.TestCase):
     def _makeOne(self, redis=DummyRedis(), timeout=300):
-        from ..util import get_unique_session_id
+        from ..util import create_unique_session_id
         serialize = lambda x: x
         ids = itertools.count(start=1, step=1)
         generator = lambda: next(ids)
-        return get_unique_session_id(redis, timeout, serialize,
-                                     generator=generator)
+        return create_unique_session_id(redis, timeout, serialize,
+                                        generator=generator)
 
     def test_id_is_unique(self):
         result = self._makeOne()

@@ -59,7 +59,7 @@ To Do:
 
 The following features are under consideration. PRs are requested
 
-[ ] A way to not create a session if the new session is empty.  Accessing the session or session-id will trigger the generation of a session_id, even if empty. In high load situations this may not be ideal, and no session/session_id should be created unless the session is populated.
+[ ] A way to not create a session if the new session is empty.  Accessing the session or session-id will trigger the generation of a session_id, even if empty. In high load situations this may not be ideal, and no session/session_id should be created unless the session is populated.  For example, if your website gets spidered by a bot/botnet that does not use sessions... it will create a session_id that gets abandoned for each request.
 
 
 Further Reading:

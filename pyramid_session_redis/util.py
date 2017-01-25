@@ -65,17 +65,9 @@ def prefixed_id(prefix='session:'):
     return prefixed_id
 
 
-def _insert_session_id_if_unique(
-    redis,
-    timeout,
-    session_id,
-    serialize,
-    set_redis_ttl,
-    use_int_time=False,
-):
-    """ Attempt to insert a given ``session_id`` and return the successful id
-    or ``None``.  ``timeout`` could be 0/None, in that case do-not track
-    the timeout data"""
+def empty_session_payload(timeout, use_int_time=False):
+    """creates an empty session payload
+    """
     _created = time.time()
     if use_int_time:
         _created = int(ceil(_created))
@@ -85,8 +77,33 @@ def _insert_session_id_if_unique(
     }
     if timeout:
         data['timeout'] = timeout
-    _payload = serialize(data)
+    return data
 
+
+def _insert_session_id_if_unique(
+    redis,
+    timeout,
+    session_id,
+    serialize,
+    set_redis_ttl,
+    use_int_time=False,
+    data_payload=None,
+    data_payload_func=None
+):
+    """ Attempt to insert a given ``session_id`` and return the successful id
+    or ``None``.  ``timeout`` could be 0/None, in that case do-not track
+    the timeout data
+
+    ``data_payload`` = payload to use
+    ``data_payload_func`` = specify a fallback function to generate a payload
+    if both are ``None``, then `empty_session_payload`
+    """
+    if data_payload is None:
+        if data_payload_func is not None:
+            data_payload = data_payload_func()
+        else:
+            data_payload = empty_session_payload(timeout, use_int_time=use_int_time)
+    _payload = serialize(data_payload)
     with redis.pipeline() as pipe:
         try:
             # start pipeline with a watch
@@ -109,13 +126,15 @@ def _insert_session_id_if_unique(
             return None
 
 
-def get_unique_session_id(
+def create_unique_session_id(
     redis,
     timeout,
     serialize,
     generator=_generate_session_id,
     set_redis_ttl=True,
     use_int_time=False,
+    data_payload=None,
+    data_payload_func=None,
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
@@ -129,6 +148,8 @@ def get_unique_session_id(
             serialize,
             set_redis_ttl,
             use_int_time=use_int_time,
+            data_payload=data_payload,
+            data_payload_func=data_payload_func,
         )
         if attempt is not None:
             return attempt

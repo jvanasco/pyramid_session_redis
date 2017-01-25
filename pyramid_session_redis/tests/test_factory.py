@@ -29,10 +29,10 @@ class TestRedisSessionFactory(unittest.TestCase):
 
     def _get_session_id(self, request):
         from ..compat import cPickle
-        from ..util import get_unique_session_id
+        from ..util import create_unique_session_id
         redis = request.registry._redis_sessions
-        session_id = get_unique_session_id(redis, timeout=100,
-                                           serialize=cPickle.dumps)
+        session_id = create_unique_session_id(redis, timeout=100,
+                                              serialize=cPickle.dumps)
         return session_id
 
     def _serialize(self, session_id, secret='secret'):

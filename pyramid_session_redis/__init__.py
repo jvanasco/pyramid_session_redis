@@ -15,12 +15,13 @@ from .session import RedisSession
 from .util import (
     _generate_session_id,
     _parse_settings,
-    get_unique_session_id,
+    create_unique_session_id,
     warn_future,
+    empty_session_payload,
 )
 
 
-__VERSION__ = '1.2.2'
+__VERSION__ = '1.2.3-dev'
 
 
 def check_response_allow_cookies(response):
@@ -111,7 +112,7 @@ def RedisSessionFactory(
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
-    assume_redis_lru=None,  # deprecated in 1.2.2
+    assume_redis_lru=None,  # deprecated in 1.2.2, will be removed in 1.4
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -206,7 +207,8 @@ def RedisSessionFactory(
     payload that is stored.
 
     ``assume_redis_lru``
-    Boolean value.  Deprecated in 1.2.2.  The inverse of ``set_redis_ttl``
+    Boolean value.  Deprecated in 1.2.2. Will be removed in 1.4.
+    The inverse of ``set_redis_ttl``
 
     ``detect_changes``
     Boolean value. If set to ``True``, will calculate nested changes after
@@ -244,30 +246,40 @@ def RedisSessionFactory(
             raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_tl` at the same time")
         set_redis_ttl = not assume_redis_lru
 
-    def factory(request, new_session_id=get_unique_session_id):
-        redis_options = dict(
-            host=host,
-            port=port,
-            db=db,
-            password=password,
-            socket_timeout=socket_timeout,
-            connection_pool=connection_pool,
-            charset=charset,
-            errors=errors,
-            unix_socket_path=unix_socket_path,
-        )
+    # good for all factory() requests
+    redis_options = dict(
+        host=host,
+        port=port,
+        db=db,
+        password=password,
+        socket_timeout=socket_timeout,
+        connection_pool=connection_pool,
+        charset=charset,
+        errors=errors,
+        unix_socket_path=unix_socket_path,
+    )
+
+    # good for all factory() requests
+    new_session_payload = functools.partial(
+        empty_session_payload,
+        timeout=timeout,
+        use_int_time=use_int_time,
+    )
+
+    # good for all factory() requests
+    delete_cookie = functools.partial(
+        _delete_cookie,
+        cookie_name=cookie_name,
+        cookie_path=cookie_path,
+        cookie_domain=cookie_domain,
+    )
+
+    def factory(request, new_session_id=create_unique_session_id):
 
         # an explicit client callable gets priority over the default
         redis = client_callable(request, **redis_options) \
             if client_callable is not None \
             else get_default_connection(request, url=url, **redis_options)
-
-        # attempt to retrieve a session_id from the cookie
-        session_id_from_cookie = _get_session_id_from_cookie(
-            request=request,
-            cookie_name=cookie_name,
-            secret=secret,
-        )
 
         new_session = functools.partial(
             new_session_id,
@@ -277,9 +289,17 @@ def RedisSessionFactory(
             generator=id_generator,
             set_redis_ttl=set_redis_ttl,
             use_int_time=use_int_time,
+            data_payload_func=new_session_payload,
         )
 
         try:
+            # attempt to retrieve a session_id from the cookie
+            session_id_from_cookie = _get_session_id_from_cookie(
+                request=request,
+                cookie_name=cookie_name,
+                secret=secret,
+            )
+
             if not session_id_from_cookie:
                 raise InvalidSession('initial new session')
             session_id = session_id_from_cookie
@@ -289,6 +309,7 @@ def RedisSessionFactory(
                 session_id=session_id,
                 new=not session_cookie_was_valid,
                 new_session=new_session,
+                new_session_payload=new_session_payload,
                 serialize=serialize,
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
@@ -303,6 +324,7 @@ def RedisSessionFactory(
                 session_id=session_id,
                 new=not session_cookie_was_valid,
                 new_session=new_session,
+                new_session_payload=new_session_payload,
                 serialize=serialize,
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
@@ -319,12 +341,6 @@ def RedisSessionFactory(
             cookie_secure=cookie_secure,
             cookie_httponly=cookie_httponly,
             secret=secret,
-        )
-        delete_cookie = functools.partial(
-            _delete_cookie,
-            cookie_name=cookie_name,
-            cookie_path=cookie_path,
-            cookie_domain=cookie_domain,
         )
         cookie_callback = functools.partial(
             _cookie_callback,

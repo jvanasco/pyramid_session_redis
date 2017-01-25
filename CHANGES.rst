@@ -2,6 +2,14 @@
 Changelog
 =========
 
+- Unreleased
+    * version 1.2.3
+    * updated deprecation warnings
+    * prepping for ability to not create sessions on every access.  getting spidered by bots who don't use sessions hurts Redis.
+    * renamed `util.get_unique_session_id` to `util.create_unique_session_id`
+    * added `util.empty_session_payload`
+    * migrated some RedisSessionFactory functions into a more global (not per-request) block
+
 -1/24/2017:
     * version 1.2.2
     * merged most of pull request https://github.com/jvanasco/pyramid_session_redis/pull/3 from Chad Birch (@Deimos)

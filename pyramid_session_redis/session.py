@@ -102,6 +102,11 @@ class RedisSession(object):
     A function that takes no arguments. It should insert a new session into
     Redis under a new session_id, and return that session_id.
 
+    ``new_session_payload``
+    UNDER DEVELOPMENT
+    A function that takes no arguments.  It is used to to generate a new session
+    payload without creating the id (as new_session might)
+
     ``serialize``
     A function to serialize pickleable Python objects. Default:
     ``cPickle.dumps``.
@@ -116,7 +121,8 @@ class RedisSession(object):
      Default: ``True``
 
     ``assume_redis_lru``
-    Boolean value.  Deprecated in 1.2.2.  The inverse of ``set_redis_ttl``
+    Boolean value.  Deprecated in 1.2.2. Will be removed in 1.4.
+    The inverse of ``set_redis_ttl``
 
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
@@ -131,6 +137,7 @@ class RedisSession(object):
         session_id,
         new,
         new_session,
+        new_session_payload=None,
         serialize=cPickle.dumps,
         deserialize=cPickle.loads,
         set_redis_ttl=True,
@@ -148,6 +155,7 @@ class RedisSession(object):
         self.serialize = serialize
         self.deserialize = deserialize
         self._new_session = new_session
+        self._new_session_payload = new_session_payload
         self._set_redis_ttl = set_redis_ttl
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
@@ -158,6 +166,13 @@ class RedisSession(object):
 
     @reify
     def _session_state(self):
+        """this should only be executed after an `invalidate()`
+        The `invalidate()` will "del self._session_state", which will remove the
+        '_session_state' entry from the object dict (as created by __init__ or by
+        this function which reify's the return value). Removing that function
+        allows this method to execute, and `reify` puts the new result in the
+        object's dict.
+        """
         return self._make_session_state(
             session_id=self._new_session(),
             new=True,
@@ -248,7 +263,8 @@ class RedisSession(object):
         # indirect access via other methods and properties to .session_id,
         # .managed_dict, .created, .timeout and .new (i.e. anything stored in
         # self._session_state) after this will trigger the creation of a new
-        # session with a new session_id.
+        # session with a new session_id via the `_session_state()` reified
+        # property.
 
     def do_persist(self, serialized_session=None):
         """
