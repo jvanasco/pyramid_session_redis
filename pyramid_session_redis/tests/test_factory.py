@@ -804,8 +804,8 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         """loads session from backend via id, deserializes"""
         _session_id = session.session_id
         _session_data = session.redis.store[_session_id]
-        _session_serialized = deserialize(_session_data)
-        return _session_serialized
+        _session_deserialized = deserialize(_session_data)
+        return _session_deserialized
 
     def _set_up_session_in_redis(self, redis, session_id,
                                  session_dict=None, timeout=None,
@@ -818,7 +818,15 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
             python_expires = True
         if session_dict is None:
             session_dict = {}
-        payload = encode_session_payload(session_dict, int_time(), timeout, python_expires=python_expires)
+        time_now = int_time()
+        expires = time_now + timeout if timeout else None
+        payload = encode_session_payload(session_dict,
+                                         time_now,
+                                         timeout,
+                                         expires,
+                                         timeout_trigger=timeout_trigger,
+                                         python_expires=python_expires,
+                                         )
         if set_redis_ttl:
             redis.setex(session_id,
                         timeout,
@@ -909,6 +917,38 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         self.assertNotIn('Set-Cookie', response.headers)
         # stored_session_data = self._deserialize_session_stored(request.session)
         return request
+    
+    def _adjust_request_session(self, request, serialize=cPickle.dumps, **kwargs):
+        _session_deserialized = self._deserialize_session_stored(request.session)
+
+        if 'created' in kwargs:
+            created = kwargs.pop('created', 0)
+            _session_deserialized['c'] += created
+        if 'expires' in kwargs:
+            expires = kwargs.pop('expires', 0)
+            _session_deserialized['x'] += expires
+        _session_deserialized['t'] += 1
+        _session_deserialized['m']['foo'] = 'bar'
+        _session_id = request.session.session_id
+        _session_serialized = serialize(_session_deserialized)
+        request.session.redis.store[_session_id] = _session_serialized
+        
+        _redis_sessions = request.registry._redis_sessions
+        request2 = self._make_request()
+        request2.registry._redis_sessions = _redis_sessions
+        self._set_session_cookie(
+            request=request2,
+            session_id=_session_id,
+        )
+        request2.session = self._makeOne(request2, **kwargs)
+        import webob
+        response = webob.Response()
+        request2.response_callbacks[0](request2, response)
+        request2.finished_callbacks[0](request2)  # runs any persist if needed
+
+        _session_deserialized2 = self._deserialize_session_stored(request2.session)
+
+        return request2
 
     # --------------------------------------------------------------------------
     # new session - timeout
@@ -1074,11 +1114,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
         
-    _args_timeout_trigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
-                                                         'timeout_trigger': 600,
-                                                         'python_expires': False,
-                                                         'set_redis_ttl': True,
-                                                         }
     def test_scenario_existing__timeout_trigger_pythonNoExpires_setRedisTtl_noChange(self):
         # note: timeout-trigger will force python_expires
 
@@ -1344,11 +1379,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
         
-    _args_timeout_trigger_noPythonExpires_noRedisTtl = {'timeout': 1200,
-                                                        'timeout_trigger': 600,
-                                                        'python_expires': False,
-                                                        'set_redis_ttl': False,
-                                                        }
     def test_scenario_existing__timeout_trigger_pythonNoExpires_noRedisTtl_noChange(self):
         # note: timeout-trigger will force python_expires
         session_args = self._args_timeout_trigger_noPythonExpires_noRedisTtl
@@ -1450,3 +1480,29 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
+
+
+    # --------------------------------------------------------------------------
+    # new session - timeout
+    # --------------------------------------------------------------------------
+
+    def test_scenario_flow__timeout_trigger_pythonExpires_noRedisTtl_noChange(self):
+        session_args = self._args_timeout_trigger_pythonExpires_noRedisTtl
+        request1 = self._prep_existing_session(session_args)
+
+        stored_session_data_1 = self._deserialize_session_stored(request1.session)
+        
+        # timeout = 1200
+        timeout_diff_1 = -9
+        request2 = self._adjust_request_session(request1, expires=timeout_diff_1)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data_2 = self._deserialize_session_stored(request2.session)
+        
+        self.assertIn('x', stored_session_data_2)
+        self.assertEqual(stored_session_data_2['x'], stored_session_data_1['x'] + timeout_diff_1)
+        
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        self.assertEqual(request1.registry._redis_sessions._history[0][0], 'set')

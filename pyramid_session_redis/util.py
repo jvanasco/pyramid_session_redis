@@ -93,7 +93,7 @@ def empty_session_payload(timeout=0, python_expires=None):
     return data
 
 
-def encode_session_payload(managed_dict, created, timeout, python_expires=None):
+def encode_session_payload(managed_dict, created, timeout, expires, timeout_trigger=None, python_expires=None):
     """called by a session to recode for storage;
        inverse of ``decode_session_payload``
     """
@@ -101,11 +101,15 @@ def encode_session_payload(managed_dict, created, timeout, python_expires=None):
             'c': created,  # created
             'v': SESSION_API_VERSION,  # session_api version
             }
+    if expires and python_expires:
+        data['x'] = expires
     if timeout:
         data['t'] = timeout  # timeout
         if python_expires:
-            expires = int_time() + timeout
-            data['x'] = expires  # expires
+            time_now = int_time()
+            if not timeout_trigger or (time_now - timeout <= timeout_trigger ):
+                expires = int_time() + timeout
+                data['x'] = expires  # expires
     return data
 
 

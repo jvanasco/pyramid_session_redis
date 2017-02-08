@@ -312,6 +312,8 @@ class RedisSession(object):
         data = self.encode_session_payload(self.managed_dict,
                                            self.created,
                                            self.timeout,
+                                           self.expires,
+                                           timeout_trigger=self._timeout_trigger,
                                            python_expires=self._python_expires,
                                            )
         return self.serialize(data)

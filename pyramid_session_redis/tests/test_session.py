@@ -27,7 +27,9 @@ class TestRedisSession(unittest.TestCase):
                                  session_dict=None, serialize=cPickle.dumps):
         if session_dict is None:
             session_dict = {}
-        payload = encode_session_payload(session_dict, int_time(), timeout)
+        time_now = int_time()
+        expires = time_now + timeout if timeout else None
+        payload = encode_session_payload(session_dict, time_now, timeout, expires)
         redis.set(session_id,
                   serialize(payload)
                   )
@@ -582,7 +584,7 @@ class TestRedisSessionNew(unittest.TestCase):
         if session_dict is None:
             session_dict = {}
 
-        payload = encode_session_payload(session_dict, int_time(), timeout)
+        payload = encode_session_payload(session_dict, int_time(), timeout, expires)
         if session_version is not None:
             payload['v'] = session_version
         if expires is not None:
