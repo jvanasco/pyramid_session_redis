@@ -8,13 +8,19 @@ from pyramid.interfaces import ISession
 from zope.interface import implementer
 
 from .compat import cPickle, token_hex
-from .exceptions import InvalidSession
+from .exceptions import InvalidSession, TimedOutSession, LegacySession
 from .util import (
     persist,
     refresh,
     to_unicode,
     warn_future,
+    LAZYCREATE_SESSION,
+    int_time,
+    SESSION_API_VERSION,
+    empty_session_payload,
 )
+from .util import encode_session_payload as encode_session_payload_func
+from .util import decode_session_payload as decode_session_payload_func
 
 
 def hashed_value(serialized):
@@ -40,15 +46,22 @@ class _SessionState(object):
         managed_dict,
         created,
         timeout,
+        expires,
+        version,
         new,
-        persisted_hash
+        persisted_hash,
+        please_persist = None,
     ):
         self.session_id = session_id
         self.managed_dict = managed_dict
         self.created = created
         self.timeout = timeout
+        self.expires = expires
+        self.version = version
         self.new = new
         self.persisted_hash = persisted_hash
+        self.please_persist = please_persist
+        
 
     def should_persist(self, session):
         """
@@ -120,49 +133,92 @@ class RedisSession(object):
      configured as a LRU and does not update the expiry data via SETEX.
      Default: ``True``
 
-    ``assume_redis_lru``
-    Boolean value.  Deprecated in 1.2.2. Will be removed in 1.4.
-    The inverse of ``set_redis_ttl``
-
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
 
     ``deserialized_fails_new``
     If ``True`` will handle deserializtion errors by creating a new session.
+    
+    ``new_payload_func``
+    Default ``None``.  Function used to create a new session.
+
+    ``timeout_trigger``
+    Default ``None``.  If an int, used to trigger timeouts.
+
+    ``python_expires``
+    Default ``None``.  If True, Python is used to manage timeout data.  setting
+    ``timeout_trigger`` will enable this.
+
     """
 
     def __init__(
         self,
         redis,
-        session_id,
+        session_id,  # could be ``LAZYCREATE_SESSION``
         new,
         new_session,
-        new_session_payload=None,
+        new_payload_func=None,
         serialize=cPickle.dumps,
         deserialize=cPickle.loads,
         set_redis_ttl=True,
         detect_changes=True,
         deserialized_fails_new=None,
-        assume_redis_lru=None,
+        encode_session_payload_func=None,
+        decode_session_payload_func=None,
+        timeout_trigger=None,
+        python_expires=None,
     ):
-        if assume_redis_lru is not None:
-            warn_future("""`assume_redis_lru` is being deprecated in favor it's inverse: `set_redis_ttl`""")
-            if assume_redis_lru and set_redis_ttl:
-                warn_future("""You should not set both `assume_redis_lru` and `set_redis_ttl`""")
-                raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_ttl` as True the same time")
-            set_redis_ttl = not assume_redis_lru
+        if timeout_trigger and not python_expires:  # fix this
+            python_expires = True
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
-        self._new_session = new_session
-        self._new_session_payload = new_session_payload
+        self.new_session = new_session
+        if new_payload_func is not None:
+            self.new_payload = new_payload_func
+        if encode_session_payload_func is not None:
+            self.encode_session_payload = encode_session_payload_func
+        if decode_session_payload_func is not None:
+            self.decode_session_payload = decode_session_payload_func
         self._set_redis_ttl = set_redis_ttl
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
+        self._timeout_trigger = timeout_trigger
+        self._python_expires = python_expires
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
         )
+
+    def new_session(self):
+        # this should be set via __init__
+        raise NotImplementedError()
+
+    def new_payload(self):
+        # this should be set via __init__
+        return empty_session_payload()
+
+    def encode_session_payload(self, *args, **kwargs):
+        """
+        used to recode for serialization
+        this can be overridden via __init__
+        """
+        return encode_session_payload_func(*args, **kwargs)
+
+    def decode_session_payload(self, payload):
+        """
+        used to recode for serialization
+        this can be overridden via __init__
+        """
+        return decode_session_payload_func(payload)
+
+    def serialize(self):
+        # this should be set via __init__
+        raise NotImplementedError()
+
+    def deserialize(self):
+        # this should be set via __init__
+        raise NotImplementedError()
 
     @reify
     def _session_state(self):
@@ -174,27 +230,52 @@ class RedisSession(object):
         object's dict.
         """
         return self._make_session_state(
-            session_id=self._new_session(),
+            session_id=LAZYCREATE_SESSION,
             new=True,
         )
 
+    @reify
+    def timestamp(self):
+        return int_time()
+
     def _make_session_state(self, session_id, new):
-        (persisted,
-         persisted_hash
-         ) = self.from_redis(session_id=session_id,
-                             persisted_hash=(True if self._detect_changes
-                                             else False),
-                             )
-        # self.from_redis needs to take a session_id here, because otherwise it
-        # would look up self.session_id, which is not ready yet as
-        # session_state has not been created yet.
+        """this will try to load the session_id in redis via ``from_redis``.
+        If this fails, it will raise ``InvalidSession``"""
+        please_persist = None
+        if session_id == LAZYCREATE_SESSION:
+            persisted_hash = None
+            persisted = self.new_payload()
+        else:
+            # self.from_redis needs to take a session_id here, because otherwise it
+            # would look up self.session_id, which is not ready yet as
+            # session_state has not been created yet.
+            (persisted,
+             persisted_hash
+             ) = self.from_redis(session_id=session_id,
+                                 persisted_hash=(True if self._detect_changes
+                                                 else False),
+                                 )
+            expires = persisted.get('x')
+            if expires:
+                if self.timestamp > expires:
+                    raise TimedOutSession("`session_id` (%s) timed out in python" % session_id)
+                if self._timeout_trigger:
+                    if self.timestamp >= (expires - self._timeout_trigger):
+                        # this will trigger a write/update
+                        please_persist = True
+            version = persisted.get('v')
+            if not version or (version < SESSION_API_VERSION):
+                raise LegacySession("`session_id` (%s) is a legacy format" % session_id)
         return _SessionState(
             session_id=session_id,
-            managed_dict=persisted['managed_dict'],
-            created=persisted['created'],
-            timeout=persisted.get('timeout'),
+            managed_dict=persisted['m'],  # managed_dict
+            created=persisted['c'],  # created
+            timeout=persisted.get('t'),  # timeout
+            expires=persisted.get('x'),  # expires
+            version=persisted.get('v'),  # session api version
             new=new,
             persisted_hash=persisted_hash,
+            please_persist=please_persist,
         )
 
     @property
@@ -214,6 +295,14 @@ class RedisSession(object):
         return self._session_state.timeout
 
     @property
+    def expires(self):
+        return self._session_state.expires
+
+    @property
+    def version(self):
+        return self._session_state.version
+
+    @property
     def new(self):
         return self._session_state.new
 
@@ -224,13 +313,11 @@ class RedisSession(object):
         Primarily used by the ``@persist`` decorator to save the current
         session state to Redis.
         """
-        data = {
-            'managed_dict': self.managed_dict,
-            'created': self.created,
-        }
-        if self.timeout:
-            data['timeout'] = self.timeout
-
+        data = self.encode_session_payload(self.managed_dict,
+                                           self.created,
+                                           self.timeout,
+                                           python_expires=self._python_expires,
+                                           )
         return self.serialize(data)
 
     def from_redis(self, session_id=None, persisted_hash=None):
@@ -240,14 +327,17 @@ class RedisSession(object):
         variable `deserialized`.
         If set to ``True`` or ``False``, returns a tuple.
         """
-        persisted = self.redis.get(session_id or self.session_id)
+        _session_id = session_id or self.session_id
+        if _session_id == LAZYCREATE_SESSION:
+            raise InvalidSession("`session_id` is LAZYCREATE_SESSION")
+        persisted = self.redis.get(_session_id)
         if persisted is None:
-            raise InvalidSession("`session_id` (%s) not in Redis" % session_id)
+            raise InvalidSession("`session_id` (%s) not in Redis" % _session_id)
         try:
             deserialized = self.deserialize(persisted)
         except Exception:
             if self._deserialized_fails_new:
-                raise InvalidSession("`session_id` (%s) did not deserialize correctly" % session_id)
+                raise InvalidSession("`session_id` (%s) did not deserialize correctly" % _session_id)
             raise
         if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
@@ -257,14 +347,28 @@ class RedisSession(object):
 
     def invalidate(self):
         """Invalidate the session."""
-        self.redis.delete(self.session_id)
-        del self._session_state
+        if self.session_id != LAZYCREATE_SESSION:
+            self.redis.delete(self.session_id)
         # Delete the self._session_state attribute so that direct access to or
         # indirect access via other methods and properties to .session_id,
         # .managed_dict, .created, .timeout and .new (i.e. anything stored in
         # self._session_state) after this will trigger the creation of a new
         # session with a new session_id via the `_session_state()` reified
         # property.
+        del self._session_state
+
+    def ensure_id(self):
+        # this ensures we have a session_id
+        if self._session_state.session_id == LAZYCREATE_SESSION:
+            self._session_state.session_id = self.new_session()
+        return self._session_state.session_id
+
+    @property
+    def session_id_safecheck(self):
+        """if we don't have a managed_dict, return None"""
+        if not self.managed_dict:
+            return None
+        return self.ensure_id()
 
     def do_persist(self, serialized_session=None):
         """
@@ -273,15 +377,14 @@ class RedisSession(object):
         Note: this package uses StrictRedis(`key, timeout, value`)
               not Redis(`key, value, timeout`)
         """
+        self.ensure_id()
         if serialized_session is None:
             serialized_session = self.to_redis()
-
         serverside_timeout = True if self.timeout is not None and self._set_redis_ttl else False
         if serverside_timeout:
             self.redis.setex(self.session_id, self.timeout, serialized_session)
         else:
             self.redis.set(self.session_id, serialized_session)
-
         self._session_state.please_persist = False
 
     def do_refresh(self, force_redis_ttl=None):
@@ -430,6 +533,13 @@ class RedisSession(object):
         want to change the expire time for a session dynamically.
         """
         self._session_state.timeout = timeout_seconds
+
+    @persist
+    def adjust_expires_for_session(self, expires_epoch):
+        """
+        Updates the epoch used for python timeouts.
+        """
+        self._session_state.expires = expires_epoch
 
     @property
     def _invalidated(self):

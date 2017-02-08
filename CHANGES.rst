@@ -3,6 +3,11 @@ Changelog
 =========
 
 - Unreleased
+    * version 1.4.0
+	* skipped 1.3 release.  not enough usage to warrant backwards compat right now
+    * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
+    
+- Unreleased
     * version 1.2.3
     * updated deprecation warnings
     * prepping for ability to not create sessions on every access.  getting spidered by bots who don't use sessions hurts Redis.

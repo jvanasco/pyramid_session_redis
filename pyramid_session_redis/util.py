@@ -3,7 +3,7 @@
 # stdlib
 from functools import partial
 import warnings
-import time
+from time import time as time_time
 from math import ceil
 
 # pypi
@@ -13,6 +13,15 @@ from redis.exceptions import WatchError
 
 # local
 from .compat import PY3, token_urlsafe
+
+# create an object instance for handling lazycreated ids
+# this is what dogpile cache's NO_VALUE does
+class LazyCreateSession(object):
+    pass
+LAZYCREATE_SESSION = LazyCreateSession()
+
+
+SESSION_API_VERSION = 1
 
 
 def warn_future(message):
@@ -65,19 +74,50 @@ def prefixed_id(prefix='session:'):
     return prefixed_id
 
 
-def empty_session_payload(timeout, use_int_time=False):
+def int_time():
+    return int(ceil(time_time()))
+
+
+def empty_session_payload(timeout=0, python_expires=None):
     """creates an empty session payload
     """
-    _created = time.time()
-    if use_int_time:
-        _created = int(ceil(_created))
-    data = {
-        'managed_dict': {},
-        'created': _created,
-    }
+    _created = int_time()
+    data = {'m': {},  # managed_dict
+            'c': _created,  # created
+            'v': SESSION_API_VERSION,  # session
+            }
     if timeout:
-        data['timeout'] = timeout
+        data['t'] = timeout  # timeout
+        if python_expires:
+            data['x'] = _created + timeout
     return data
+
+
+def encode_session_payload(managed_dict, created, timeout, python_expires=None):
+    """called by a session to recode for storage;
+       inverse of ``decode_session_payload``
+    """
+    data = {'m': managed_dict,  # managed_dict
+            'c': created,  # created
+            'v': SESSION_API_VERSION,  # session_api version
+            }
+    if timeout and python_expires:
+        data['t'] = timeout  # timeout
+        expires = int_time() + timeout
+        data['x'] = expires  # expires
+    return data
+
+
+def decode_session_payload(payload):
+    """decode a serialized session payload to kwargs
+       inverse of ``encode_session_payload``
+    """
+    return {'managed_dict': payload['m'],
+            'created': payload['c'],
+            'version': payload['v'],
+            'timeout': payload.get('t'),
+            'expires': payload.get('x'),
+            }
 
 
 def _insert_session_id_if_unique(
@@ -86,23 +126,25 @@ def _insert_session_id_if_unique(
     session_id,
     serialize,
     set_redis_ttl,
-    use_int_time=False,
     data_payload=None,
-    data_payload_func=None
+    new_payload_func=None,
+    python_expires=None,
 ):
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
     the timeout data
+    
+    This will create an empty/null session and redis entry for the id.
 
     ``data_payload`` = payload to use
-    ``data_payload_func`` = specify a fallback function to generate a payload
+    ``new_payload_func`` = specify a fallback function to generate a payload
     if both are ``None``, then `empty_session_payload`
     """
     if data_payload is None:
-        if data_payload_func is not None:
-            data_payload = data_payload_func()
+        if new_payload_func is not None:
+            data_payload = new_payload_func()
         else:
-            data_payload = empty_session_payload(timeout, use_int_time=use_int_time)
+            data_payload = empty_session_payload(timeout, python_expires=python_expires)
     _payload = serialize(data_payload)
     with redis.pipeline() as pipe:
         try:
@@ -114,7 +156,7 @@ def _insert_session_id_if_unique(
                 return None
             # enter buffered mode
             pipe.multi()
-            if timeout:
+            if timeout and set_redis_ttl:
                 pipe.setex(session_id, timeout, _payload)
             else:
                 pipe.set(session_id, _payload)
@@ -132,9 +174,9 @@ def create_unique_session_id(
     serialize,
     generator=_generate_session_id,
     set_redis_ttl=True,
-    use_int_time=False,
     data_payload=None,
-    data_payload_func=None,
+    new_payload_func=None,
+    python_expires=None,
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
@@ -147,9 +189,9 @@ def create_unique_session_id(
             session_id,
             serialize,
             set_redis_ttl,
-            use_int_time=use_int_time,
             data_payload=data_payload,
-            data_payload_func=data_payload_func,
+            new_payload_func=new_payload_func,
+            python_expires=python_expires,
         )
         if attempt is not None:
             return attempt
@@ -175,7 +217,7 @@ def _parse_settings(settings):
 
     # coerce bools
     for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception',
-              'set_redis_ttl'):
+              'set_redis_ttl', 'python_expires', ):
         if b in options:
             options[b] = asbool(options[b])
 
@@ -184,14 +226,15 @@ def _parse_settings(settings):
         if i in options:
             options[i] = int(options[i])
 
-    # allow "None" to be a timeout value
-    if 'timeout' in options:
-        if options['timeout'] == 'None':
-            options['timeout'] = None
-        else:
-            options['timeout'] = int(options['timeout'])
-            if not options['timeout']:
-                options['timeout'] = None
+    # allow "None" to be a value for some ints
+    for i in ('timeout', 'timeout_trigger'):
+        if i in options:
+            if options[i] == 'None':
+                options[i] = None
+            else:
+                options[i] = int(options[i])
+                if not options[i]:
+                    options[i] = None
 
     # coerce float
     if 'socket_timeout' in options:

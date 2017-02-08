@@ -1,7 +1,18 @@
+timestamp - created
+timestamp - expires
+int - timeout
+int - expiration_class
+
+
+
 IMPORTANT
 =========
 
 `pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for servers under load and developer convenience.
+
+The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  
+
+The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play pyramid sessions interface.
 
 Key Differences:
 ================
@@ -15,13 +26,22 @@ Key Differences:
 * The original library does not detect changes in nested dictionaries. This package uses `hashlib.md5` to fingerprint the serialized value on read; if no changes were detected a failsafe will serialize+md5 the data to decide if a write should occur. This can be disabled by setting `detect_changes` to False.
 * The original raises a fatal error if a session can not be deserialized.  by passing in `deserialized_fails_new` to the constructor, you can create a new session on deserialization errors.
 
-Other Updates:
-==============
+Other Updates 1.2.x+
+====================
 
 * support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
 * thankts to github/hongyuan1306, token generation has been consolidated to use python3's stdlib (or reimplemented if not available).  tokens are also 32, not 20, chars.
 * redis is supported in a LRU mode (see http://redis.io/topics/lru-cache) by setting the option `set_redis_ttl` to `False` (by default, it is `True`).  This will eliminate calls to EXPIRE and will use SET instead of SETEX.
-* the payload timeout can be set to an integer via `use_int_time=True`.  This will cast the `created` time via "int(math.ceil(time.time()))".  This can reduce a payload by several characters.
+* in the 1.2.x branch the created time can be set to an integer via `use_int_time=True`.  This will cast the `created` time via "int(math.ceil(time.time()))".  This can reduce a payload by several bits. 
+
+Other Updates 1.4.x+
+====================
+* only int() time is supported.
+* sessions now have version control
+* there was no logic for python timeout control (whoops!) this has been fixed.
+* added a `timeout_trigger` option.  this will defer expiry data updates to lower usage on Redis
+
+
 
 Depending on your needs, this package may be more desirable.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.  Some options are offered to minimize the size of payloads as well.
 

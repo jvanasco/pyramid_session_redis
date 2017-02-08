@@ -1,15 +1,30 @@
 # -*- coding: utf-8 -*-
 
+import itertools
 import unittest
+import pprint
 
 from pyramid import testing
+from ..compat import cPickle
+from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 
 
-class TestRedisSessionFactory(unittest.TestCase):
+
+class _TestRedisSessionFactoryCore(unittest.TestCase):
 
     def _makeOne(self, request, secret='secret', **kw):
         from .. import RedisSessionFactory
-        return RedisSessionFactory(secret, **kw)(request)
+        session = RedisSessionFactory(secret, **kw)(request)
+        return session
+
+    def _makeOneSession(self, redis, session_id, **kw):
+        from ..session import RedisSession
+        session = RedisSession(
+            redis=redis,
+            session_id=session_id,
+            **kw
+        )
+        return session
 
     def _register_callback(self, request, session):
         import functools
@@ -51,10 +66,23 @@ class TestRedisSessionFactory(unittest.TestCase):
         request.exception = None
         return request
 
+
+class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
+
     def test_ctor_no_cookie(self):
+        """
+        # original test
         request = self._make_request()
         session = self._makeOne(request)
-        session_dict = session.from_redis()['managed_dict']
+        session_dict = session.from_redis()['m']
+        self.assertDictEqual(session_dict, {})
+        self.assertIs(session.new, True)
+        
+        # calling from_redis should not happen in 1.4.x+
+        """
+        request = self._make_request()
+        session = self._makeOne(request)
+        session_dict = session.managed_dict
         self.assertDictEqual(session_dict, {})
         self.assertIs(session.new, True)
 
@@ -187,6 +215,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         request.session = self._makeOne(request)
+        request.session['a'] = 1  # ensure a lazycreate is triggered
         response = webob.Response()
         request.response_callbacks[0](request, response)
         set_cookie_headers = response.headers.getall('Set-Cookie')
@@ -198,6 +227,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         request.session = self._makeOne(request)
+        request.session['a'] = 1  # ensure a lazycreate is triggered
         request.exception = Exception()
         response = webob.Response()
         request.response_callbacks[0](request, response)
@@ -210,6 +240,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         request.session = self._makeOne(request, cookie_on_exception=False)
+        request.session['a'] = 1  # ensure a lazycreate is triggered
         response = webob.Response()
         request.response_callbacks[0](request, response)
         set_cookie_headers = response.headers.getall('Set-Cookie')
@@ -221,6 +252,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         request.session = self._makeOne(request, cookie_on_exception=False)
+        request.session['a'] = 1  # ensure a lazycreate is triggered
         request.exception = Exception()
         response = webob.Response()
         request.response_callbacks[0](request, response)
@@ -231,6 +263,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         request.session = self._makeOne(request)
+        request.session['a'] = 1  # ensure a lazycreate is triggered
         request.session.invalidate()
         response = webob.Response()
         request.response_callbacks[0](request, response)
@@ -242,6 +275,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         session = request.session = self._makeOne(request)
+        session['a'] = 1  # ensure a lazycreate is triggered
         session.invalidate()
         session['key'] = 'value'
         response = webob.Response()
@@ -256,6 +290,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         session = request.session = self._makeOne(request)
+        session['a'] = 1  # ensure a lazycreate is triggered
         session.invalidate()
         session['key'] = 'value'
         request.exception = Exception()
@@ -300,6 +335,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         session = request.session = self._makeOne(request)
+        session['a'] = 1  # ensure a lazycreate is triggered
         session.invalidate()
         session['key'] = 'value'
         session.invalidate()
@@ -316,6 +352,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         import webob
         request = self._make_request()
         session = request.session = self._makeOne(request)
+        session['a'] = 1  # ensure a lazycreate is triggered
         session.invalidate()
         session.invalidate()
         response = webob.Response()
@@ -326,16 +363,9 @@ class TestRedisSessionFactory(unittest.TestCase):
         # new request
         request = self._make_request()
 
-        # default behavior: we have a float
+        # default behavior: we use int
         session = request.session = self._makeOne(request)
-        self.assertNotEquals(session.created, int(session.created))
-
-        # use_int_time=False: we have a float
-        session = request.session = self._makeOne(request, use_int_time=False)
-        self.assertNotEquals(session.created, int(session.created))
-
-        # use_int_time=True: we have an int
-        session = request.session = self._makeOne(request, use_int_time=True)
+        session['a'] = 1  # ensure a lazycreate is triggered
         self.assertEquals(session.created, int(session.created))
 
     # The tests below with names beginning with test_existing_session_ test
@@ -583,6 +613,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         # first check we can create a cookie
         request = self._make_request()
         session = factory(request)
+        session['a'] = 1  # we only create a cookie on edit
         response = webob.Response()
         request.response_callbacks[0](request, response)
         hdrs_sc = response.headers.getall('Set-Cookie')
@@ -593,6 +624,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         for hdr_exclude in ('expires', 'cache-control'):
             request = self._make_request()
             session = factory(request)
+            session['a'] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_exclude, '1')
             request.response_callbacks[0](request, response)
@@ -604,6 +636,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         for hdr_dontcare in ('foo', 'bar', ):
             request = self._make_request()
             session = factory(request)
+            session['a'] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_dontcare, '1')
             request.response_callbacks[0](request, response)
@@ -635,6 +668,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         # first check we can create a cookie
         request = self._make_request()
         session = factory(request)
+        session['a'] = 1  # we only create a cookie on edit
         response = webob.Response()
         request.response_callbacks[0](request, response)
         hdrs_sc = response.headers.getall('Set-Cookie')
@@ -645,6 +679,7 @@ class TestRedisSessionFactory(unittest.TestCase):
         for hdr_exclude in ('foo', ):
             request = self._make_request()
             session = factory(request)
+            session['a'] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_exclude, '1')
             request.response_callbacks[0](request, response)
@@ -656,9 +691,436 @@ class TestRedisSessionFactory(unittest.TestCase):
         for hdr_dontcare in ('bar', ):
             request = self._make_request()
             session = factory(request)
+            session['a'] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_dontcare, '1')
             request.response_callbacks[0](request, response)
             hdrs_sc = response.headers.getall('Set-Cookie')
             self.assertEqual(len(hdrs_sc), 1)
             self.assertEqual(response.vary, ('Cookie', ))
+
+
+class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
+
+    _args_timeout_trigger_pythonExpires_setRedisTtl = {'timeout': 1200,
+                                                       'timeout_trigger': 600,
+                                                       'python_expires': True,
+                                                       'set_redis_ttl': True,
+                                                       }
+
+    _args_timeout_trigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
+                                                         'timeout_trigger': 600,
+                                                         'python_expires': False,
+                                                         'set_redis_ttl': True,
+                                                         }
+
+    _args_timeout_noTrigger_pythonExpires_setRedisTtl = {'timeout': 1200,
+                                                         'timeout_trigger': None,
+                                                         'python_expires': True,
+                                                         'set_redis_ttl': True,
+                                                          }
+
+    _args_timeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
+                                                           'timeout_trigger': None,
+                                                           'python_expires': False,
+                                                           'set_redis_ttl': True,
+                                                           }
+
+    _args_noTimeout_trigger_pythonExpires_setRedisTtl = {'timeout': None,
+                                                         'timeout_trigger': 600,
+                                                         'python_expires': True,
+                                                         'set_redis_ttl': True,
+                                                         }
+
+    _args_noTimeout_trigger_noPythonExpires_setRedisTtl = {'timeout': None,
+                                                           'timeout_trigger': 600,
+                                                           'python_expires': False,
+                                                           'set_redis_ttl': True,
+                                                           }
+
+    _args_noTimeout_noTrigger_pythonExpires_setRedisTtl = {'timeout': None,
+                                                           'timeout_trigger': None,
+                                                           'python_expires': True,
+                                                           'set_redis_ttl': True,
+                                                           }
+
+    _args_noTimeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': None,
+                                                             'timeout_trigger': None,
+                                                             'python_expires': False,
+                                                             'set_redis_ttl': True,
+                                                             }
+
+    def _deserialize_session_stored(self, session, deserialize=cPickle.loads):
+        """loads session from backend via id, deserializes"""
+        _session_id = session.session_id
+        _session_data = session.redis.store[_session_id]
+        _session_serialized = deserialize(_session_data)
+        return _session_serialized
+
+    def _set_up_session_in_redis(self, redis, session_id,
+                                 session_dict=None, timeout=None,
+                                 serialize=cPickle.dumps,
+                                 python_expires=None,
+                                 set_redis_ttl=None,
+                                 ):
+        if session_dict is None:
+            session_dict = {}
+        payload = encode_session_payload(session_dict, int_time(), timeout, python_expires=python_expires)
+        if set_redis_ttl:
+            redis.setex(session_id,
+                        timeout,
+                        serialize(payload),
+                        )
+        else:
+            redis.set(session_id,
+                      serialize(payload)
+                      )
+        return session_id
+
+    def _set_up_session_in_Redis_and_makeOne(self, request, session_id,
+                                             session_dict=None, new=True,
+                                             timeout=300, timeout_trigger=150,
+                                             python_expires=None,
+                                             set_redis_ttl=None):
+        redis = request.registry._redis_sessions
+        self._set_up_session_in_redis(redis=redis, session_id=session_id,
+                                      session_dict=session_dict,
+                                      timeout=timeout,
+                                      python_expires=python_expires,
+                                      set_redis_ttl=set_redis_ttl,
+                                      )
+        new_session = lambda: self._set_up_session_in_redis(
+            redis=redis,
+            session_id=id_generator(),
+            session_dict=session_dict,
+            timeout=timeout,
+            python_expires=python_expires,
+            set_redis_ttl=set_redis_ttl,
+        )
+        return self._makeOneSession(
+            redis,
+            session_id,
+            new=new,
+            new_session=new_session,
+            timeout_trigger=timeout_trigger,
+            python_expires=python_expires,
+            set_redis_ttl=set_redis_ttl,
+        )
+
+    def _prep_new_session(self, session_args):
+        import webob
+        request = self._make_request()
+
+        request.session = self._makeOne(request, **session_args)
+        request.session['a'] = 1  # ensure a lazycreate is triggered
+        response = webob.Response()
+        request.response_callbacks[0](request, response)  # sets the cookie
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        request.finished_callbacks[0](request)  # runs the persist
+        self.assertEqual(len(set_cookie_headers), 1)
+        self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
+        # stored_session_data = self._deserialize_session_stored(request.session)
+        return request
+
+    def _prep_existing_session(self, session_args):
+        import webob
+        session_id = 'existing_session'
+
+        request1 = self._make_request()
+        # drop a session into our redis
+        session_existing = self._set_up_session_in_Redis_and_makeOne(
+            request1, 
+            session_id,
+            session_dict = {'key': 'value'},
+            **session_args
+        )
+
+        # grab the registry data to persist, otherwise it gets discarded
+        _redis_sessions = request1.registry._redis_sessions
+
+        request = self._make_request()
+        request.registry._redis_sessions = _redis_sessions
+
+        self._set_session_cookie(
+            request=request,
+            session_id=session_id,
+        )
+
+        request.session = self._makeOne(request, **session_args)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        request.finished_callbacks[0](request)  # runs any persist if needed
+        self.assertNotIn('Set-Cookie', response.headers)
+        # stored_session_data = self._deserialize_session_stored(request.session)
+        return request
+
+    # --------------------------------------------------------------------------
+    # new session - timeout
+    # --------------------------------------------------------------------------
+
+    def test_scenario_new__timeout_trigger_pythonExpires_setRedisTtl(self):
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertIn('x', stored_session_data)
+        self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SETEX for the initial creation
+        # 1 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+        
+    def test_scenario_new__timeout_trigger_pythonNoExpires_setRedisTtl(self):
+        session_args = self._args_timeout_trigger_noPythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertIn('x', stored_session_data)
+        self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SETEX for the initial creation
+        # 1 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+
+    def test_scenario_new__timeout_noTrigger_pythonExpires_setRedisTtl(self):
+        session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertIn('x', stored_session_data)
+        self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SETEX for the initial creation
+        # 1 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+        
+    def test_scenario_new__timeout_noTrigger_noPythonExpires_setRedisTtl(self):
+        """
+        a timeout entirely occurs via EXPIRY in redis
+        """
+        session_args = self._args_timeout_noTrigger_noPythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SETEX for the initial creation
+        # 1 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+
+    # --------------------------------------------------------------------------
+    # new session - no timeout
+    # --------------------------------------------------------------------------
+
+    def test_scenario_new__noTimeout_trigger_pythonExpires_setRedisTtl(self):
+        """the ``timeout_trigger`` is irrelevant"""
+        session_args = self._args_noTimeout_trigger_pythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SET for the initial creation
+        # 1 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        
+    def test_scenario_new__noTimeout_trigger_pythonNoExpires_setRedisTtl(self):
+        """the ``timeout_trigger`` is irrelevant"""
+        session_args = self._args_noTimeout_trigger_noPythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SET for the initial creation
+        # 1 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+
+    def test_scenario_new__noTimeout_noTrigger_pythonExpires_setRedisTtl(self):
+        session_args = self._args_noTimeout_noTrigger_pythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SET for the initial creation
+        # 1 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        
+    def test_scenario_new__noTimeout_noTrigger_noPythonExpires_setRedisTtl(self):
+        session_args = self._args_noTimeout_noTrigger_noPythonExpires_setRedisTtl
+        request = self._prep_new_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be two items in the history:
+        # 0 = a pipeline.SET for the initial creation
+        # 1 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 2)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+
+    # --------------------------------------------------------------------------
+    # existing session - timeout
+    # --------------------------------------------------------------------------
+
+    def test_scenario_existing__timeout_trigger_pythonExpires_setRedisTtl_noChange(self):
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertIn('x', stored_session_data)
+        self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
+        
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        
+    def test_scenario_existing__timeout_trigger_pythonNoExpires_setRedisTtl_noChange(self):
+        session_args = self._args_timeout_trigger_noPythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+
+    def test_scenario_existing__timeout_noTrigger_pythonExpires_setRedisTtl_noChange(self):
+        session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertIn('x', stored_session_data)
+        self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        
+    def test_scenario_existing__timeout_noTrigger_noPythonExpires_setRedisTtl_noChange(self):
+        """
+        a timeout entirely occurs via EXPIRY in redis
+        """
+        session_args = self._args_timeout_noTrigger_noPythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+
+    # --------------------------------------------------------------------------
+    # existing session - timeout
+    # --------------------------------------------------------------------------
+    
+    def test_scenario_existing__noTimeout_trigger_pythonExpires_setRedisTtl(self):
+        """the ``timeout_trigger`` is irrelevant"""
+        session_args = self._args_noTimeout_trigger_pythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        
+    def test_scenario_existing__noTimeout_trigger_pythonNoExpires_setRedisTtl(self):
+        """the ``timeout_trigger`` is irrelevant"""
+        session_args = self._args_noTimeout_trigger_noPythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+
+    def test_scenario_existing__noTimeout_noTrigger_pythonExpires_setRedisTtl(self):
+        session_args = self._args_noTimeout_noTrigger_pythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
+        
+    def test_scenario_existing__noTimeout_noTrigger_noPythonExpires_setRedisTtl(self):
+        session_args = self._args_noTimeout_noTrigger_noPythonExpires_setRedisTtl
+        request = self._prep_existing_session(session_args)
+    
+        # cookie_on_exception is True by default, no exception raised
+        stored_session_data = self._deserialize_session_stored(request.session)
+        self.assertNotIn('x', stored_session_data)
+
+        # there should be 1 items in the history:
+        # 0 = a SETEX for the initial creation
+        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])

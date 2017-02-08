@@ -8,6 +8,8 @@ from . import (
     DummyRedis,
     DummySession,
 )
+from ..util import int_time
+from ..compat import cPickle
 
 
 class Test_parse_settings(unittest.TestCase):
@@ -69,13 +71,13 @@ class Test__insert_session_id_if_unique(unittest.TestCase):
 
     def test_id_is_unique(self):
         redis = DummyRedis()
-        before = time.time()
+        before = int_time() - 2
         result = self._makeOne(redis)
-        after = time.time()
+        after = int_time() + 2
         persisted = redis.get('id')
-        managed_dict = persisted['managed_dict']
-        created = persisted['created']
-        timeout = persisted['timeout']
+        managed_dict = persisted['m']
+        created = persisted['c']
+        timeout = persisted['t']
         self.assertDictEqual(managed_dict, {})
         self.assertGreaterEqual(created, before)
         self.assertLessEqual(created, after)

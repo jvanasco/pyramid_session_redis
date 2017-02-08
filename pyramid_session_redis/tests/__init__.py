@@ -21,12 +21,11 @@ class DummySession(object):
         self._session_state = DummySessionState()
 
     def to_redis(self):
-        data = {
-            'managed_dict': self.managed_dict,
-            'created': self.created,
-        }
+        data = {'m': self.managed_dict,
+                'c': self.created,
+                }
         if self.timeout:
-            data['timeout'] = self.timeout
+            data['t'] = self.timeout
         return self.serialize(data)
 
 
@@ -35,9 +34,9 @@ class DummyRedis(object):
         self.url = None
         self.timeouts = {}
         self.store = {}
-        self.pipeline = lambda: DummyPipeline(self.store, raise_watcherror)
         self.__dict__.update(kw)
         self._history = []
+        self.pipeline = lambda: DummyPipeline(self.store, self, raise_watcherror)
 
     def _history_reset(self):
         # test method. fake. used for tests against the actual redis operations
@@ -84,9 +83,10 @@ class DummyRedis(object):
 
 
 class DummyPipeline(object):
-    def __init__(self, store, raise_watcherror=False):
+    def __init__(self, store, redis_con, raise_watcherror=False):
         self.store = store
         self.raise_watcherror = raise_watcherror
+        self._redis_con = redis_con
         self._history = []
 
     def __enter__(self):
@@ -101,17 +101,19 @@ class DummyPipeline(object):
     def set(self, key, value):
         self.store[key] = value
         self._history.append(('set', key, ))
+        self._redis_con._history.append(('pipeline.set', key, ))
 
     def get(self, key):
         return self.store.get(key)
 
     def expire(self, key, timeout):
         self._history.append(('expire', key, timeout, ))
-        pass
+        self._redis_con._history.append(('pipeline.expire', key, timeout, ))
 
     def setex(self, key, timeout, value):
         self.store[key] = value
         self._history.append(('setex', key, timeout, ))
+        self._redis_con._history.append(('pipeline.setex', key, timeout, ))
 
     def watch(self, key):
         if self.raise_watcherror:

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import functools
+import time
 
 from pyramid.exceptions import ConfigurationError
 from pyramid.session import (
@@ -10,7 +11,7 @@ from pyramid.session import (
 
 from .compat import cPickle
 from .connection import get_default_connection
-from .exceptions import InvalidSession
+from .exceptions import InvalidSession, TimedOutSession, LegacySession
 from .session import RedisSession
 from .util import (
     _generate_session_id,
@@ -18,6 +19,9 @@ from .util import (
     create_unique_session_id,
     warn_future,
     empty_session_payload,
+    encode_session_payload,
+    decode_session_payload,
+    LAZYCREATE_SESSION,
 )
 
 
@@ -108,11 +112,11 @@ def RedisSessionFactory(
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
     set_redis_ttl=True,
-    use_int_time=False,
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
-    assume_redis_lru=None,  # deprecated in 1.2.2, will be removed in 1.4
+    timeout_trigger=600,
+    python_expires=True,
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -201,15 +205,6 @@ def RedisSessionFactory(
     involved with timeout logic.
     Default: ``False``
 
-    ``use_int_time``
-    Boolean value.  Default `False`. If set to ``True``, will cast the `created`
-    time to an `int` via int(math.ceil(created)).  This can result in a smaller
-    payload that is stored.
-
-    ``assume_redis_lru``
-    Boolean value.  Deprecated in 1.2.2. Will be removed in 1.4.
-    The inverse of ``set_redis_ttl``
-
     ``detect_changes``
     Boolean value. If set to ``True``, will calculate nested changes after
     serialization to ensure persistence of nested data.
@@ -224,7 +219,34 @@ def RedisSessionFactory(
     ``None``.  An example callable is available in
     ``check_response_allow_cookies``, which checks for `expires` and
     `cache-control` cookies.
+    
+    ``python_expires``
+    Int, default ``True``.  If ``True``, allows for timeout logic to be tracked
+    in Python
+    
+    ``timeout_trigger``
+    Int, default  ``600``.  If unset or ``0``, timeouts will be updated on
+    every access by setting an EXPIRY in Redis and/or updating the ``expires`` 
+    value in the  session payload.  If set to an INT, the updates will only be
+    set once the threshold is crossed.
+    
+    Given this example:
 
+        timeout = 1200
+        timeout_trigger = 600
+
+    The following timeline would occur
+    
+        time | action | timeout | next threshold
+        -----+--------+---------+--------------
+           0 | CREATE | 1200    | 600
+         599 |        | 1200    | 600
+         600 | UPDATE | 1800    | 1200
+         599 |        | 1800    | 1200
+        1200 | UPDATE | 2400    | 1800
+
+    The feature has the ability to significantly lower the amount of processing 
+    on Redis
 
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
@@ -238,13 +260,8 @@ def RedisSessionFactory(
     if timeout == 0:
         timeout = None
 
-    if assume_redis_lru is not None:
-        # warn("assume_redis_lru" is deprecated. please use `set_redis_tl`")
-        # there is an inverse relationship here
-        warn_future("""`assume_redis_lru` is being deprecated in favor it's inverse: `set_redis_ttl`""")
-        if set_redis_ttl is not None:
-            raise ConfigurationError("You can not set `assume_redis_lru` and `set_redis_tl` at the same time")
-        set_redis_ttl = not assume_redis_lru
+    if timeout_trigger and not python_expires:  # fix this
+        python_expires = True
 
     # good for all factory() requests
     redis_options = dict(
@@ -260,78 +277,80 @@ def RedisSessionFactory(
     )
 
     # good for all factory() requests
-    new_session_payload = functools.partial(
+    new_payload_func = functools.partial(
         empty_session_payload,
         timeout=timeout,
-        use_int_time=use_int_time,
+        python_expires=python_expires,
     )
 
     # good for all factory() requests
-    delete_cookie = functools.partial(
+    delete_cookie_func = functools.partial(
         _delete_cookie,
         cookie_name=cookie_name,
         cookie_path=cookie_path,
         cookie_domain=cookie_domain,
     )
 
-    def factory(request, new_session_id=create_unique_session_id):
+    def factory(request, new_session_id_func=create_unique_session_id):
 
         # an explicit client callable gets priority over the default
-        redis = client_callable(request, **redis_options) \
+        redis_conn = client_callable(request, **redis_options) \
             if client_callable is not None \
             else get_default_connection(request, url=url, **redis_options)
 
-        new_session = functools.partial(
-            new_session_id,
-            redis=redis,
+        new_session_func = functools.partial(
+            new_session_id_func,
+            redis=redis_conn,
             timeout=timeout,
             serialize=serialize,
             generator=id_generator,
             set_redis_ttl=set_redis_ttl,
-            use_int_time=use_int_time,
-            data_payload_func=new_session_payload,
+            new_payload_func=new_payload_func,
+            python_expires=python_expires,
         )
 
         try:
             # attempt to retrieve a session_id from the cookie
-            session_id_from_cookie = _get_session_id_from_cookie(
+            session_id = _get_session_id_from_cookie(
                 request=request,
                 cookie_name=cookie_name,
                 secret=secret,
             )
-
-            if not session_id_from_cookie:
-                raise InvalidSession('initial new session')
-            session_id = session_id_from_cookie
+            if not session_id:
+                raise InvalidSession('No `session_id` in cookie.')
             session_cookie_was_valid = True
             session = RedisSession(
-                redis=redis,
+                redis=redis_conn,
                 session_id=session_id,
-                new=not session_cookie_was_valid,
-                new_session=new_session,
-                new_session_payload=new_session_payload,
+                new=False,
+                new_session=new_session_func,
+                new_payload_func=new_payload_func,
                 serialize=serialize,
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
+                timeout_trigger=timeout_trigger,
+                python_expires=python_expires,
             )
         except InvalidSession:
-            session_id = new_session()
+            session_id = LAZYCREATE_SESSION
             session_cookie_was_valid = False
             session = RedisSession(
-                redis=redis,
+                redis=redis_conn,
                 session_id=session_id,
-                new=not session_cookie_was_valid,
-                new_session=new_session,
-                new_session_payload=new_session_payload,
+                new=True,
+                new_session=new_session_func,
+                new_payload_func=new_payload_func,
                 serialize=serialize,
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
+                timeout_trigger=timeout_trigger,
+                python_expires=python_expires,
             )
 
-        set_cookie = functools.partial(
+        set_cookie_func = functools.partial(
             _set_cookie,
             session,
             cookie_name=cookie_name,
@@ -347,15 +366,15 @@ def RedisSessionFactory(
             session,
             session_cookie_was_valid=session_cookie_was_valid,
             cookie_on_exception=cookie_on_exception,
-            set_cookie=set_cookie,
-            delete_cookie=delete_cookie,
+            set_cookie_func=set_cookie_func,
+            delete_cookie_func=delete_cookie_func,
             func_check_response_allow_cookies=func_check_response_allow_cookies,
         )
         request.add_response_callback(cookie_callback)
 
         finished_callback = functools.partial(
             _finished_callback,
-            session
+            session,
         )
         request.add_finished_callback(finished_callback)
 
@@ -420,8 +439,8 @@ def _cookie_callback(
     response,
     session_cookie_was_valid,
     cookie_on_exception,
-    set_cookie,
-    delete_cookie,
+    set_cookie_func,
+    delete_cookie_func,
     func_check_response_allow_cookies,
 ):
     """
@@ -438,11 +457,13 @@ def _cookie_callback(
             return
     if session._invalidated:
         if session_cookie_was_valid:
-            delete_cookie(response=response)
+            delete_cookie_func(response=response)
         return
     if session.new:
+        if not session.session_id_safecheck:
+            return
         if cookie_on_exception is True or request.exception is None:
-            set_cookie(request=request, response=response)
+            set_cookie_func(request=request, response=response)
 
             # If we set a cookie we need to make sure that downstream
             # web servicess do not serve this response from a cache
@@ -458,7 +479,7 @@ def _cookie_callback(
             # cookie_on_exception is False and an exception was raised), but we
             # still need to delete the existing cookie for the session that the
             # request started with (as the session has now been invalidated).
-            delete_cookie(response=response)
+            delete_cookie_func(response=response)
 
 
 def _finished_callback(
@@ -479,11 +500,14 @@ def _finished_callback(
         # which means the cookie will never get sent to the user, and a phantom
         # session_id+placeholder will be in redis until it times out.
         return
+
     if not session._session_state.dont_persist:
         if session._session_state.please_persist:
             session.do_persist()
             session._session_state.please_refresh = False
         else:
+            if not session.session_id_safecheck:
+                return
             serialized_session = session._session_state.should_persist(session)
             if serialized_session:
                 session.do_persist(serialized_session=serialized_session)

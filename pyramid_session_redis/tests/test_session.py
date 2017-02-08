@@ -5,7 +5,8 @@ import time
 import unittest
 
 from ..compat import cPickle
-
+from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
+from ..exceptions import InvalidSession, TimedOutSession, LegacySession
 
 class TestRedisSession(unittest.TestCase):
     def _makeOne(self, redis, session_id, new, new_session,
@@ -26,11 +27,9 @@ class TestRedisSession(unittest.TestCase):
                                  session_dict=None, serialize=cPickle.dumps):
         if session_dict is None:
             session_dict = {}
+        payload = encode_session_payload(session_dict, int_time(), timeout)
         redis.set(session_id,
-                  serialize({'managed_dict': session_dict,
-                             'created': time.time(),
-                             'timeout': timeout,
-                             })
+                  serialize(payload)
                   )
         return session_id
 
@@ -96,7 +95,7 @@ class TestRedisSession(unittest.TestCase):
         inst['key'] = 'val'
         del inst['key']
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertNotIn('key', inst)
         self.assertNotIn('key', session_dict_in_redis)
 
@@ -104,7 +103,7 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         inst['key'] = 'val'
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertIn('key', inst)
         self.assertIn('key', session_dict_in_redis)
 
@@ -112,14 +111,14 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         inst['key'] = 'val'
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertEqual(inst['key'], session_dict_in_redis['key'])
 
     def test_contains(self):
         inst = self._set_up_session_in_Redis_and_makeOne()
         inst['key'] = 'val'
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assert_('key' in inst)
         self.assert_('key' in session_dict_in_redis)
 
@@ -134,7 +133,7 @@ class TestRedisSession(unittest.TestCase):
         inst['key2'] = ''
         inst_keys = inst.keys()
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         persisted_keys = session_dict_in_redis.keys()
         self.assertEqual(inst_keys, persisted_keys)
 
@@ -144,7 +143,7 @@ class TestRedisSession(unittest.TestCase):
         inst['b'] = 2
         inst_items = inst.items()
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         persisted_items = session_dict_in_redis.items()
         self.assertEqual(inst_items, persisted_items)
 
@@ -152,7 +151,7 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         inst['a'] = 1
         inst.clear()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertNotIn('a', inst)
         self.assertNotIn('a', session_dict_in_redis)
 
@@ -162,7 +161,7 @@ class TestRedisSession(unittest.TestCase):
         get_from_inst = inst.get('key')
         self.assertEqual(get_from_inst, 'val')
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         get_from_redis = session_dict_in_redis.get('key')
         self.assertEqual(get_from_inst, get_from_redis)
 
@@ -170,7 +169,7 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         get_from_inst = inst.get('key', 'val')
         self.assertEqual(get_from_inst, 'val')
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         get_from_redis = session_dict_in_redis.get('key', 'val')
         self.assertEqual(get_from_inst, get_from_redis)
 
@@ -179,7 +178,7 @@ class TestRedisSession(unittest.TestCase):
         inst['key'] = 'val'
         popped = inst.pop('key')
         self.assertEqual(popped, 'val')
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertNotIn('key', session_dict_in_redis)
 
     def test_pop_default(self):
@@ -195,7 +194,7 @@ class TestRedisSession(unittest.TestCase):
         self.assertEqual(inst['a'], 'overriden')
         self.assertEqual(inst['b'], 2)
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertEqual(session_dict_in_redis['a'], 'overriden')
         self.assertEqual(session_dict_in_redis['b'], 2)
 
@@ -256,7 +255,7 @@ class TestRedisSession(unittest.TestCase):
         popped = inst.popitem()
         options = [('a', 1), ('b', 2)]
         self.assertIn(popped, options)
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertNotIn(popped, session_dict_in_redis)
 
     def test_IDict_instance_conforms(self):
@@ -267,12 +266,12 @@ class TestRedisSession(unittest.TestCase):
 
     def test_created(self):
         inst = self._set_up_session_in_Redis_and_makeOne()
-        created = inst.from_redis()['created']
+        created = inst.from_redis()['c']
         self.assertEqual(inst.created, created)
 
     def test_timeout(self):
         inst = self._set_up_session_in_Redis_and_makeOne()
-        timeout = inst.from_redis()['timeout']
+        timeout = inst.from_redis()['t']
         self.assertEqual(inst.timeout, timeout)
 
     def test_invalidate(self):
@@ -288,12 +287,12 @@ class TestRedisSession(unittest.TestCase):
         inst.do_persist()
         get_from_inst = inst['dict']['foo']['bar']
         self.assertEqual(get_from_inst, 1)
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         get_from_redis = session_dict_in_redis['dict']['foo']['bar']
         self.assertEqual(get_from_redis, 1)
         inst['dict']['foo']['bar'] = 2
         inst.do_persist()
-        session_dict_in_redis2 = inst.from_redis()['managed_dict']
+        session_dict_in_redis2 = inst.from_redis()['m']
         get_from_redis2 = session_dict_in_redis2['dict']['foo']['bar']
         self.assertEqual(get_from_redis2, 2)
 
@@ -307,7 +306,7 @@ class TestRedisSession(unittest.TestCase):
         get_from_inst = inst['dict']['foo']['bar']
         self.assertEqual(get_from_inst, 1)
         # grab the dict and edit it
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         get_from_redis = session_dict_in_redis['dict']['foo']['bar']
         self.assertEqual(get_from_redis, 1)
         inst['dict']['foo']['bar'] = 2
@@ -325,7 +324,7 @@ class TestRedisSession(unittest.TestCase):
         get_from_inst = inst['dict']['foo']['bar']
         self.assertEqual(get_from_inst, 1)
         # grab the dict and edit it
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         get_from_redis = session_dict_in_redis['dict']['foo']['bar']
         self.assertEqual(get_from_redis, 1)
         inst['dict']['foo']['bar'] = 2
@@ -338,6 +337,7 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst['key'] = 'value'
         inst.invalidate()
+        inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         second_session_id = inst.session_id
         self.assertSetEqual(set(inst.redis.store.keys()), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -350,6 +350,11 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         first_session_id = inst.session_id
         inst.invalidate()
+
+        # 1.4.x+| session_id defaults to a LAZYCREATE
+        self.assertIs(inst.session_id_safecheck, None)
+        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+
         second_session_id = inst.session_id
         self.assertNotEqual(second_session_id, first_session_id)
         self.assertIs(bool(second_session_id), True)
@@ -359,6 +364,14 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.managed_dict  # access
+
+        # 1.4.x+| session_id defaults to a LAZYCREATE
+        # 1.4.x+| session_id is only created via ensure_id()
+        self.assertIs(inst.session_id_safecheck, None)
+        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        inst.ensure_id()
+
+        # ORIGINALLY
         # .session_id attribute access also creates a new session after
         # invalidate, so just asserting .session_id is not enough to prove that
         # a new session was created after .managed_dict access. Here we note
@@ -376,9 +389,17 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.created  # access
+
+        # 1.4.x+| session_id defaults to a LAZYCREATE
+        # 1.4.x+| session_id is only created via ensure_id()
+        self.assertIs(inst.session_id_safecheck, None)
+        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        inst.ensure_id()
+
+        # ORIGINALLY
         # .session_id attribute access also creates a new session after
-        # invalidate, so just asserting .session_id is not enough to prove that
-        # a new session was created after .created access. Here we note down
+        # invalidate, so just asserting .session_id was not enough to prove that
+        # a new session was created after .created access. Here we noted down
         # the session_ids in Redis right after .created access for an
         # additional check.
         session_ids_in_redis = inst.redis.store.keys()
@@ -393,6 +414,14 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.timeout  # access
+        
+        # 1.4.x+| session_id defaults to a LAZYCREATE
+        # 1.4.x+| session_id is only created via ensure_id()
+        self.assertIs(inst.session_id_safecheck, None)
+        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        inst.ensure_id()
+
+        # ORIGINALLY:
         # .session_id attribute access also creates a new session after
         # invalidate, so just asserting .session_id is not enough to prove that
         # a new session was created after .timeout access. Here we note down
@@ -410,9 +439,17 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.new  # access
+
+        # 1.4.x+| session_id defaults to a LAZYCREATE
+        # 1.4.x+| session_id is only created via ensure_id()
+        self.assertIs(inst.session_id_safecheck, None)
+        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        inst.ensure_id()
+
+        # ORIGINALLY
         # .session_id attribute access also creates a new session after
         # invalidate, so just asserting .session_id is not enough to prove that
-        # a new session was created after .new access. Here we note down the
+        # a new session was created after .created access. Here we note down
         # session_ids in Redis right after .new access for an additional check.
         session_ids_in_redis = inst.redis.store.keys()
         second_session_id = inst.session_id
@@ -443,10 +480,16 @@ class TestRedisSession(unittest.TestCase):
 
     def test_invalidate_new_session_invalidate_new_session(self):
         inst = self._set_up_session_in_Redis_and_makeOne()
+        inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
+
         inst.invalidate()
+        inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         second_session_id = inst.session_id
+
         inst.invalidate()
+        inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         third_session_id = inst.session_id
+
         session_ids_in_redis = inst.redis.store.keys()
         self.assertSetEqual(set(session_ids_in_redis),
                             {third_session_id})
@@ -463,7 +506,7 @@ class TestRedisSession(unittest.TestCase):
         tmp['3'] = 3
         inst.changed()
         inst.do_persist()
-        session_dict_in_redis = inst.from_redis()['managed_dict']
+        session_dict_in_redis = inst.from_redis()['m']
         self.assertEqual(session_dict_in_redis['a'], {'1': 1, '2': 2, '3': 3, })
 
     def test_csrf_token(self):
@@ -512,14 +555,15 @@ class TestRedisSession(unittest.TestCase):
         inst.adjust_timeout_for_session(adjusted_timeout)
         inst.do_persist()
         self.assertEqual(inst.timeout, adjusted_timeout)
-        self.assertEqual(inst.from_redis()['timeout'], adjusted_timeout)
+        self.assertEqual(inst.from_redis()['t'], adjusted_timeout)
 
 
 class TestRedisSessionNew(unittest.TestCase):
+    """these are 1.2x+ tests"""
 
     def _makeOne(self, redis, session_id, new, new_session,
                  serialize=cPickle.dumps, deserialize=cPickle.loads,
-                 detect_changes=True, set_redis_ttl=True, assume_redis_lru=None):
+                 detect_changes=True, set_redis_ttl=True, ):
         from ..session import RedisSession
         return RedisSession(
             redis=redis,
@@ -530,19 +574,20 @@ class TestRedisSessionNew(unittest.TestCase):
             deserialize=deserialize,
             detect_changes=detect_changes,
             set_redis_ttl=set_redis_ttl,
-            assume_redis_lru=assume_redis_lru,
         )
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
-                                 session_dict=None, serialize=cPickle.dumps):
+                                 session_dict=None, serialize=cPickle.dumps,
+                                 session_version=None, expires=None):
         if session_dict is None:
             session_dict = {}
-        data = {'managed_dict': session_dict,
-                'created': time.time(),
-                }
-        if timeout:
-            data['timeout'] = timeout
-        redis.set(session_id, serialize(data))
+
+        payload = encode_session_payload(session_dict, int_time(), timeout)
+        if session_version is not None:
+            payload['v'] = session_version
+        if expires is not None:
+            payload['x'] = expires
+        redis.set(session_id, serialize(payload))
         redis._history_reset()
         return session_id
 
@@ -553,7 +598,8 @@ class TestRedisSessionNew(unittest.TestCase):
     def _set_up_session_in_Redis_and_makeOne(self, session_id=None,
                                              session_dict=None, new=True,
                                              timeout=60, detect_changes=True,
-                                             set_redis_ttl=True, assume_redis_lru=None):
+                                             set_redis_ttl=True, session_version=None,
+                                             expires=None):
         from . import DummyRedis
         redis = DummyRedis()
         id_generator = self._make_id_generator()
@@ -561,7 +607,9 @@ class TestRedisSessionNew(unittest.TestCase):
             session_id = id_generator()
         self._set_up_session_in_redis(redis=redis, session_id=session_id,
                                       session_dict=session_dict,
-                                      timeout=timeout)
+                                      timeout=timeout,
+                                      session_version=session_version,
+                                      expires=expires)
         new_session = lambda: self._set_up_session_in_redis(
             redis=redis,
             session_id=id_generator(),
@@ -575,7 +623,6 @@ class TestRedisSessionNew(unittest.TestCase):
             new_session=new_session,
             detect_changes=detect_changes,
             set_redis_ttl=set_redis_ttl,
-            assume_redis_lru=assume_redis_lru,
         )
 
     def _deserialize_session(self, session, deserialize=cPickle.loads):
@@ -603,7 +650,7 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertEqual(session.timeout, None)
 
         _deserialized = self._deserialize_session(session)
-        self.assertNotIn('timeout', _deserialized)
+        self.assertNotIn('t', _deserialized)
 
         self.assertEquals(len(session.redis._history), 1)
         _redis_op = session.redis._history[0]
@@ -642,7 +689,7 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertDictEqual(dict(session), {})
 
         _deserialized = self._deserialize_session(session)
-        self.assertNotIn('timeout', _deserialized)
+        self.assertNotIn('t', _deserialized)
         self.assertEquals(len(session.redis._history), 1)
         _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'set')
@@ -680,7 +727,7 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertDictEqual(dict(session), {})
 
         _deserialized = self._deserialize_session(session)
-        self.assertIn('timeout', _deserialized)
+        self.assertIn('t', _deserialized)
         self.assertEquals(len(session.redis._history), 1)
         _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'setex')
@@ -720,7 +767,7 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertIs(session.new, new)
         self.assertDictEqual(dict(session), {})
         _deserialized = self._deserialize_session(session)
-        self.assertIn('timeout', _deserialized)
+        self.assertIn('t', _deserialized)
         self.assertEquals(len(session.redis._history), 1)
         _redis_op = session.redis._history[0]
         self.assertEquals(_redis_op[0], 'set')
@@ -738,40 +785,40 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertEquals(_redis_op[0], 'expire')
         self.assertEquals(_redis_op[2], 47)
 
-    def test_init_new_session_accept_lru(self):
+
+    def test_session_invalid_legacy(self):
         """
-        check that we can send in a LRU command
+        check that ``exceptions.LegacySession`` is raised if a previous version is detected
         """
         session_id = 'session_id'
         new = True
         timeout = 60
-        assume_redis_lru = True
-        session = self._set_up_session_in_Redis_and_makeOne(
-            session_id=session_id,
-            new=new,
-            timeout=timeout,
-            set_redis_ttl=False,  # otherwise this raises an error
-            assume_redis_lru=assume_redis_lru,
-        )
-        session.do_persist()  # trigger the real session's set/setex
-        self.assertEqual(session.session_id, session_id)
-        self.assertIs(session.new, new)
-        self.assertDictEqual(dict(session), {})
-        _deserialized = self._deserialize_session(session)
-        self.assertIn('timeout', _deserialized)
-        self.assertEquals(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
-        self.assertEquals(_redis_op[0], 'set')
+        set_redis_ttl = False
+        session_version = -1
+        with self.assertRaises(LegacySession):
+            session = self._set_up_session_in_Redis_and_makeOne(
+                session_id=session_id,
+                new=new,
+                timeout=timeout,
+                set_redis_ttl=set_redis_ttl,
+                session_version=session_version,
+            )
+        return
 
-        # clear the history, `do_refresh` should do nothing (timeout=60, assume_redis_lru=False)
-        session.redis._history_reset()
-        session.do_refresh()  # trigger the real session's set/setex
-        self.assertEquals(len(session.redis._history), 0)
-
-        # clear the history, `do_refresh` should issue an "expire" (force_redis_ttl=60)
-        session.redis._history_reset()
-        session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
-        self.assertEquals(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
-        self.assertEquals(_redis_op[0], 'expire')
-        self.assertEquals(_redis_op[2], 47)
+    def test_session_invalid_expires(self):
+        """
+        check that ``exceptions.TimedOutSession`` is raised if we timed out
+        """
+        session_id = 'session_id'
+        new = True
+        timeout = 60
+        set_redis_ttl = False
+        expires = int_time() - timeout
+        with self.assertRaises(TimedOutSession):
+            session = self._set_up_session_in_Redis_and_makeOne(
+                session_id=session_id,
+                new=new,
+                timeout=timeout,
+                set_redis_ttl=set_redis_ttl,
+                expires=expires,
+            )
