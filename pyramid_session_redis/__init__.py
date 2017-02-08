@@ -331,6 +331,7 @@ def RedisSessionFactory(
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
                 timeout_trigger=timeout_trigger,
+                timeout=timeout,
                 python_expires=python_expires,
             )
         except InvalidSession:
@@ -347,6 +348,7 @@ def RedisSessionFactory(
                 set_redis_ttl=set_redis_ttl,
                 detect_changes=detect_changes,
                 timeout_trigger=timeout_trigger,
+                timeout=timeout,
                 python_expires=python_expires,
             )
 

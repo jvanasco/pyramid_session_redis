@@ -50,7 +50,6 @@ class _SessionState(object):
         version,
         new,
         persisted_hash,
-        please_persist = None,
     ):
         self.session_id = session_id
         self.managed_dict = managed_dict
@@ -60,8 +59,6 @@ class _SessionState(object):
         self.version = version
         self.new = new
         self.persisted_hash = persisted_hash
-        self.please_persist = please_persist
-        
 
     def should_persist(self, session):
         """
@@ -71,16 +68,19 @@ class _SessionState(object):
         """
         if self.dont_persist:
             return False
+        if self.expires and session._timeout_trigger:
+            if session.timestamp >= (self.expires - session._timeout_trigger):
+                self.please_persist = True
         if self.please_persist:
-            return True
+            return session.to_redis()
         if not session._detect_changes:
             return False
+
         serialized_session = session.to_redis()
         serialized_hash = hashed_value(serialized_session)
         if serialized_hash == self.persisted_hash:
             return False
         return serialized_session
-
 
 @implementer(ISession)
 class RedisSession(object):
@@ -165,6 +165,7 @@ class RedisSession(object):
         deserialized_fails_new=None,
         encode_session_payload_func=None,
         decode_session_payload_func=None,
+        timeout=None,
         timeout_trigger=None,
         python_expires=None,
     ):
@@ -183,6 +184,7 @@ class RedisSession(object):
         self._set_redis_ttl = set_redis_ttl
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
+        self._timeout = timeout
         self._timeout_trigger = timeout_trigger
         self._python_expires = python_expires
         self._session_state = self._make_session_state(
@@ -241,7 +243,6 @@ class RedisSession(object):
     def _make_session_state(self, session_id, new):
         """this will try to load the session_id in redis via ``from_redis``.
         If this fails, it will raise ``InvalidSession``"""
-        please_persist = None
         if session_id == LAZYCREATE_SESSION:
             persisted_hash = None
             persisted = self.new_payload()
@@ -259,10 +260,6 @@ class RedisSession(object):
             if expires:
                 if self.timestamp > expires:
                     raise TimedOutSession("`session_id` (%s) timed out in python" % session_id)
-                if self._timeout_trigger:
-                    if self.timestamp >= (expires - self._timeout_trigger):
-                        # this will trigger a write/update
-                        please_persist = True
             version = persisted.get('v')
             if not version or (version < SESSION_API_VERSION):
                 raise LegacySession("`session_id` (%s) is a legacy format" % session_id)
@@ -275,7 +272,6 @@ class RedisSession(object):
             version=persisted.get('v'),  # session api version
             new=new,
             persisted_hash=persisted_hash,
-            please_persist=please_persist,
         )
 
     @property

@@ -101,10 +101,11 @@ def encode_session_payload(managed_dict, created, timeout, python_expires=None):
             'c': created,  # created
             'v': SESSION_API_VERSION,  # session_api version
             }
-    if timeout and python_expires:
+    if timeout:
         data['t'] = timeout  # timeout
-        expires = int_time() + timeout
-        data['x'] = expires  # expires
+        if python_expires:
+            expires = int_time() + timeout
+            data['x'] = expires  # expires
     return data
 
 
