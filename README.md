@@ -1,10 +1,3 @@
-timestamp - created
-timestamp - expires
-int - timeout
-int - expiration_class
-
-
-
 IMPORTANT
 =========
 
