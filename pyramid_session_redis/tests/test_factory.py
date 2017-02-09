@@ -1567,7 +1567,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         self.assertEqual(request_updated.registry._redis_sessions._history[1][0], 'set')
         return
 
-
     def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         session_args['timeout'] = 100
@@ -1640,4 +1639,99 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         self.assertEqual(request_updated.registry._redis_sessions._history[1][0], 'setex')
         return
 
+    def test_scenario_flow__noCookie_a(self):
+        """no cookie created when making a request"""
+        # session_args should behave the same for all
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        import webob
+        request = self._make_request()
+        request.session = self._makeOne(request, **session_args)
+        response = webob.Response()
+        request._process_response_callbacks(response)
+        request._process_finished_callbacks()
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(set_cookie_headers), 0)
 
+    def test_scenario_flow__noCookie_b(self):
+        """no cookie created when accessing a session attrib"""
+        # session_args should behave the same for all
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        import webob
+        request = self._make_request()
+        request.session = self._makeOne(request, **session_args)
+        v = request.session.get('foo', None)
+        response = webob.Response()
+        request._process_response_callbacks(response)
+        request._process_finished_callbacks()
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(set_cookie_headers), 0)
+
+    def test_scenario_flow__noCookie_c(self):
+        """no cookie created when accessing a session_id"""
+        # session_args should behave the same for all
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        import webob
+        request = self._make_request()
+        request.session = self._makeOne(request, **session_args)
+        session_id = request.session.session_id
+        response = webob.Response()
+        request._process_response_callbacks(response)
+        request._process_finished_callbacks()
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(set_cookie_headers), 0)
+
+    def test_scenario_flow__cookie_a(self):
+        """cookie created when setting a value"""
+        # session_args should behave the same for all
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        import webob
+        request = self._make_request()
+        request.session = self._makeOne(request, **session_args)
+
+        # session_id is non-existant on create
+        session_id = request.session.session_id
+        self.assertIs(session_id, LAZYCREATE_SESSION)
+        request.session['a'] = 1
+
+        # session_id is non-existant until necessary
+        session_id = request.session.session_id
+        self.assertIs(session_id, LAZYCREATE_SESSION)
+
+        # insist this is necessary
+        request.session.ensure_id()
+        session_id = request.session.session_id
+        self.assertIsNot(session_id, LAZYCREATE_SESSION)
+        
+        response = webob.Response()
+        request._process_response_callbacks(response)
+        request._process_finished_callbacks()
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(set_cookie_headers), 1)
+
+    def test_scenario_flow__cookie_b(self):
+        """cookie created when setting a value"""
+        # session_args should behave the same for all
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        import webob
+        request = self._make_request()
+        request.session = self._makeOne(request, **session_args)
+
+        # session_id is non-existant on create
+        session_id = request.session.session_id
+        self.assertIs(session_id, LAZYCREATE_SESSION)
+        request.session['a'] = 1
+
+        # session_id is non-existant until necessary
+        session_id = request.session.session_id
+        self.assertIs(session_id, LAZYCREATE_SESSION)
+
+        response = webob.Response()
+        request._process_response_callbacks(response)
+        request._process_finished_callbacks()
+
+        # session_id should have created after callbacks
+        session_id = request.session.session_id
+        self.assertIsNot(session_id, LAZYCREATE_SESSION)
+        
+        set_cookie_headers = response.headers.getall('Set-Cookie')
+        self.assertEqual(len(set_cookie_headers), 1)
