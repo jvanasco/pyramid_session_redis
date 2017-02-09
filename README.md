@@ -10,14 +10,25 @@ IMPORTANT
 
 `pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for servers under load and developer convenience.
 
-The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  
+This package is now following a multi-version release process.  
+
+The 1.2.x branch is in maintenance mode as of 1.2.2, and will culminate in a final 1.3.0 release.  
+
+The 1.4.x branch is under active development and subject to change.  It will culminate in a stable 1.5.0 API release.
+
+----
+
+The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs.
 
 The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play pyramid sessions interface.
+
 
 Key Differences:
 ================
 
-Depending on your needs, this package may be more desirable than the original package.  It significantly cuts down on the communication between Redis and the pyramid app vs the original package.  Some options are offered to minimize the size of payloads as well.
+Depending on your needs, this package may be more desirable than the original project.  This package significantly cuts down on the communication between Redis and Pyramid vs the original.  Some options are offered to minimize the size of payloads as well.
+
+This package contains a lot of hooks and features to aid developers who are using this in high-traffic situations.  This package does not recommend a "best deployment", but offers different strategies for creating a best deployment under different circumstances.
 
 
 Through 1.2.x
@@ -43,8 +54,6 @@ Other Updates 1.4.x+
 * there was no logic for python timeout control (whoops!) this has been fixed.  an "expires" `x` key now tracks the expiration.
 * added a `timeout_trigger` option.  this will defer expiry data updates to lower usage on Redis.  This is explained below in more detail.
 * In high load situations, Redis can have performance and storage issues because in the original package sessionIDs are created on every request (such as a getting spidered by a botnet that does not respect sessions). in this package, a 'lazycreate' method is used.  a session_id/cookie will not be generated unless a session is needed in the callback routine.  in order to generate session_id/cookie beforehand, one can use the `RedisSession.ensure_id` function.  To safely check if a session_id exists, one can use the `RedisSession.session_id_safecheck` method as well.
-
-
 
 
 Notes:
@@ -135,6 +144,15 @@ time    	Redis Calls		timeout		next threshold
 The removes all calls to EXPIRE before the threshold is reached, which can be a considerable savings in read-heavy situations
 
 The caveat to this method: an expiry timestamp must be stored within the payload AND updating the timeout requires a SET operation.
+
+
+FAQ:
+================
+
+coming soon
+
+
+
 
 
 To Do:
