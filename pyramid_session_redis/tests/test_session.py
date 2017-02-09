@@ -787,7 +787,6 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertEquals(_redis_op[0], 'expire')
         self.assertEquals(_redis_op[2], 47)
 
-
     def test_session_invalid_legacy(self):
         """
         check that ``exceptions.LegacySession`` is raised if a previous version is detected

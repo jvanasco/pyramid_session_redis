@@ -107,9 +107,8 @@ def encode_session_payload(managed_dict, created, timeout, expires, timeout_trig
         data['t'] = timeout  # timeout
         if python_expires:
             time_now = int_time()
-            if not timeout_trigger or (time_now - timeout <= timeout_trigger ):
-                expires = int_time() + timeout
-                data['x'] = expires  # expires
+            if not timeout_trigger or (time_now >= (expires - timeout_trigger)):
+                data['x'] = time_now + timeout  # expires
     return data
 
 

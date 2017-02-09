@@ -21,6 +21,7 @@ class DummySession(object):
         self._session_state = DummySessionState()
 
     def to_redis(self):
+        print "to_redis, self"
         data = {'m': self.managed_dict,
                 'c': self.created,
                 }
@@ -52,17 +53,17 @@ class DummyRedis(object):
     def get(self, key):
         return self.store.get(key)
 
-    def set(self, key, value):
+    def set(self, key, value, debug=None):
         self.store[key] = value
-        self._history.append(('set', key, ))
+        self._history.append(('set', key, value, debug))
 
-    def setex(self, key, timeout, value):
+    def setex(self, key, timeout, value, debug=None):
         # Redis is `key, value, timeout`
         # StrictRedis is `key, timeout, value`
         # this package uses StrictRedis
         self.store[key] = value
         self.timeouts[key] = timeout
-        self._history.append(('setex', key, timeout, ))
+        self._history.append(('setex', key, timeout, value, debug))
 
     def delete(self, *keys):
         for key in keys:
@@ -98,10 +99,10 @@ class DummyPipeline(object):
     def multi(self):
         pass
 
-    def set(self, key, value):
+    def set(self, key, value, debug=None):
         self.store[key] = value
-        self._history.append(('set', key, ))
-        self._redis_con._history.append(('pipeline.set', key, ))
+        self._history.append(('set', key, debug))
+        self._redis_con._history.append(('pipeline.set', key, value, debug))
 
     def get(self, key):
         return self.store.get(key)
@@ -110,10 +111,10 @@ class DummyPipeline(object):
         self._history.append(('expire', key, timeout, ))
         self._redis_con._history.append(('pipeline.expire', key, timeout, ))
 
-    def setex(self, key, timeout, value):
+    def setex(self, key, timeout, value, debug=None):
         self.store[key] = value
-        self._history.append(('setex', key, timeout, ))
-        self._redis_con._history.append(('pipeline.setex', key, timeout, ))
+        self._history.append(('setex', key, timeout, debug))
+        self._redis_con._history.append(('pipeline.setex', key, timeout, value, debug))
 
     def watch(self, key):
         if self.raise_watcherror:

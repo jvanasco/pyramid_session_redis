@@ -59,10 +59,17 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         cookieval = self._serialize(session_id, secret=secret)
         request.cookies[cookie_name] = cookieval
 
-    def _make_request(self):
+    def _make_request(self, request_old=None):
         from . import DummyRedis
-        request = testing.DummyRequest()
-        request.registry._redis_sessions = DummyRedis()
+        if request_old:
+            # grab the registry data to persist, otherwise it gets discarded
+            # and transfer it to a new request
+            _redis_sessions = request_old.registry._redis_sessions
+            request = testing.DummyRequest()
+            request.registry._redis_sessions = _redis_sessions
+        else:
+            request = testing.DummyRequest()
+            request.registry._redis_sessions = DummyRedis()
         request.exception = None
         return request
 
@@ -831,10 +838,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
             redis.setex(session_id,
                         timeout,
                         serialize(payload),
+                        debug='_set_up_session_in_redis'
                         )
         else:
             redis.set(session_id,
-                      serialize(payload)
+                      serialize(payload),
+                      debug='_set_up_session_in_redis'
                       )
         return session_id
 
@@ -880,75 +889,75 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         response = webob.Response()
         request.response_callbacks[0](request, response)  # sets the cookie
         set_cookie_headers = response.headers.getall('Set-Cookie')
-        request.finished_callbacks[0](request)  # runs the persist
+        request._process_finished_callbacks()  # runs any persist if needed
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
+        # stored_session_data = self._deserialize_session_stored(request.session)
+        return request
+
+    def _load_cookie_session_in_new_request(self, request_old, session_id='existing_session', **session_args):
+        import webob
+        # we need a request, but must persist the redis datastore
+        request = self._make_request(request_old=request_old)
+
+        self._set_session_cookie(request=request,
+                                 session_id=session_id,
+                                 )
+        request.session = self._makeOne(request, **session_args)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        request._process_finished_callbacks()  # runs any persist if needed
+
+        self.assertNotIn('Set-Cookie', response.headers)
         # stored_session_data = self._deserialize_session_stored(request.session)
         return request
 
     def _prep_existing_session(self, session_args):
         import webob
         session_id = 'existing_session'
+        
+        def _insert_new_session():
+            """
+            drop a session into our redis
+            this requires a `request` but will only use a DummySession
+            """
+            request = self._make_request()
+            session_existing = self._set_up_session_in_Redis_and_makeOne(
+                request, 
+                session_id,
+                session_dict = {'visited': True},
+                **session_args
+            )
+            return request
 
-        request1 = self._make_request()
-        # drop a session into our redis
-        session_existing = self._set_up_session_in_Redis_and_makeOne(
-            request1, 
-            session_id,
-            session_dict = {'key': 'value'},
-            **session_args
-        )
-
-        # grab the registry data to persist, otherwise it gets discarded
-        _redis_sessions = request1.registry._redis_sessions
-
-        request = self._make_request()
-        request.registry._redis_sessions = _redis_sessions
-
-        self._set_session_cookie(
-            request=request,
-            session_id=session_id,
-        )
-
-        request.session = self._makeOne(request, **session_args)
-        response = webob.Response()
-        request.response_callbacks[0](request, response)
-        request.finished_callbacks[0](request)  # runs any persist if needed
-        self.assertNotIn('Set-Cookie', response.headers)
-        # stored_session_data = self._deserialize_session_stored(request.session)
+        # insert the session
+        request1 = _insert_new_session()
+        request = self._load_cookie_session_in_new_request(request_old=request1, session_id=session_id, **session_args)
         return request
-    
+
     def _adjust_request_session(self, request, serialize=cPickle.dumps, **kwargs):
+        """
+        1. deserializes a session's backend datastore, manipulates it, stores it.
+        2. generates/returns a new request that loads the modified session
+        
+        kwargs = passthtough of session_args
+        """
+        # grab the active request's session
+        _session_id = request.session.session_id
         _session_deserialized = self._deserialize_session_stored(request.session)
 
-        if 'created' in kwargs:
-            created = kwargs.pop('created', 0)
+        if 'test_adjust_created' in kwargs:
+            created = kwargs.pop('test_adjust_created', 0)
             _session_deserialized['c'] += created
-        if 'expires' in kwargs:
-            expires = kwargs.pop('expires', 0)
+        if 'test_adjust_expires' in kwargs:
+            expires = kwargs.pop('test_adjust_expires', 0)
             _session_deserialized['x'] += expires
-        _session_deserialized['t'] += 1
-        _session_deserialized['m']['foo'] = 'bar'
-        _session_id = request.session.session_id
+
+        # reserialize the session and store it in the backend
         _session_serialized = serialize(_session_deserialized)
         request.session.redis.store[_session_id] = _session_serialized
-        
-        _redis_sessions = request.registry._redis_sessions
-        request2 = self._make_request()
-        request2.registry._redis_sessions = _redis_sessions
-        self._set_session_cookie(
-            request=request2,
-            session_id=_session_id,
-        )
-        request2.session = self._makeOne(request2, **kwargs)
-        import webob
-        response = webob.Response()
-        request2.response_callbacks[0](request2, response)
-        request2.finished_callbacks[0](request2)  # runs any persist if needed
+        request.session._resync()
 
-        _session_deserialized2 = self._deserialize_session_stored(request2.session)
-
-        return request2
 
     # --------------------------------------------------------------------------
     # new session - timeout
@@ -1483,26 +1492,152 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
 
 
     # --------------------------------------------------------------------------
-    # new session - timeout
+    # new session - timeout flow
     # --------------------------------------------------------------------------
 
-    def test_scenario_flow__timeout_trigger_pythonExpires_noRedisTtl_noChange(self):
+    def test_scenario_flow__timeout_trigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_timeout_trigger_pythonExpires_noRedisTtl
-        request1 = self._prep_existing_session(session_args)
+        session_args['timeout'] = 100
+        session_args['timeout_trigger'] = 50
+        time_now = int_time()
 
-        stored_session_data_1 = self._deserialize_session_stored(request1.session)
-        
-        # timeout = 1200
-        timeout_diff_1 = -9
-        request2 = self._adjust_request_session(request1, expires=timeout_diff_1)
-    
-        # cookie_on_exception is True by default, no exception raised
-        stored_session_data_2 = self._deserialize_session_stored(request2.session)
-        
-        self.assertIn('x', stored_session_data_2)
-        self.assertEqual(stored_session_data_2['x'], stored_session_data_1['x'] + timeout_diff_1)
-        
+        #
+        # start by prepping the request
+        #
+        request1 = self._prep_existing_session(session_args)
+        stored_session_data_1_pre = self._deserialize_session_stored(request1.session)
+
         # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
+        # 0 = a SET for the initial creation
         self.assertEqual(len(request1.registry._redis_sessions._history), 1)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'set')
+
+        # let's adjust the timeout and make a request that won't change anything        
+        timeout_diff_1 = -9
+        self._adjust_request_session(request1, test_adjust_expires=timeout_diff_1)
+        stored_session_data_1_post = self._deserialize_session_stored(request1.session)
+        self.assertIn('x', stored_session_data_1_post)
+        self.assertEqual(stored_session_data_1_post['x'], stored_session_data_1_pre['x'] + timeout_diff_1)
+
+        # there should still be 1 items in the history:
+        # 0 = a SET for the initial creation
+        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        self.assertEqual(request1.registry._redis_sessions._history[0][0], 'set')
+
+        #
+        # then make a second request.  we should not see a set, because we're within the timeout
+        #
+        request_unchanged = self._load_cookie_session_in_new_request(request_old=request1, **session_args)
+        stored_session_data_unchanged = self._deserialize_session_stored(request_unchanged.session)
+
+        self.assertIn('x', stored_session_data_unchanged)
+        self.assertEqual(stored_session_data_unchanged['x'], stored_session_data_1_post['x'])
+
+        # there should still be 1 items in the history:
+        # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
+        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        self.assertIs(request_unchanged.registry._redis_sessions, request1.registry._redis_sessions)
+        self.assertEqual(len(request_unchanged.registry._redis_sessions._history), 1)
+        self.assertEqual(request_unchanged.registry._redis_sessions._history[0][0], 'set')
+
+        #
+        # now make a substantial change on the backend
+        #
+        timeout_diff_2 = -50
+        stored_session_data_2_pre = self._deserialize_session_stored(request_unchanged.session)
+        self._adjust_request_session(request_unchanged, test_adjust_expires=timeout_diff_2)
+        stored_session_data_2_post = self._deserialize_session_stored(request_unchanged.session)
+        self.assertIn('x', stored_session_data_2_post)
+        self.assertEqual(stored_session_data_2_post['x'], stored_session_data_2_pre['x'] + timeout_diff_2)
+        
+        #
+        # this should trigger an update if we make a new request...
+        #
+        request_updated = self._load_cookie_session_in_new_request(request_old=request_unchanged, **session_args)
+        stored_session_data_updated = self._deserialize_session_stored(request_updated.session)
+        self.assertIn('x', stored_session_data_updated)
+        self.assertEqual(stored_session_data_updated['x'], time_now + session_args['timeout'])
+
+        # there should be 2 items in the history:
+        # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
+        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        self.assertIs(request_updated.registry._redis_sessions, request_unchanged.registry._redis_sessions)
+        self.assertEqual(len(request_updated.registry._redis_sessions._history), 2)
+        self.assertEqual(request_updated.registry._redis_sessions._history[0][0], 'set')
+        self.assertEqual(request_updated.registry._redis_sessions._history[1][0], 'set')
+        return
+
+
+    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self):
+        session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
+        session_args['timeout'] = 100
+        session_args['timeout_trigger'] = 50
+        time_now = int_time()
+
+        #
+        # start by prepping the request
+        #
+        request1 = self._prep_existing_session(session_args)
+        stored_session_data_1_pre = self._deserialize_session_stored(request1.session)
+
+        # there should be 1 items in the history:
+        # 0 = a SET for the initial creation
+        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        self.assertEqual(request1.registry._redis_sessions._history[0][0], 'setex')
+
+        # let's adjust the timeout and make a request that won't change anything        
+        timeout_diff_1 = -9
+        self._adjust_request_session(request1, test_adjust_expires=timeout_diff_1)
+        stored_session_data_1_post = self._deserialize_session_stored(request1.session)
+        self.assertIn('x', stored_session_data_1_post)
+        self.assertEqual(stored_session_data_1_post['x'], stored_session_data_1_pre['x'] + timeout_diff_1)
+
+        # there should still be 1 items in the history:
+        # 0 = a SET for the initial creation
+        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        self.assertEqual(request1.registry._redis_sessions._history[0][0], 'setex')
+
+        #
+        # then make a second request.  we should not see a setex, because we're within the timeout
+        #
+        request_unchanged = self._load_cookie_session_in_new_request(request_old=request1, **session_args)
+        stored_session_data_unchanged = self._deserialize_session_stored(request_unchanged.session)
+
+        self.assertIn('x', stored_session_data_unchanged)
+        self.assertEqual(stored_session_data_unchanged['x'], stored_session_data_1_post['x'])
+
+        # there should still be 1 items in the history:
+        # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
+        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        self.assertIs(request_unchanged.registry._redis_sessions, request1.registry._redis_sessions)
+        self.assertEqual(len(request_unchanged.registry._redis_sessions._history), 1)
+        self.assertEqual(request_unchanged.registry._redis_sessions._history[0][0], 'setex')
+
+        #
+        # now make a substantial change on the backend
+        #
+        timeout_diff_2 = -50
+        stored_session_data_2_pre = self._deserialize_session_stored(request_unchanged.session)
+        self._adjust_request_session(request_unchanged, test_adjust_expires=timeout_diff_2)
+        stored_session_data_2_post = self._deserialize_session_stored(request_unchanged.session)
+        self.assertIn('x', stored_session_data_2_post)
+        self.assertEqual(stored_session_data_2_post['x'], stored_session_data_2_pre['x'] + timeout_diff_2)
+        
+        #
+        # this should trigger an update if we make a new request...
+        #
+        request_updated = self._load_cookie_session_in_new_request(request_old=request_unchanged, **session_args)
+        stored_session_data_updated = self._deserialize_session_stored(request_updated.session)
+        self.assertIn('x', stored_session_data_updated)
+        self.assertEqual(stored_session_data_updated['x'], time_now + session_args['timeout'])
+
+        # there should be 2 items in the history:
+        # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
+        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        self.assertIs(request_updated.registry._redis_sessions, request_unchanged.registry._redis_sessions)
+        self.assertEqual(len(request_updated.registry._redis_sessions._history), 2)
+        self.assertEqual(request_updated.registry._redis_sessions._history[0][0], 'setex')
+        self.assertEqual(request_updated.registry._redis_sessions._history[1][0], 'setex')
+        return
+
+

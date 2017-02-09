@@ -500,7 +500,6 @@ def _finished_callback(
         # which means the cookie will never get sent to the user, and a phantom
         # session_id+placeholder will be in redis until it times out.
         return
-
     if not session._session_state.dont_persist:
         if session._session_state.please_persist:
             session.do_persist()

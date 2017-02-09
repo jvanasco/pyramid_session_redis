@@ -75,7 +75,6 @@ class _SessionState(object):
             return session.to_redis()
         if not session._detect_changes:
             return False
-
         serialized_session = session.to_redis()
         serialized_hash = hashed_value(serialized_session)
         if serialized_hash == self.persisted_hash:
@@ -187,9 +186,17 @@ class RedisSession(object):
         self._timeout = timeout
         self._timeout_trigger = timeout_trigger
         self._python_expires = python_expires
+        self._new = new
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
+        )
+
+    def _resync(self):
+        """resyncs the session. this is really only needed for testing."""
+        self._session_state = self._make_session_state(
+            session_id=self.session_id,
+            new=self._new,
         )
 
     def new_session(self):
