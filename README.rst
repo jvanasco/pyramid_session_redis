@@ -89,15 +89,17 @@ This is useful, but means most session operations will trigger two REDIS calls. 
 
 Given the following example:
 
-    timeout = 200
+```
+timeout = 200
 
-	time 		Redis Calls		timeout
-	0			GET+SETEX		200
-	100			GET+EXPIRE		300
-	200			GET+EXPIRE		400
-	300			GET+EXPIRE		500
-	400			GET+EXPIRE		600
-	500			GET+EXPIRE		700
+time 		Redis Calls		timeout
+0			GET+SETEX		200
+100			GET+EXPIRE		300
+200			GET+EXPIRE		400
+300			GET+EXPIRE		500
+400			GET+EXPIRE		600
+500			GET+EXPIRE		700
+```
 
 Scenario 2 - Timeout Trigger
 --------------------------
@@ -108,22 +110,26 @@ Whereas a `timeout` states how long a session is good for, a `timeout_trigger` d
 
 Given the following example, the package will use a 1200s timeout for requests, but only trigger an update of the expiry time when the current time is within 600s of the expiry
 
-    timeout = 1200
-    timeout_trigger = 600
+```
+timeout = 1200
+timeout_trigger = 600
+```
 
 The following timeline would occur
-    
-	time    	Redis Calls		timeout		next threshold
-	0			GET+SET*  		1200		600
-	1			GET				1200		600
-	..
-	599			GET				1200		600
-	600			GET+SET* 		1800		1200
-	601			GET    			1800		1200
-	...
-	1199		GET    			1800		1200
-	1200		GET+SET*		2400		1800
-	
+
+```    
+time    	Redis Calls		timeout		next threshold
+0			GET+SET*  		1200		600
+1			GET				1200		600
+..
+599			GET				1200		600
+600			GET+SET* 		1800		1200
+601			GET    			1800		1200
+...
+1199		GET    			1800		1200
+1200		GET+SET*		2400		1800
+```	
+
 * This method is compatible with setting a TTL in redis via SETEX or doing everything within Python if redis is in a LRU mode
 
 The removes all calls to EXPIRE before the threshold is reached, which can be a considerable savings in read-heavy situations
