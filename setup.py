@@ -20,9 +20,9 @@ with open(
 # get readme and changes
 here = os.path.abspath(os.path.dirname(__file__))
 try:
-    with open(os.path.join(here, 'README.txt')) as text_file:
+    with open(os.path.join(here, 'README.md')) as text_file:
         README = text_file.read()
-    with open(os.path.join(here, 'CHANGES.txt')) as text_file:
+    with open(os.path.join(here, 'CHANGES.md')) as text_file:
         CHANGES = text_file.read()
 except IOError:
     README = CHANGES = ''
