@@ -36,7 +36,7 @@ Through 1.2.x
 * The original raises a fatal error if a session can not be deserialized.  by passing in `deserialized_fails_new` to the constructor, you can create a new session on deserialization errors.
 * Support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
 * Thanks to @ github/hongyuan1306, token generation has been consolidated to use python3's stdlib (or reimplemented if not available).  tokens are also 32, not 20, chars.
-* redis is supported in a LRU mode (see http://redis.io/topics/lru-cache) by setting the option `set_redis_ttl` to `False` (by default, it is `True`).  This will eliminate calls to EXPIRE and will use SET instead of SETEX.
+* redis is supported in a LRU mode (see http://redis.io/topics/lru-cache) by setting the option `set_redis_ttl` to `False` (by default, it is `True`).  This will eliminate calls to `EXPIRE` and will use `SET` instead of `SETEX`.
 * in the 1.2.x branch the created time can be set to an integer via `use_int_time=True`.  This will cast the `created` time via "int(math.ceil(time.time()))".  This can reduce a payload by several bits. 
 
 Other Updates 1.4.x+
@@ -60,19 +60,21 @@ Timeout data stored in Python is relatively small when compared to the timeout d
 
 If you want to NEVER have sessions timeout, set the initial `timeout` to "0" or "None".
 
+Setting a timeout_trigger will require Python to track the expiry.
+
 Examples:
 ---------
 
-Timeout in Python, with Redis TTL via SETEX/EXPIRE:
+Timeout in Python, with Redis TTL via `SETEX`/`EXPIRE`:
 
 	timeout = 60
 
-Timeout in Python, no Redis TTL (only SET used)
+Timeout in Python, no Redis TTL (only `SET` used)
 
 	timeout = 60
 	assume_redis_ttl = True
 	
-No Timeout in Python, no Redis TTL (only SET used)
+No Timeout in Python, no Redis TTL (only `SET` used)
 
 	timeout = 0  # or None
 	assume_redis_ttl = True
@@ -85,11 +87,11 @@ A timeout trigger can be used to limit the amount of updates/writes.  It may be 
 Scenario 1 - Classic Redis
 --------------------------
 
-In the typical "classic" Redis usage pattern, the session usage is refreshed via an EXPIRE call on every session view
+In the typical "classic" Redis usage pattern, the session usage is refreshed via an `EXPIRE` call on every session view
 
-This is useful, but means most session operations will trigger two REDIS calls.  On a high performance system, this can be a lot.
+This is useful, but means many session operations will trigger two Redis calls (`GET` + `EXPIRE`).  On a high performance system, this can be a lot.
 
-Given the following example:
+This is a typical scenario with refreshing:
 
 ```
 timeout = 200
@@ -106,9 +108,9 @@ time 		Redis Calls		timeout
 Scenario 2 - Timeout Trigger
 --------------------------
 
-The 1.4.x branch introduces a timeout_trigger to augment the session's timeout.
+The 1.4.x branch introduces a `timeout_trigger` to augment the session's `timeout`.
 
-Whereas a `timeout` states how long a session is good for, a `timeout_trigger` defers how long a session should be refreshed for:
+Whereas a `timeout` states how long a session is good for, a `timeout_trigger` defers how long a session's refresh should be deferred for:
 
 Given the following example, the package will use a 1200s timeout for requests, but only trigger an update of the expiry time when the current time is within 600s of the expiry
 
@@ -132,11 +134,11 @@ time    	Redis Calls		timeout		next threshold
 1200		GET+SET*		2400		1800
 ```	
 
-* This method is compatible with setting a TTL in redis via SETEX or doing everything within Python if redis is in a LRU mode
+* This method is compatible with setting a TTL in redis via `SETEX` or doing everything within Python if redis is in a LRU mode
 
-The removes all calls to EXPIRE before the threshold is reached, which can be a considerable savings in read-heavy situations
+The removes all calls to `EXPIRE` before the threshold is reached, which can be a considerable savings in read-heavy situations
 
-The caveat to this method: an expiry timestamp must be stored within the payload AND updating the timeout requires a SET operation.
+The caveat to this method: an expiry timestamp must be stored within the payload AND updating the timeout requires a `SET` operation.
 
 
 FAQ:
