@@ -341,7 +341,7 @@ def RedisSessionFactory(
         except InvalidSession as e:
             if func_invalid_logger is not None:
                 # send the instance for logging
-                func_invalid_logger(e)
+                func_invalid_logger(request, e)
             session_id = LAZYCREATE_SESSION
             session_cookie_was_valid = False
             session = RedisSession(

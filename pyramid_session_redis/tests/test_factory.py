@@ -1781,7 +1781,7 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
 
         func_invalid_logger_counts = self._new_loggerData()
         
-        def func_invalid_logger(raised):
+        def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_NoSessionCookie)
@@ -1804,7 +1804,7 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
 
         func_invalid_logger_counts = self._new_loggerData()
         
-        def func_invalid_logger(raised):
+        def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_NotInBackend)
@@ -1830,7 +1830,7 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
     def test_logger_InvalidSession_DeserializationError(self):
         func_invalid_logger_counts = self._new_loggerData()
         
-        def func_invalid_logger(raised):
+        def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_DeserializationError)
@@ -1866,7 +1866,7 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
     def test_logger_InvalidSession_PayloadTimeout(self):
         func_invalid_logger_counts = self._new_loggerData()
         
-        def func_invalid_logger(raised):
+        def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_PayloadTimeout)
@@ -1907,7 +1907,7 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
     def test_logger_InvalidSession_PayloadLegacy(self):
         func_invalid_logger_counts = self._new_loggerData()
         
-        def func_invalid_logger(raised):
+        def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_PayloadLegacy)
@@ -1948,8 +1948,8 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
     def test_deserialized_error_raw(self):
         func_invalid_logger_counts = self._new_loggerData()
         
-        def func_invalid_logger(raised):
-            pdb.set_trace()
+        def func_invalid_logger(request, raised):
+            raise ValueError("this should not be run")
             
         factory = self._new_loggerFactory(
             func_invalid_logger=func_invalid_logger,

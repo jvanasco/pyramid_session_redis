@@ -164,14 +164,14 @@ Specifically there are the following classes:
 * ``InvalidSession_PayloadTimeout(InvalidSession)`` The inner python payload timed out
 * ``InvalidSession_PayloadLegacy(InvalidSession)`` The session is running on an earlier version
 
-The factory accepts a `func_invalid_logger` callable argument.  The input is the raised exception BEFORE a new cookie is generated, and guaranteed to be an instance of `InvalidSession`.
+The factory accepts a `func_invalid_logger` callable argument.  The input is the raised exception BEFORE a new cookie is generated, and will be the request and an instance of `InvalidSession`.
 
 	from pyramid_session_redis.exceptions import *
 	from my_statsd import new_statsd_client()
 	
 	statsd_client = new_statsd_client()
 
-    def my_logger(raised_exception):
+    def my_logger(request, raised_exception):
     	"""
     	raised_exception will be an instance of InvalidSession
     	log the exception to statsd for metrics
