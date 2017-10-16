@@ -8,7 +8,14 @@ from pyramid.interfaces import ISession
 from zope.interface import implementer
 
 from .compat import cPickle, token_hex
-from .exceptions import InvalidSession, TimedOutSession, LegacySession
+from .exceptions import (InvalidSession,
+                         InvalidSession_DeserializationError,
+                         InvalidSession_Lazycreate,
+                         InvalidSession_PayloadLegacy,
+                         InvalidSession_NotInBackend,
+                         InvalidSession_PayloadTimeout,
+                         RawDeserializationError,
+                         )
 from .util import (
     persist,
     refresh,
@@ -249,7 +256,7 @@ class RedisSession(object):
 
     def _make_session_state(self, session_id, new):
         """this will try to load the session_id in redis via ``from_redis``.
-        If this fails, it will raise ``InvalidSession``"""
+        If this fails, it will raise ``InvalidSession`` variants"""
         if session_id == LAZYCREATE_SESSION:
             persisted_hash = None
             persisted = self.new_payload()
@@ -266,10 +273,10 @@ class RedisSession(object):
             expires = persisted.get('x')
             if expires:
                 if self.timestamp > expires:
-                    raise TimedOutSession("`session_id` (%s) timed out in python" % session_id)
+                    raise InvalidSession_PayloadTimeout("`session_id` (%s) timed out in python" % session_id)
             version = persisted.get('v')
             if not version or (version < SESSION_API_VERSION):
-                raise LegacySession("`session_id` (%s) is a legacy format" % session_id)
+                raise InvalidSession_PayloadLegacy("`session_id` (%s) is a legacy format" % session_id)
         return _SessionState(
             session_id=session_id,
             managed_dict=persisted['m'],  # managed_dict
@@ -334,16 +341,16 @@ class RedisSession(object):
         """
         _session_id = session_id or self.session_id
         if _session_id == LAZYCREATE_SESSION:
-            raise InvalidSession("`session_id` is LAZYCREATE_SESSION")
+            raise InvalidSession_Lazycreate("`session_id` is LAZYCREATE_SESSION")
         persisted = self.redis.get(_session_id)
         if persisted is None:
-            raise InvalidSession("`session_id` (%s) not in Redis" % _session_id)
+            raise InvalidSession_NotInBackend("`session_id` (%s) not in Redis" % _session_id)
         try:
             deserialized = self.deserialize(persisted)
-        except Exception:
+        except Exception as e:
             if self._deserialized_fails_new:
-                raise InvalidSession("`session_id` (%s) did not deserialize correctly" % _session_id)
-            raise
+                raise InvalidSession_DeserializationError("`session_id` (%s) did not deserialize correctly" % _session_id)
+            raise RawDeserializationError(e)
         if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
         elif persisted_hash is False:

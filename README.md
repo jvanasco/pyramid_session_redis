@@ -1,7 +1,7 @@
 IMPORTANT
 =========
 
-`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for servers under load and developer convenience.
+`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for high performance (particularly with servers under load) and a slightly different API for developer convenience.
 
 This package is now following a multi-version release process.  
 
@@ -11,7 +11,7 @@ The 1.4.x branch is under active development and subject to change.  It will cul
 
 ----
 
-The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs.
+The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs to `<=1.3.0` or `<1.3`.
 
 The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play pyramid sessions interface.
 
@@ -19,7 +19,7 @@ The 1.4.x branch and later have several design changes and are not a drop-in rep
 Key Differences:
 ================
 
-Depending on your needs, this package may be more desirable than the original project.  This package significantly cuts down on the communication between Redis and Pyramid vs the original.  Some options are offered to minimize the size of payloads as well.
+Depending on your needs, this package is probably more desirable than the original project.  This package significantly cuts down on the communication between Redis and Pyramid vs the original implementation.  Some options are offered to minimize the size of payloads as well.
 
 This package contains a lot of hooks and features to aid developers who are using this in high-traffic situations.  This package does not recommend a "best deployment", but offers different strategies for creating a best deployment under different circumstances.
 
@@ -47,6 +47,8 @@ Other Updates 1.4.x+
 * there was no logic for python timeout control (whoops!) this has been fixed.  an "expires" `x` key now tracks the expiration.
 * added a `timeout_trigger` option.  this will defer expiry data updates to lower usage on Redis.  This is explained below in more detail.
 * In high load situations, Redis can have performance and storage issues because in the original package sessionIDs are created on every request (such as a getting spidered by a botnet that does not respect sessions). in this package, a 'lazycreate' method is used.  a session_id/cookie will not be generated unless a session is needed in the callback routine.  in order to generate session_id/cookie beforehand, one can use the `RedisSession.ensure_id` function.  To safely check if a session_id exists, one can use the `RedisSession.session_id_safecheck` method as well.
+* added `func_invalid_logger` to constructor. this can be used to log invalid sessions. it is incredibly useful when integrated with a statsd system. (see below)
+
 
 
 Notes:
@@ -139,6 +141,55 @@ time    	Redis Calls		timeout		next threshold
 The removes all calls to `EXPIRE` before the threshold is reached, which can be a considerable savings in read-heavy situations
 
 The caveat to this method: an expiry timestamp must be stored within the payload AND updating the timeout requires a `SET` operation.
+
+
+Invalid Logging
+================
+
+The default behavior of this library is to silently create new session when bad session data is encountered.
+
+The problem with that strategy is that problems in code or your application stack can be hidden.
+
+The 1.4 release introduces `func_invalid_logger` to the factory constructor. 
+This can be used to track invalid sessions that are safely caught and silently upgraded 
+
+How?  The package tracks why a session is invalid with variant classes of `exceptions.InvalidSession`
+
+Specifically there are the following classes:
+
+* ``InvalidSession(Exception)`` Catchall base class
+* ``InvalidSession_NoSessionCookie(InvalidSession)`` The session is invalid because there is no cookie.  This is the same as "new session".
+* ``InvalidSession_NotInBackend(InvalidSession)`` The session id was not in the backend
+* ``InvalidSession_DeserializationError(InvalidSession)`` Error deserializing.  This is raised if ``deserialized_fails_new`` is True. Otherwise the exception is wrapped in a ``RawDeserializationError`` and raised without being caught.
+* ``InvalidSession_PayloadTimeout(InvalidSession)`` The inner python payload timed out
+* ``InvalidSession_PayloadLegacy(InvalidSession)`` The session is running on an earlier version
+
+The factory accepts a `func_invalid_logger` callable argument.  The input is the raised exception BEFORE a new cookie is generated, and guaranteed to be an instance of `InvalidSession`.
+
+	from pyramid_session_redis.exceptions import *
+	from my_statsd import new_statsd_client()
+	
+	statsd_client = new_statsd_client()
+
+    def my_logger(raised_exception):
+    	"""
+    	raised_exception will be an instance of InvalidSession
+    	log the exception to statsd for metrics
+    	"""
+    	if isinstance(raised_exception, InvalidSession_NoSessionCookie):
+    		statsd_client.incr('invalid_session.NoSessionCookie')
+    	elif isinstance(raised_exception, InvalidSession_NotInBackend):
+    		statsd_client.incr('invalid_session.NotInBackend')
+    	elif isinstance(raised_exception, InvalidSession_DeserializationError):
+    		statsd_client.incr('invalid_session.DeserializationError')
+
+	factory = RedisSessionFactory(...
+								  func_invalid_logger=my_logger,
+								  ...
+								  )
+		
+The `func_invalid_logger` argument may be provided as a dotted-notation string in a settings file.
+
 
 
 FAQ:

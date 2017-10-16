@@ -54,7 +54,7 @@ def main():
         url='https://github.com/jvanasco/pyramid_session_redis',
         license='FreeBSD',
         packages=find_packages(),
-        # test_suite='pyramid_session_redis.tests.test_session.TestRedisSessionNew',
+        #test_suite='pyramid_session_redis.tests.test_factory.TestRedisSessionFactory_loggedExceptions',
         test_suite='nose.collector',
         include_package_data=True,
         zip_safe=False,

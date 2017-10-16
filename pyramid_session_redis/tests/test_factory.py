@@ -7,6 +7,17 @@ import pprint
 from pyramid import testing
 from ..compat import cPickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
+from ..exceptions import (InvalidSession,
+                         InvalidSession_NoSessionCookie,
+                         InvalidSession_NotInBackend,
+                         InvalidSession_DeserializationError,
+                         InvalidSession_PayloadTimeout,
+                         InvalidSession_PayloadLegacy,
+                         RawDeserializationError,
+                         )
+
+from .. import RedisSessionFactory
+import webob
 
 
 
@@ -609,8 +620,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_check_response(self):
         from .. import check_response_allow_cookies
-        from .. import RedisSessionFactory
-        import webob
 
         factory = RedisSessionFactory(
             'secret',
@@ -652,8 +661,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             self.assertEqual(response.vary, ('Cookie', ))
 
     def test_check_response_custom(self):
-        from .. import RedisSessionFactory
-        import webob
 
         def check_response_allow_cookies(response):
             """
@@ -707,105 +714,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             self.assertEqual(response.vary, ('Cookie', ))
 
 
-class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
-
-    # args are used 2x: for NEW and EXISTING session tests
-
-    _args_timeout_trigger_pythonExpires_setRedisTtl = {'timeout': 1200,
-                                                       'timeout_trigger': 600,
-                                                       'python_expires': True,
-                                                       'set_redis_ttl': True,
-                                                       }
-
-    _args_timeout_trigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
-                                                         'timeout_trigger': 600,
-                                                         'python_expires': False,
-                                                         'set_redis_ttl': True,
-                                                         }
-
-    _args_timeout_noTrigger_pythonExpires_setRedisTtl = {'timeout': 1200,
-                                                         'timeout_trigger': None,
-                                                         'python_expires': True,
-                                                         'set_redis_ttl': True,
-                                                          }
-
-    _args_timeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
-                                                           'timeout_trigger': None,
-                                                           'python_expires': False,
-                                                           'set_redis_ttl': True,
-                                                           }
-
-    _args_noTimeout_trigger_pythonExpires_setRedisTtl = {'timeout': None,
-                                                         'timeout_trigger': 600,
-                                                         'python_expires': True,
-                                                         'set_redis_ttl': True,
-                                                         }
-
-    _args_noTimeout_trigger_noPythonExpires_setRedisTtl = {'timeout': None,
-                                                           'timeout_trigger': 600,
-                                                           'python_expires': False,
-                                                           'set_redis_ttl': True,
-                                                           }
-
-    _args_noTimeout_noTrigger_pythonExpires_setRedisTtl = {'timeout': None,
-                                                           'timeout_trigger': None,
-                                                           'python_expires': True,
-                                                           'set_redis_ttl': True,
-                                                           }
-
-    _args_noTimeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': None,
-                                                             'timeout_trigger': None,
-                                                             'python_expires': False,
-                                                             'set_redis_ttl': True,
-                                                             }
-
-    _args_timeout_trigger_pythonExpires_noRedisTtl = {'timeout': 1200,
-                                                      'timeout_trigger': 600,
-                                                      'python_expires': True,
-                                                      'set_redis_ttl': False,
-                                                      }
-
-    _args_timeout_trigger_noPythonExpires_noRedisTtl = {'timeout': 1200,
-                                                        'timeout_trigger': 600,
-                                                        'python_expires': False,
-                                                        'set_redis_ttl': False,
-                                                        }
-
-    _args_timeout_noTrigger_pythonExpires_noRedisTtl = {'timeout': 1200,
-                                                        'timeout_trigger': None,
-                                                        'python_expires': True,
-                                                        'set_redis_ttl': False,
-                                                         }
-
-    _args_timeout_noTrigger_noPythonExpires_noRedisTtl = {'timeout': 1200,
-                                                          'timeout_trigger': None,
-                                                          'python_expires': False,
-                                                          'set_redis_ttl': False,
-                                                          }
-
-    _args_noTimeout_trigger_pythonExpires_noRedisTtl = {'timeout': None,
-                                                        'timeout_trigger': 600,
-                                                        'python_expires': True,
-                                                        'set_redis_ttl': False,
-                                                        }
-
-    _args_noTimeout_trigger_noPythonExpires_noRedisTtl = {'timeout': None,
-                                                          'timeout_trigger': 600,
-                                                          'python_expires': False,
-                                                          'set_redis_ttl': False,
-                                                          }
-
-    _args_noTimeout_noTrigger_pythonExpires_noRedisTtl = {'timeout': None,
-                                                          'timeout_trigger': None,
-                                                          'python_expires': True,
-                                                          'set_redis_ttl': False,
-                                                          }
-
-    _args_noTimeout_noTrigger_noPythonExpires_noRedisTtl = {'timeout': None,
-                                                            'timeout_trigger': None,
-                                                            'python_expires': False,
-                                                            'set_redis_ttl': False,
-                                                            }
+class _TestRedisSessionFactoryCore_UtilsNew(object):
 
     def _deserialize_session_stored(self, session, deserialize=cPickle.loads):
         """loads session from backend via id, deserializes"""
@@ -958,6 +867,106 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         request.session.redis.store[_session_id] = _session_serialized
         request.session._resync()
 
+
+class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _TestRedisSessionFactoryCore_UtilsNew):
+
+    # args are used 2x: for NEW and EXISTING session tests
+
+    _args_timeout_trigger_pythonExpires_setRedisTtl = {'timeout': 1200,
+                                                       'timeout_trigger': 600,
+                                                       'python_expires': True,
+                                                       'set_redis_ttl': True,
+                                                       }
+
+    _args_timeout_trigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
+                                                         'timeout_trigger': 600,
+                                                         'python_expires': False,
+                                                         'set_redis_ttl': True,
+                                                         }
+
+    _args_timeout_noTrigger_pythonExpires_setRedisTtl = {'timeout': 1200,
+                                                         'timeout_trigger': None,
+                                                         'python_expires': True,
+                                                         'set_redis_ttl': True,
+                                                          }
+
+    _args_timeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
+                                                           'timeout_trigger': None,
+                                                           'python_expires': False,
+                                                           'set_redis_ttl': True,
+                                                           }
+
+    _args_noTimeout_trigger_pythonExpires_setRedisTtl = {'timeout': None,
+                                                         'timeout_trigger': 600,
+                                                         'python_expires': True,
+                                                         'set_redis_ttl': True,
+                                                         }
+
+    _args_noTimeout_trigger_noPythonExpires_setRedisTtl = {'timeout': None,
+                                                           'timeout_trigger': 600,
+                                                           'python_expires': False,
+                                                           'set_redis_ttl': True,
+                                                           }
+
+    _args_noTimeout_noTrigger_pythonExpires_setRedisTtl = {'timeout': None,
+                                                           'timeout_trigger': None,
+                                                           'python_expires': True,
+                                                           'set_redis_ttl': True,
+                                                           }
+
+    _args_noTimeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': None,
+                                                             'timeout_trigger': None,
+                                                             'python_expires': False,
+                                                             'set_redis_ttl': True,
+                                                             }
+
+    _args_timeout_trigger_pythonExpires_noRedisTtl = {'timeout': 1200,
+                                                      'timeout_trigger': 600,
+                                                      'python_expires': True,
+                                                      'set_redis_ttl': False,
+                                                      }
+
+    _args_timeout_trigger_noPythonExpires_noRedisTtl = {'timeout': 1200,
+                                                        'timeout_trigger': 600,
+                                                        'python_expires': False,
+                                                        'set_redis_ttl': False,
+                                                        }
+
+    _args_timeout_noTrigger_pythonExpires_noRedisTtl = {'timeout': 1200,
+                                                        'timeout_trigger': None,
+                                                        'python_expires': True,
+                                                        'set_redis_ttl': False,
+                                                         }
+
+    _args_timeout_noTrigger_noPythonExpires_noRedisTtl = {'timeout': 1200,
+                                                          'timeout_trigger': None,
+                                                          'python_expires': False,
+                                                          'set_redis_ttl': False,
+                                                          }
+
+    _args_noTimeout_trigger_pythonExpires_noRedisTtl = {'timeout': None,
+                                                        'timeout_trigger': 600,
+                                                        'python_expires': True,
+                                                        'set_redis_ttl': False,
+                                                        }
+
+    _args_noTimeout_trigger_noPythonExpires_noRedisTtl = {'timeout': None,
+                                                          'timeout_trigger': 600,
+                                                          'python_expires': False,
+                                                          'set_redis_ttl': False,
+                                                          }
+
+    _args_noTimeout_noTrigger_pythonExpires_noRedisTtl = {'timeout': None,
+                                                          'timeout_trigger': None,
+                                                          'python_expires': True,
+                                                          'set_redis_ttl': False,
+                                                          }
+
+    _args_noTimeout_noTrigger_noPythonExpires_noRedisTtl = {'timeout': None,
+                                                            'timeout_trigger': None,
+                                                            'python_expires': False,
+                                                            'set_redis_ttl': False,
+                                                            }
 
     # --------------------------------------------------------------------------
     # new session - timeout
@@ -1735,3 +1744,233 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore):
         
         set_cookie_headers = response.headers.getall('Set-Cookie')
         self.assertEqual(len(set_cookie_headers), 1)
+
+
+class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _TestRedisSessionFactoryCore_UtilsNew):
+
+    def _new_loggerData(self):
+        return {'InvalidSession': 0,  # tested
+                'InvalidSession_NoSessionCookie': 0,  # tested
+                'InvalidSession_Lazycreate': 0,
+                'InvalidSession_NotInBackend': 0,  # tested
+                'InvalidSession_DeserializationError': 0,  # tested
+                'InvalidSession_PayloadTimeout': 0,
+                'InvalidSession_PayloadLegacy': 0,
+                }
+
+    def validate_loggerData(self, loggerData, **expected):
+        for k, v in loggerData.items():
+            if k not in expected:
+                self.assertEqual(v, 0)
+            else:
+                self.assertEqual(v, expected[k])
+
+    def _new_loggerFactory(self, func_invalid_logger=None, factory_args=None):
+        if factory_args is None:
+            factory_args = {}
+        factory = RedisSessionFactory(
+            'secret',
+            func_invalid_logger=func_invalid_logger,
+            **factory_args
+        )
+        return factory
+
+    # -----
+
+    def test_logger_InvalidSession_NoSessionCookie(self):
+
+        func_invalid_logger_counts = self._new_loggerData()
+        
+        def func_invalid_logger(raised):
+            assert isinstance(raised, InvalidSession)
+            func_invalid_logger_counts['InvalidSession'] += 1
+            assert isinstance(raised, InvalidSession_NoSessionCookie)
+            func_invalid_logger_counts['InvalidSession_NoSessionCookie'] += 1
+        
+        factory = self._new_loggerFactory(func_invalid_logger=func_invalid_logger)
+
+        request = self._make_request()
+        redis = request.registry._redis_sessions
+        session = factory(request)
+        # validate
+        self.validate_loggerData(func_invalid_logger_counts,
+                                 InvalidSession=1,
+                                 InvalidSession_NoSessionCookie=1,
+                                 )
+
+    # -----
+
+    def test_logger_InvalidSession_NotInBackend(self):
+
+        func_invalid_logger_counts = self._new_loggerData()
+        
+        def func_invalid_logger(raised):
+            assert isinstance(raised, InvalidSession)
+            func_invalid_logger_counts['InvalidSession'] += 1
+            assert isinstance(raised, InvalidSession_NotInBackend)
+            func_invalid_logger_counts['InvalidSession_NotInBackend'] += 1
+            
+        factory = self._new_loggerFactory(func_invalid_logger=func_invalid_logger)
+
+        # this session isn't tied to our factory.
+        request = self._make_request()
+        redis = request.registry._redis_sessions
+
+        self._set_session_cookie(request=request,
+                                 session_id='no_backend')
+        session = factory(request)
+        # validate
+        self.validate_loggerData(func_invalid_logger_counts,
+                                 InvalidSession=1,
+                                 InvalidSession_NotInBackend=1,
+                                 )
+
+    # -----
+
+    def test_logger_InvalidSession_DeserializationError(self):
+        func_invalid_logger_counts = self._new_loggerData()
+        
+        def func_invalid_logger(raised):
+            assert isinstance(raised, InvalidSession)
+            func_invalid_logger_counts['InvalidSession'] += 1
+            assert isinstance(raised, InvalidSession_DeserializationError)
+            func_invalid_logger_counts['InvalidSession_DeserializationError'] += 1
+            
+        session_args = {'timeout': 1,
+                        'python_expires': True,
+                        'set_redis_ttl': False,
+                        }
+            
+        factory = self._new_loggerFactory(
+            func_invalid_logger=func_invalid_logger,
+            factory_args = {'deserialized_fails_new': True,
+                            }
+        )
+        request = self._prep_existing_session(session_args)
+        redis = request.registry._redis_sessions
+        assert 'existing_session' in redis.store
+
+        # take of off the last 5 chars
+        redis.store['existing_session'] = redis.store['existing_session'][:-5]
+
+        # new request
+        session = factory(request)
+        # validate
+        self.validate_loggerData(func_invalid_logger_counts,
+                                 InvalidSession=1,
+                                 InvalidSession_DeserializationError=1,
+                                 )
+
+    # -----
+
+    def test_logger_InvalidSession_PayloadTimeout(self):
+        func_invalid_logger_counts = self._new_loggerData()
+        
+        def func_invalid_logger(raised):
+            assert isinstance(raised, InvalidSession)
+            func_invalid_logger_counts['InvalidSession'] += 1
+            assert isinstance(raised, InvalidSession_PayloadTimeout)
+            func_invalid_logger_counts['InvalidSession_PayloadTimeout'] += 1
+            
+        session_args = {'timeout': 6,
+                        'python_expires': True,
+                        'set_redis_ttl': False,
+                        }
+            
+        factory = self._new_loggerFactory(
+            func_invalid_logger=func_invalid_logger,
+            factory_args = {'deserialized_fails_new': True,
+                            }
+        )
+        request = self._prep_existing_session(session_args)
+        redis = request.registry._redis_sessions
+        assert 'existing_session' in redis.store
+
+        # use the actual session's deserialize on the backend data
+        deserialized = request.session.deserialize(redis.store['existing_session'])
+        # make it 10 seconds earlier
+        deserialized['x'] = deserialized['x'] - 10
+        deserialized['c'] = deserialized['c'] - 10
+        reserialized = request.session.serialize(deserialized)
+        redis.store['existing_session'] = reserialized
+
+        # new request, which should trigger a timeout
+        session = factory(request)
+
+        # validate
+        self.validate_loggerData(func_invalid_logger_counts,
+                                 InvalidSession=1,
+                                 InvalidSession_PayloadTimeout=1,
+                                 )
+    # -----
+
+    def test_logger_InvalidSession_PayloadLegacy(self):
+        func_invalid_logger_counts = self._new_loggerData()
+        
+        def func_invalid_logger(raised):
+            assert isinstance(raised, InvalidSession)
+            func_invalid_logger_counts['InvalidSession'] += 1
+            assert isinstance(raised, InvalidSession_PayloadLegacy)
+            func_invalid_logger_counts['InvalidSession_PayloadLegacy'] += 1
+            
+        session_args = {'timeout': 6,
+                        'python_expires': True,
+                        'set_redis_ttl': False,
+                        }
+            
+        factory = self._new_loggerFactory(
+            func_invalid_logger=func_invalid_logger,
+            factory_args = {'deserialized_fails_new': True,
+                            }
+        )
+        request = self._prep_existing_session(session_args)
+        redis = request.registry._redis_sessions
+        assert 'existing_session' in redis.store
+
+        # use the actual session's deserialize on the backend data
+        deserialized = request.session.deserialize(redis.store['existing_session'])
+
+        # make it 1 version earlier
+        deserialized['v'] = deserialized ['v'] - 1
+        reserialized = request.session.serialize(deserialized)
+        redis.store['existing_session'] = reserialized
+
+        # new request, which should trigger a legacy format issue
+        session = factory(request)
+
+        # validate
+        self.validate_loggerData(func_invalid_logger_counts,
+                                 InvalidSession=1,
+                                 InvalidSession_PayloadLegacy=1,
+                                 )
+
+
+    def test_deserialized_error_raw(self):
+        func_invalid_logger_counts = self._new_loggerData()
+        
+        def func_invalid_logger(raised):
+            pdb.set_trace()
+            
+        factory = self._new_loggerFactory(
+            func_invalid_logger=func_invalid_logger,
+            factory_args = {'deserialized_fails_new': False,
+                            }
+        )
+        request = self._prep_existing_session({})
+        redis = request.registry._redis_sessions
+        assert 'existing_session' in redis.store
+
+        # take of off the last 5 chars
+        redis.store['existing_session'] = redis.store['existing_session'][:-5]
+
+        # new request should raise a raw RawDeserializationError
+        with self.assertRaises(RawDeserializationError) as cm_expected_exception:
+            factory(request)
+        
+        exception_wrapper = cm_expected_exception.exception
+        wrapped_exception = exception_wrapper.message
+        
+        # we are using picke, so it should be exceptions.EOFError
+        import cPickle
+        self.assertEqual(request.session.deserialize, cPickle.loads)
+        self.assertIsInstance(exception_wrapper.message, EOFError)

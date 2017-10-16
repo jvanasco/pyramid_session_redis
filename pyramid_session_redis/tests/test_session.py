@@ -6,7 +6,7 @@ import unittest
 
 from ..compat import cPickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
-from ..exceptions import InvalidSession, TimedOutSession, LegacySession
+from ..exceptions import InvalidSession, InvalidSession_PayloadTimeout, InvalidSession_PayloadLegacy
 
 class TestRedisSession(unittest.TestCase):
     def _makeOne(self, redis, session_id, new, new_session,
@@ -789,14 +789,14 @@ class TestRedisSessionNew(unittest.TestCase):
 
     def test_session_invalid_legacy(self):
         """
-        check that ``exceptions.LegacySession`` is raised if a previous version is detected
+        check that ``exceptions.InvalidSession_PayloadLegacy`` is raised if a previous version is detected
         """
         session_id = 'session_id'
         new = True
         timeout = 60
         set_redis_ttl = False
         session_version = -1
-        with self.assertRaises(LegacySession):
+        with self.assertRaises(InvalidSession_PayloadLegacy):
             session = self._set_up_session_in_Redis_and_makeOne(
                 session_id=session_id,
                 new=new,
@@ -808,14 +808,14 @@ class TestRedisSessionNew(unittest.TestCase):
 
     def test_session_invalid_expires(self):
         """
-        check that ``exceptions.TimedOutSession`` is raised if we timed out
+        check that ``exceptions.InvalidSession_PayloadTimeout`` is raised if we timed out
         """
         session_id = 'session_id'
         new = True
         timeout = 60
         set_redis_ttl = False
         expires = int_time() - timeout
-        with self.assertRaises(TimedOutSession):
+        with self.assertRaises(InvalidSession_PayloadTimeout):
             session = self._set_up_session_in_Redis_and_makeOne(
                 session_id=session_id,
                 new=new,

@@ -11,7 +11,7 @@ from pyramid.session import (
 
 from .compat import cPickle
 from .connection import get_default_connection
-from .exceptions import InvalidSession, TimedOutSession, LegacySession
+from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
 from .util import (
     _generate_session_id,
@@ -23,7 +23,7 @@ from .util import (
 )
 
 
-__VERSION__ = '1.4.0-dev'
+__VERSION__ = '1.4.0'
 
 
 def check_response_allow_cookies(response):
@@ -59,12 +59,12 @@ def includeme(config):
     settings = config.registry.settings
 
     # special rule for converting dotted python paths to callables
-    for option in ('client_callable', 'serialize', 'deserialize',
-                   'id_generator'):
+    for option in ('client_callable', 'serialize', 'deserialize', 'id_generator',
+                   'func_check_response_allow_cookies', 'func_invalid_logger',
+                   ):
         key = 'redis.sessions.%s' % option
         if key in settings:
             settings[key] = config.maybe_dotted(settings[key])
-
     session_factory = session_factory_from_settings(settings)
     config.set_session_factory(session_factory)
 
@@ -113,6 +113,7 @@ def RedisSessionFactory(
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
+    func_invalid_logger=None,
     timeout_trigger=600,
     python_expires=True,
 ):
@@ -222,6 +223,11 @@ def RedisSessionFactory(
     Int, default ``True``.  If ``True``, allows for timeout logic to be tracked
     in Python
     
+    ``func_invalid_logger``
+    A callable function that expects a single argument of a raised 
+    `InvalidSession` exception. If not ``None``, this will be called so your
+    application can monitor.
+    
     ``timeout_trigger``
     Int, default  ``600``.  If unset or ``0``, timeouts will be updated on
     every access by setting an EXPIRY in Redis and/or updating the ``expires`` 
@@ -315,7 +321,7 @@ def RedisSessionFactory(
                 secret=secret,
             )
             if not session_id:
-                raise InvalidSession('No `session_id` in cookie.')
+                raise InvalidSession_NoSessionCookie('No `session_id` in cookie.')
             session_cookie_was_valid = True
             session = RedisSession(
                 redis=redis_conn,
@@ -332,7 +338,10 @@ def RedisSessionFactory(
                 timeout=timeout,
                 python_expires=python_expires,
             )
-        except InvalidSession:
+        except InvalidSession as e:
+            if func_invalid_logger is not None:
+                # send the instance for logging
+                func_invalid_logger(e)
             session_id = LAZYCREATE_SESSION
             session_cookie_was_valid = False
             session = RedisSession(
