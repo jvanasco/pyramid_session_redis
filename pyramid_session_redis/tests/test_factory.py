@@ -8,17 +8,17 @@ from pyramid import testing
 from ..compat import cPickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (InvalidSession,
-                         InvalidSession_NoSessionCookie,
-                         InvalidSession_NotInBackend,
-                         InvalidSession_DeserializationError,
-                         InvalidSession_PayloadTimeout,
-                         InvalidSession_PayloadLegacy,
-                         RawDeserializationError,
-                         )
+                          InvalidSession_NoSessionCookie,
+                          InvalidSession_NotInBackend,
+                          InvalidSession_DeserializationError,
+                          InvalidSession_PayloadTimeout,
+                          InvalidSession_PayloadLegacy,
+                          RawDeserializationError,
+                          )
 
 from .. import RedisSessionFactory
+from .test_config import dummy_id_generator
 import webob
-
 
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
@@ -95,7 +95,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session_dict = session.from_redis()['m']
         self.assertDictEqual(session_dict, {})
         self.assertIs(session.new, True)
-        
+
         # calling from_redis should not happen in 1.4.x+
         """
         request = self._make_request()
@@ -771,7 +771,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
                                       )
         new_session = lambda: self._set_up_session_in_redis(
             redis=redis,
-            session_id=id_generator(),
+            session_id=dummy_id_generator(),
             session_dict=session_dict,
             timeout=timeout,
             timeout_trigger=timeout_trigger,
@@ -824,7 +824,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
     def _prep_existing_session(self, session_args):
         import webob
         session_id = 'existing_session'
-        
+
         def _insert_new_session():
             """
             drop a session into our redis
@@ -832,9 +832,9 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
             """
             request = self._make_request()
             session_existing = self._set_up_session_in_Redis_and_makeOne(
-                request, 
+                request,
                 session_id,
-                session_dict = {'visited': True},
+                session_dict={'visited': True, },
                 **session_args
             )
             return request
@@ -848,7 +848,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         """
         1. deserializes a session's backend datastore, manipulates it, stores it.
         2. generates/returns a new request that loads the modified session
-        
+
         kwargs = passthtough of session_args
         """
         # grab the active request's session
@@ -888,7 +888,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
                                                          'timeout_trigger': None,
                                                          'python_expires': True,
                                                          'set_redis_ttl': True,
-                                                          }
+                                                         }
 
     _args_timeout_noTrigger_noPythonExpires_setRedisTtl = {'timeout': 1200,
                                                            'timeout_trigger': None,
@@ -936,7 +936,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
                                                         'timeout_trigger': None,
                                                         'python_expires': True,
                                                         'set_redis_ttl': False,
-                                                         }
+                                                        }
 
     _args_timeout_noTrigger_noPythonExpires_noRedisTtl = {'timeout': 1200,
                                                           'timeout_trigger': None,
@@ -975,7 +975,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_new__timeout_trigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -989,12 +989,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
-        
+
     def test_scenario_new__timeout_trigger_pythonNoExpires_setRedisTtl(self):
         # note: timeout-trigger will force python_expires
         session_args = self._args_timeout_trigger_noPythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1012,7 +1012,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_new__timeout_noTrigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1026,7 +1026,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
-        
+
     def test_scenario_new__timeout_noTrigger_noPythonExpires_setRedisTtl(self):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1055,7 +1055,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_pythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1066,12 +1066,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 2)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
-        
+
     def test_scenario_new__noTimeout_trigger_pythonNoExpires_setRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_noPythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1086,7 +1086,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_new__noTimeout_noTrigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1097,11 +1097,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 2)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
-        
+
     def test_scenario_new__noTimeout_noTrigger_noPythonExpires_setRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_noPythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1120,28 +1120,28 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_existing__timeout_trigger_pythonExpires_setRedisTtl_noChange(self):
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
-        
+
         # there should be 1 items in the history:
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        
+
     def test_scenario_existing__timeout_trigger_pythonNoExpires_setRedisTtl_noChange(self):
         # note: timeout-trigger will force python_expires
 
         session_args = self._args_timeout_trigger_noPythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
-        
+
         # there should be 1 items in the history:
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
@@ -1151,7 +1151,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_existing__timeout_noTrigger_pythonExpires_setRedisTtl_noChange(self):
         session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1162,7 +1162,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        
+
     def test_scenario_existing__timeout_noTrigger_noPythonExpires_setRedisTtl_noChange(self):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1183,12 +1183,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     # --------------------------------------------------------------------------
     # existing session - timeout
     # --------------------------------------------------------------------------
-    
+
     def test_scenario_existing__noTimeout_trigger_pythonExpires_setRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1198,12 +1198,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        
+
     def test_scenario_existing__noTimeout_trigger_pythonNoExpires_setRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_noPythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1217,7 +1217,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_existing__noTimeout_noTrigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1227,11 +1227,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        
+
     def test_scenario_existing__noTimeout_noTrigger_noPythonExpires_setRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_noPythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1249,7 +1249,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_new__timeout_trigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_timeout_trigger_pythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1261,12 +1261,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 2)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
-        
+
     def test_scenario_new__timeout_trigger_pythonNoExpires_noRedisTtl(self):
         # note: timeout-trigger will force python_expires
         session_args = self._args_timeout_trigger_noPythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1282,7 +1282,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_new__timeout_noTrigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_timeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1294,7 +1294,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 2)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
-        
+
     def test_scenario_new__timeout_noTrigger_noPythonExpires_noRedisTtl(self):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1321,7 +1321,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_pythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1332,12 +1332,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 2)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
-        
+
     def test_scenario_new__noTimeout_trigger_pythonNoExpires_noRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_noPythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1352,7 +1352,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_new__noTimeout_noTrigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1363,11 +1363,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request.registry._redis_sessions._history), 2)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
         self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
-        
+
     def test_scenario_new__noTimeout_noTrigger_noPythonExpires_noRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_noPythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1386,26 +1386,26 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_existing__timeout_trigger_pythonExpires_noRedisTtl_noChange(self):
         session_args = self._args_timeout_trigger_pythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
-        
+
         # there should be 1 items in the history:
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
-        
+
     def test_scenario_existing__timeout_trigger_pythonNoExpires_noRedisTtl_noChange(self):
         # note: timeout-trigger will force python_expires
         session_args = self._args_timeout_trigger_noPythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
-        
+
         # there should be 1 items in the history:
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
@@ -1414,7 +1414,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_existing__timeout_noTrigger_pythonExpires_noRedisTtl_noChange(self):
         session_args = self._args_timeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
@@ -1424,7 +1424,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
-        
+
     def test_scenario_existing__timeout_noTrigger_noPythonExpires_noRedisTtl_noChange(self):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1444,12 +1444,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     # --------------------------------------------------------------------------
     # existing session - timeout
     # --------------------------------------------------------------------------
-    
+
     def test_scenario_existing__noTimeout_trigger_pythonExpires_noRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_pythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1458,12 +1458,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
-        
+
     def test_scenario_existing__noTimeout_trigger_pythonNoExpires_noRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
         session_args = self._args_noTimeout_trigger_noPythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1476,7 +1476,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
     def test_scenario_existing__noTimeout_noTrigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1485,11 +1485,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
-        
+
     def test_scenario_existing__noTimeout_noTrigger_noPythonExpires_noRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_noPythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
-    
+
         # cookie_on_exception is True by default, no exception raised
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
@@ -1498,7 +1498,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         # 0 = a SETEX for the initial creation
         self.assertEqual(len(request.registry._redis_sessions._history), 1)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
-
 
     # --------------------------------------------------------------------------
     # new session - timeout flow
@@ -1521,7 +1520,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request1.registry._redis_sessions._history), 1)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'set')
 
-        # let's adjust the timeout and make a request that won't change anything        
+        # let's adjust the timeout and make a request that won't change anything
         timeout_diff_1 = -9
         self._adjust_request_session(request1, test_adjust_expires=timeout_diff_1)
         stored_session_data_1_post = self._deserialize_session_stored(request1.session)
@@ -1558,7 +1557,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data_2_post = self._deserialize_session_stored(request_unchanged.session)
         self.assertIn('x', stored_session_data_2_post)
         self.assertEqual(stored_session_data_2_post['x'], stored_session_data_2_pre['x'] + timeout_diff_2)
-        
+
         #
         # this should trigger an update if we make a new request...
         #
@@ -1593,7 +1592,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(len(request1.registry._redis_sessions._history), 1)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'setex')
 
-        # let's adjust the timeout and make a request that won't change anything        
+        # let's adjust the timeout and make a request that won't change anything
         timeout_diff_1 = -9
         self._adjust_request_session(request1, test_adjust_expires=timeout_diff_1)
         stored_session_data_1_post = self._deserialize_session_stored(request1.session)
@@ -1630,7 +1629,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data_2_post = self._deserialize_session_stored(request_unchanged.session)
         self.assertIn('x', stored_session_data_2_post)
         self.assertEqual(stored_session_data_2_post['x'], stored_session_data_2_pre['x'] + timeout_diff_2)
-        
+
         #
         # this should trigger an update if we make a new request...
         #
@@ -1710,7 +1709,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         request.session.ensure_id()
         session_id = request.session.session_id
         self.assertIsNot(session_id, LAZYCREATE_SESSION)
-        
+
         response = webob.Response()
         request._process_response_callbacks(response)
         request._process_finished_callbacks()
@@ -1741,7 +1740,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         # session_id should have created after callbacks
         session_id = request.session.session_id
         self.assertIsNot(session_id, LAZYCREATE_SESSION)
-        
+
         set_cookie_headers = response.headers.getall('Set-Cookie')
         self.assertEqual(len(set_cookie_headers), 1)
 
@@ -1780,13 +1779,13 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
     def test_logger_InvalidSession_NoSessionCookie(self):
 
         func_invalid_logger_counts = self._new_loggerData()
-        
+
         def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_NoSessionCookie)
             func_invalid_logger_counts['InvalidSession_NoSessionCookie'] += 1
-        
+
         factory = self._new_loggerFactory(func_invalid_logger=func_invalid_logger)
 
         request = self._make_request()
@@ -1803,13 +1802,13 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
     def test_logger_InvalidSession_NotInBackend(self):
 
         func_invalid_logger_counts = self._new_loggerData()
-        
+
         def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_NotInBackend)
             func_invalid_logger_counts['InvalidSession_NotInBackend'] += 1
-            
+
         factory = self._new_loggerFactory(func_invalid_logger=func_invalid_logger)
 
         # this session isn't tied to our factory.
@@ -1829,22 +1828,22 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
 
     def test_logger_InvalidSession_DeserializationError(self):
         func_invalid_logger_counts = self._new_loggerData()
-        
+
         def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_DeserializationError)
             func_invalid_logger_counts['InvalidSession_DeserializationError'] += 1
-            
+
         session_args = {'timeout': 1,
                         'python_expires': True,
                         'set_redis_ttl': False,
                         }
-            
+
         factory = self._new_loggerFactory(
             func_invalid_logger=func_invalid_logger,
-            factory_args = {'deserialized_fails_new': True,
-                            }
+            factory_args={'deserialized_fails_new': True,
+                          }
         )
         request = self._prep_existing_session(session_args)
         redis = request.registry._redis_sessions
@@ -1865,22 +1864,22 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
 
     def test_logger_InvalidSession_PayloadTimeout(self):
         func_invalid_logger_counts = self._new_loggerData()
-        
+
         def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_PayloadTimeout)
             func_invalid_logger_counts['InvalidSession_PayloadTimeout'] += 1
-            
+
         session_args = {'timeout': 6,
                         'python_expires': True,
                         'set_redis_ttl': False,
                         }
-            
+
         factory = self._new_loggerFactory(
             func_invalid_logger=func_invalid_logger,
-            factory_args = {'deserialized_fails_new': True,
-                            }
+            factory_args={'deserialized_fails_new': True,
+                          }
         )
         request = self._prep_existing_session(session_args)
         redis = request.registry._redis_sessions
@@ -1906,22 +1905,22 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
 
     def test_logger_InvalidSession_PayloadLegacy(self):
         func_invalid_logger_counts = self._new_loggerData()
-        
+
         def func_invalid_logger(request, raised):
             assert isinstance(raised, InvalidSession)
             func_invalid_logger_counts['InvalidSession'] += 1
             assert isinstance(raised, InvalidSession_PayloadLegacy)
             func_invalid_logger_counts['InvalidSession_PayloadLegacy'] += 1
-            
+
         session_args = {'timeout': 6,
                         'python_expires': True,
                         'set_redis_ttl': False,
                         }
-            
+
         factory = self._new_loggerFactory(
             func_invalid_logger=func_invalid_logger,
-            factory_args = {'deserialized_fails_new': True,
-                            }
+            factory_args={'deserialized_fails_new': True,
+                          }
         )
         request = self._prep_existing_session(session_args)
         redis = request.registry._redis_sessions
@@ -1931,7 +1930,7 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
         deserialized = request.session.deserialize(redis.store['existing_session'])
 
         # make it 1 version earlier
-        deserialized['v'] = deserialized ['v'] - 1
+        deserialized['v'] = deserialized['v'] - 1
         reserialized = request.session.serialize(deserialized)
         redis.store['existing_session'] = reserialized
 
@@ -1944,17 +1943,16 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
                                  InvalidSession_PayloadLegacy=1,
                                  )
 
-
     def test_deserialized_error_raw(self):
         func_invalid_logger_counts = self._new_loggerData()
-        
+
         def func_invalid_logger(request, raised):
             raise ValueError("this should not be run")
-            
+
         factory = self._new_loggerFactory(
             func_invalid_logger=func_invalid_logger,
-            factory_args = {'deserialized_fails_new': False,
-                            }
+            factory_args={'deserialized_fails_new': False,
+                          }
         )
         request = self._prep_existing_session({})
         redis = request.registry._redis_sessions
@@ -1966,10 +1964,10 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
         # new request should raise a raw RawDeserializationError
         with self.assertRaises(RawDeserializationError) as cm_expected_exception:
             factory(request)
-        
+
         exception_wrapper = cm_expected_exception.exception
         wrapped_exception = exception_wrapper.message
-        
+
         # we are using picke, so it should be exceptions.EOFError
         import cPickle
         self.assertEqual(request.session.deserialize, cPickle.loads)

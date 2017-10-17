@@ -58,7 +58,7 @@ class InvalidSession_PayloadLegacy(InvalidSession):
 
 class RawDeserializationError(Exception):
     """
-    Core class for deserialization errors. 
+    Core class for deserialization errors.
     The `message` is the caught exception.
     This allows deserializers to switch with keeping a consistent interface.
     This is only raised if `deserialized_fails_new` is not True

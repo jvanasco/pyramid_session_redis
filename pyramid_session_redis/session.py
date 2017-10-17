@@ -88,6 +88,7 @@ class _SessionState(object):
             return False
         return serialized_session
 
+
 @implementer(ISession)
 class RedisSession(object):
     """
@@ -144,7 +145,7 @@ class RedisSession(object):
 
     ``deserialized_fails_new``
     If ``True`` will handle deserializtion errors by creating a new session.
-    
+
     ``new_payload_func``
     Default ``None``.  Function used to create a new session.
 

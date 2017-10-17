@@ -81,6 +81,7 @@ No Timeout in Python, no Redis TTL (only `SET` used)
 	timeout = 0  # or None
 	assume_redis_ttl = True
 
+
 Timeout Triggers
 =================
 
@@ -146,14 +147,14 @@ The caveat to this method: an expiry timestamp must be stored within the payload
 Invalid Logging
 ================
 
-The default behavior of this library is to silently create new session when bad session data is encountered.
+The default behavior of this library is to silently create new session when bad session data is encountered, such as a cookie with an invalid id or corrupted datastore.  A graceful "new session" is the ideal situation for end-users.
 
-The problem with that strategy is that problems in code or your application stack can be hidden.
+The problem with that strategy is that problems in code or your application stack can be hidden, and you might not know about a bad datastore.
 
 The 1.4 release introduces `func_invalid_logger` to the factory constructor. 
-This can be used to track invalid sessions that are safely caught and silently upgraded 
+This can be used to track the invalid sessions that are safely caught and silently upgraded 
 
-How?  The package tracks why a session is invalid with variant classes of `exceptions.InvalidSession`
+How?  The package tracks why a session is invalid with variant classes of `pyramid_session_redis.exceptions.InvalidSession`
 
 Specifically there are the following classes:
 
@@ -190,14 +191,16 @@ The factory accepts a `func_invalid_logger` callable argument.  The input is the
 		
 The `func_invalid_logger` argument may be provided as a dotted-notation string in a settings file.
 
+Uncaught Errors
+================
+
+The exception `pyramid_session_redis.exceptions.RawDeserializationError` will be raised if deserialization of a payload fails and `deserialized_fails_new` is not `True`.  The message attribute will be the caught exception. This allows for a standard error across multiple deserialization options.
 
 
 FAQ:
 ================
 
 coming soon
-
-
 
 
 

@@ -26,6 +26,24 @@ from .util import (
 __VERSION__ = '1.4.0'
 
 
+configs_dotable = ('client_callable',
+                   'serialize',
+                   'deserialize',
+                   'id_generator',
+                   'func_check_response_allow_cookies',
+                   'func_invalid_logger',
+                   )
+
+
+configs_bool = ('cookie_on_exception',
+                'cookie_secure',
+                'cookie_httponly',
+                'assume_redis_lru',
+                'detect_changes',
+                'deserialized_fails_new',
+                )
+
+
 def check_response_allow_cookies(response):
     """
     reference implementation for ``func_check_response_allow_cookies``
@@ -59,9 +77,7 @@ def includeme(config):
     settings = config.registry.settings
 
     # special rule for converting dotted python paths to callables
-    for option in ('client_callable', 'serialize', 'deserialize', 'id_generator',
-                   'func_check_response_allow_cookies', 'func_invalid_logger',
-                   ):
+    for option in configs_dotable:
         key = 'redis.sessions.%s' % option
         if key in settings:
             settings[key] = config.maybe_dotted(settings[key])
@@ -218,29 +234,29 @@ def RedisSessionFactory(
     ``None``.  An example callable is available in
     ``check_response_allow_cookies``, which checks for `expires` and
     `cache-control` cookies.
-    
+
     ``python_expires``
     Int, default ``True``.  If ``True``, allows for timeout logic to be tracked
     in Python
-    
+
     ``func_invalid_logger``
-    A callable function that expects a single argument of a raised 
+    A callable function that expects a single argument of a raised
     `InvalidSession` exception. If not ``None``, this will be called so your
     application can monitor.
-    
+
     ``timeout_trigger``
     Int, default  ``600``.  If unset or ``0``, timeouts will be updated on
-    every access by setting an EXPIRY in Redis and/or updating the ``expires`` 
+    every access by setting an EXPIRY in Redis and/or updating the ``expires``
     value in the  session payload.  If set to an INT, the updates will only be
     set once the threshold is crossed.
-    
+
     Given this example:
 
         timeout = 1200
         timeout_trigger = 600
 
     The following timeline would occur
-    
+
         time | action | timeout | next threshold
         -----+--------+---------+--------------
            0 | CREATE | 1200    | 600
@@ -249,7 +265,7 @@ def RedisSessionFactory(
          599 |        | 1800    | 1200
         1200 | UPDATE | 2400    | 1800
 
-    The feature has the ability to significantly lower the amount of processing 
+    The feature has the ability to significantly lower the amount of processing
     on Redis
 
     The following arguments are also passed straight to the ``StrictRedis``

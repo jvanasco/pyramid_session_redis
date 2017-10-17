@@ -8,6 +8,7 @@ from ..compat import cPickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import InvalidSession, InvalidSession_PayloadTimeout, InvalidSession_PayloadLegacy
 
+
 class TestRedisSession(unittest.TestCase):
     def _makeOne(self, redis, session_id, new, new_session,
                  serialize=cPickle.dumps, deserialize=cPickle.loads,
@@ -416,7 +417,7 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.timeout  # access
-        
+
         # 1.4.x+| session_id defaults to a LAZYCREATE
         # 1.4.x+| session_id is only created via ensure_id()
         self.assertIs(inst.session_id_safecheck, None)

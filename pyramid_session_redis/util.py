@@ -14,13 +14,22 @@ from redis.exceptions import WatchError
 # local
 from .compat import PY3, token_urlsafe
 
-# create an object instance for handling lazycreated ids
+
+# ---------------------
+
+# create a custom class+object instance for handling lazycreated ids
 # this is what dogpile cache's NO_VALUE does
 class LazyCreateSession(object):
     pass
+
+
 LAZYCREATE_SESSION = LazyCreateSession()
 
 
+# ---------------------
+
+
+# this stored in the sessions. it is used to detect api version mismatches
 SESSION_API_VERSION = 1
 
 
@@ -137,7 +146,7 @@ def _insert_session_id_if_unique(
     """ Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
     the timeout data
-    
+
     This will create an empty/null session and redis entry for the id.
 
     ``data_payload`` = payload to use

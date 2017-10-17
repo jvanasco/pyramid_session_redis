@@ -6,7 +6,7 @@ Changelog
 	* skipped 1.3 release.  not enough usage to warrant backwards compat right now
     * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
     
--10/16/2017
+-10/17/2017
     * version 1.4.0
     * updated deprecation warnings
     * prepping for ability to not create sessions on every access.  getting spidered by bots who don't use sessions hurts Redis.
@@ -14,6 +14,7 @@ Changelog
     * added `util.empty_session_payload`
     * migrated some RedisSessionFactory functions into a more global (not per-request) block
     * added `func_invalid_logger` to session factory, also renamed internal exceptions. they were not a public api so there is no deprecation issue.
+    * this seems fine in our production usage, so pushing live.
 
 -1/24/2017:
     * version 1.2.2
