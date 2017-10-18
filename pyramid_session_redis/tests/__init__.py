@@ -21,7 +21,6 @@ class DummySession(object):
         self._session_state = DummySessionState()
 
     def to_redis(self):
-        print "to_redis, self"
         data = {'m': self.managed_dict,
                 'c': self.created,
                 }

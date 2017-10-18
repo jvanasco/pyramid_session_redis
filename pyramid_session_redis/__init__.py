@@ -23,7 +23,7 @@ from .util import (
 )
 
 
-__VERSION__ = '1.4.0'
+__VERSION__ = '1.4.1-dev'
 
 
 configs_dotable = ('client_callable',

@@ -54,7 +54,6 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         self.assertNotIn('Max-Age=0', header_value)
 
     def _get_session_id(self, request):
-        from ..compat import cPickle
         from ..util import create_unique_session_id
         redis = request.registry._redis_sessions
         session_id = create_unique_session_id(redis, timeout=100,
@@ -384,7 +383,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         # default behavior: we use int
         session = request.session = self._makeOne(request)
         session['a'] = 1  # ensure a lazycreate is triggered
-        self.assertEquals(session.created, int(session.created))
+        self.assertEqual(session.created, int(session.created))
 
     # The tests below with names beginning with test_existing_session_ test
     # cases where first access to request.session returns an existing session,
@@ -1966,9 +1965,8 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
             factory(request)
 
         exception_wrapper = cm_expected_exception.exception
-        wrapped_exception = exception_wrapper.message
+        wrapped_exception = exception_wrapper.args[0]
 
         # we are using picke, so it should be exceptions.EOFError
-        import cPickle
         self.assertEqual(request.session.deserialize, cPickle.loads)
-        self.assertIsInstance(exception_wrapper.message, EOFError)
+        self.assertIsInstance(exception_wrapper.args[0], EOFError)

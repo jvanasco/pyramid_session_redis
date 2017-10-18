@@ -11,7 +11,7 @@ The 1.4.x branch is under active development and subject to change.  It will cul
 
 ----
 
-The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs to `<=1.3.0` or `<1.3`.
+The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs to `<=1.3.0` or `<1.3`.
 
 The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play pyramid sessions interface.
 
@@ -194,7 +194,7 @@ The `func_invalid_logger` argument may be provided as a dotted-notation string i
 Uncaught Errors
 ================
 
-The exception `pyramid_session_redis.exceptions.RawDeserializationError` will be raised if deserialization of a payload fails and `deserialized_fails_new` is not `True`.  The message attribute will be the caught exception. This allows for a standard error across multiple deserialization options.
+The exception `pyramid_session_redis.exceptions.RawDeserializationError` will be raised if deserialization of a payload fails and `deserialized_fails_new` is not `True`.  The first arg will be the caught exception. This allows for a standard error across multiple deserialization options.
 
 
 FAQ:
