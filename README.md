@@ -3,9 +3,9 @@ IMPORTANT
 
 `pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for high performance (particularly with servers under load) and a slightly different API for developer convenience.
 
-This package is now following a multi-version release process.  
+This package is now following a multi-version release process.
 
-The 1.2.x branch is in maintenance mode as of 1.2.2, and will culminate in a final 1.3.0 release.  
+The 1.2.x branch is in maintenance mode as of 1.2.2, and will culminate in a final 1.3.0 release.
 
 The 1.4.x branch is under active development and subject to change.  It will culminate in a stable 1.5.0 API release.
 
@@ -14,6 +14,32 @@ The 1.4.x branch is under active development and subject to change.  It will cul
 The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs to `<=1.3.0` or `<1.3`.
 
 The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play pyramid sessions interface.
+
+IMPORTANT: The internal payload structure has changed in the 1.4 branch, and is no longer compatible with existing 1.2 sessions (they will be invalid).  I am open to PRs that can handle a graceful fallback.
+
+The 1.2 format guaranteed sessions to be in this format:
+
+
+	{'managed_dict': {},
+	 'created': INT,
+	 'timeout': INT,
+	 }
+	
+The 1.4 version streamlines the keys for a lighter footprint and generally looks like this:
+
+	{'m': {},  # managed_dict
+	 'c': INT,  # created
+	 'v': SESSION_API_VERSION,  # session INT
+	 # the following are optional and not guaranteed to be around
+	 't': INT,  # timeout, not gua
+	 'x': INT,  # expiry
+	 }
+
+* keys were shortened to 1 letter
+* an api version is now used, to handle graceful changes in the future
+* the timeout is no longer guaranteed to be present (it may now be handled on redis)
+* an expiry timeout may also exist
+
 
 
 Key Differences:
@@ -37,7 +63,7 @@ Through 1.2.x
 * Support for disabling sessions on CDN generated content via `func_check_response_allow_cookies`
 * Thanks to @ github/hongyuan1306, token generation has been consolidated to use python3's stdlib (or reimplemented if not available).  tokens are also 32, not 20, chars.
 * redis is supported in a LRU mode (see http://redis.io/topics/lru-cache) by setting the option `set_redis_ttl` to `False` (by default, it is `True`).  This will eliminate calls to `EXPIRE` and will use `SET` instead of `SETEX`.
-* in the 1.2.x branch the created time can be set to an integer via `use_int_time=True`.  This will cast the `created` time via "int(math.ceil(time.time()))".  This can reduce a payload by several bits. 
+* in the 1.2.x branch the created time can be set to an integer via `use_int_time=True`.  This will cast the `created` time via "int(math.ceil(time.time()))".  This can reduce a payload by several bits.
 
 Other Updates 1.4.x+
 ====================
@@ -124,7 +150,7 @@ timeout_trigger = 600
 
 The following timeline would occur
 
-```    
+```
 time    	Redis Calls		timeout		next threshold
 0			GET+SET*  		1200		600
 1			GET				1200		600
@@ -151,8 +177,8 @@ The default behavior of this library is to silently create new session when bad 
 
 The problem with that strategy is that problems in code or your application stack can be hidden, and you might not know about a bad datastore.
 
-The 1.4 release introduces `func_invalid_logger` to the factory constructor. 
-This can be used to track the invalid sessions that are safely caught and silently upgraded 
+The 1.4 release introduces `func_invalid_logger` to the factory constructor.
+This can be used to track the invalid sessions that are safely caught and silently upgraded
 
 How?  The package tracks why a session is invalid with variant classes of `pyramid_session_redis.exceptions.InvalidSession`
 
@@ -207,7 +233,7 @@ coming soon
 To Do:
 ================
 
-[ ] The API is a bit messy on the 1.4.x release. 
+[ ] The API is a bit messy on the 1.4.x release.
 [ ] Creating a new session still takes 2 SET/SETEX calls -- one for a placeholder, the next to update.  This should be consolidated into one.
 
 
