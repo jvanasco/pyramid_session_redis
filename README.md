@@ -138,17 +138,16 @@ This is useful, but means many session operations will trigger two Redis calls (
 
 This is a typical scenario with refreshing:
 
-```
-timeout = 200
+`timeout = 200`
 
-time	Redis Calls	timeout
-0	GET+SETEX	200
-100	GET+EXPIRE	300
-200	GET+EXPIRE	400
-300	GET+EXPIRE	500
-400	GET+EXPIRE	600
-500	GET+EXPIRE	700
-```
+| time | Redis calls    | timeout |
+| ---- | -------------- | ------- |
+| 0    | `GET`+`SETEX`  | 200     |
+| 100  | `GET`+`EXPIRE` | 300     |
+| 200  | `GET`+`EXPIRE` | 400     |
+| 300  | `GET`+`EXPIRE` | 500     |
+| 400  | `GET`+`EXPIRE` | 600     |
+| 500  | `GET`+`EXPIRE` | 700     |
 
 Scenario 2 - Timeout Trigger
 --------------------------
@@ -166,18 +165,17 @@ timeout_trigger = 600
 
 The following timeline would occur
 
-```
-time	Redis Calls	timeout	next threshold
-0	GET+SET*	1200	600
-1	GET	1200	600
-..
-599	GET	1200	600
-600	GET+SET*	1800	1200
-601	GET	1800	1200
-...
-1199	GET	1800	1200
-1200	GET+SET*	2400	1800
-```
+| time | Redis calls  | timeout | next threshold |
+| ---- | ------------ | ------- | -------------- |
+| 0    | `GET`+`SET`* | 1200    | 600            |
+| 1    | `GET`        | 1200    | 600            |
+| ...  |              |         |                |
+| 599  | `GET`        | 1200    | 600            |
+| 600  | `GET`+`SET`* | 1800    | 1200           |
+| 601  | `GET`        | 1800    | 1200           |
+| ...  |              |         |                |
+| 1199 | `GET`        | 1800    | 1200           |
+| 1200 | `GET`+`SET`* | 2400    | 1800           |
 
 * This method is compatible with setting a TTL in redis via `SETEX` or doing everything within Python if redis is in a LRU mode
 
