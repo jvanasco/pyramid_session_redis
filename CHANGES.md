@@ -5,10 +5,11 @@ Changelog
 - Unreleased
 	* skipped 1.3 release.  not enough usage to warrant backwards compat right now
     * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
-    
+
 -10/17/2017
     * version 1.4.2
     * set default timeout trigger to `None` (issue #12, forked from #11)
+    * migrated `pyramid_session_redis._finished_callback` into `RedisSession._deferred_callback`
 
 -10/17/2017
     * version 1.4.1
@@ -32,7 +33,7 @@ Changelog
     * added `force_redis_ttl` kwarg to `RedisSession.do_refresh`
     * added `set_redis_ttl` deprecating it's inverse: `assume_redis_lru`.  the `assume_redis_lru` kwarg will be supported until the 1.4.0 release.
     * added `use_int_time` as session factory arg. this will cast the `created` time to int(math.ceil(time)), saving some space
-    
+
 -1/17/2017:
     * version 1.2.1
     * fixed bug with session.invalidate that caused placeholder sessions to be created( https://github.com/jvanasco/pyramid_session_redis/issues/2 )
