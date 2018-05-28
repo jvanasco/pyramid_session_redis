@@ -538,6 +538,7 @@ class RedisSession(object):
         return storage
 
     # RedisSession extra methods
+
     @persist
     def adjust_timeout_for_session(self, timeout_seconds):
         """
@@ -562,3 +563,36 @@ class RedisSession(object):
         place.
         """
         return '_session_state' not in self.__dict__
+
+
+    def _deferred_callback(self, request):
+        """
+        Finished callback to persist the data if needed.
+        `request` is appended by pyramid's `add_finished_callback` which should
+        invkoe this.
+        """
+        if '_session_state' not in self.__dict__:
+            # _session_state is a reified property, which is saved into the dict
+            # if we call `session.invalidate()` the session is immediately deleted
+            # however, accessing it here will trigger a new _session_state creation
+            # and insert a placeholder for the session_id into redis.  this would be
+            # ok in certain situations, however since we don't access any actual
+            # data in the session, it won't have the cookie callback triggered --
+            # which means the cookie will never get sent to the user, and a phantom
+            # session_id+placeholder will be in redis until it times out.
+            return
+        if not self._session_state.dont_persist:
+            if self._session_state.please_persist:
+                self.do_persist()
+                self._session_state.please_refresh = False
+            else:
+                if not self.session_id_safecheck:
+                    return
+                serialized_session = self._session_state.should_persist(self)
+                if serialized_session:
+                    self.do_persist(serialized_session=serialized_session)
+                    self._session_state.please_refresh = False
+        if not self._session_state.dont_refresh:
+            if self._session_state.please_refresh:
+                self.do_refresh()
+

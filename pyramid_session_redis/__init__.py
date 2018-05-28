@@ -268,7 +268,7 @@ def RedisSessionFactory(
     The feature has the ability to significantly lower the amount of processing
     on Redis, however it means a session timeout expires after the last trigger
     and not the last usage.
-    
+
     For example, with a timeout trigger of 10 minutes on a 1 hour session, if a
     user leaves the site at 49 minutes and returns at 61 minutes, the trigger
     will not have been made and the session will have expired.
@@ -287,6 +287,10 @@ def RedisSessionFactory(
 
     if timeout_trigger and not python_expires:  # fix this
         python_expires = True
+
+    optimize_redis_ttl = False
+    if set_redis_ttl and (not timeout_trigger) and (not python_expires):
+        optimize_redis_ttl = True
 
     # good for all factory() requests
     redis_options = dict(
@@ -402,11 +406,7 @@ def RedisSessionFactory(
         )
         request.add_response_callback(cookie_callback)
 
-        finished_callback = functools.partial(
-            _finished_callback,
-            session,
-        )
-        request.add_finished_callback(finished_callback)
+        request.add_finished_callback(session._deferred_callback)
 
         return session
 
@@ -510,37 +510,3 @@ def _cookie_callback(
             # still need to delete the existing cookie for the session that the
             # request started with (as the session has now been invalidated).
             delete_cookie_func(response=response)
-
-
-def _finished_callback(
-    session,
-    request,
-):
-    """Finished callback to persist a cookie if needed.
-    `session` is via functools.partial
-    `request` is appended by add_finished_callback
-    """
-    if '_session_state' not in session.__dict__:
-        # _session_state is a reified property, which is saved into the dict
-        # if we call `session.invalidate()` the session is immediately deleted
-        # however, accessing it here will trigger a new _session_state creation
-        # and insert a placeholder for the session_id into redis.  this would be
-        # ok in certain situations, however since we don't access any actual
-        # data in the session, it won't have the cookie callback triggered --
-        # which means the cookie will never get sent to the user, and a phantom
-        # session_id+placeholder will be in redis until it times out.
-        return
-    if not session._session_state.dont_persist:
-        if session._session_state.please_persist:
-            session.do_persist()
-            session._session_state.please_refresh = False
-        else:
-            if not session.session_id_safecheck:
-                return
-            serialized_session = session._session_state.should_persist(session)
-            if serialized_session:
-                session.do_persist(serialized_session=serialized_session)
-                session._session_state.please_refresh = False
-    if not session._session_state.dont_refresh:
-        if session._session_state.please_refresh:
-            session.do_refresh()

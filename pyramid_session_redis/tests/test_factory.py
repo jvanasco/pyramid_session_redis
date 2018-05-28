@@ -38,13 +38,7 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         return session
 
     def _register_callback(self, request, session):
-        import functools
-        from .. import _finished_callback
-        finished_callback = functools.partial(
-            _finished_callback,
-            session
-        )
-        request.add_finished_callback(finished_callback)
+        request.add_finished_callback(session._deferred_callback)
 
     def _assert_is_a_header_to_set_cookie(self, header_value):
         # The negative assertion below is the least complicated option for
