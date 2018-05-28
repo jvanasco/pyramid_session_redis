@@ -7,6 +7,10 @@ Changelog
     * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
     
 -10/17/2017
+    * version 1.4.2
+    * set default timeout trigger to `None` (issue #12, forked from #11)
+
+-10/17/2017
     * version 1.4.1
     * fixed a deployment error on 1.4.0 that had a non-ascii character in the readme
     * forgot to run Python3 tests

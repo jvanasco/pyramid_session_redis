@@ -130,7 +130,7 @@ def RedisSessionFactory(
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
     func_invalid_logger=None,
-    timeout_trigger=600,
+    timeout_trigger=None,
     python_expires=True,
 ):
     """
@@ -245,7 +245,7 @@ def RedisSessionFactory(
     application can monitor.
 
     ``timeout_trigger``
-    Int, default  ``600``.  If unset or ``0``, timeouts will be updated on
+    Int, default  ``None``.  If unset or ``0``, timeouts will be updated on
     every access by setting an EXPIRY in Redis and/or updating the ``expires``
     value in the  session payload.  If set to an INT, the updates will only be
     set once the threshold is crossed.
@@ -266,7 +266,12 @@ def RedisSessionFactory(
         1200 | UPDATE | 2400    | 1800
 
     The feature has the ability to significantly lower the amount of processing
-    on Redis
+    on Redis, however it means a session timeout expires after the last trigger
+    and not the last usage.
+    
+    For example, with a timeout trigger of 10 minutes on a 1 hour session, if a
+    user leaves the site at 49 minutes and returns at 61 minutes, the trigger
+    will not have been made and the session will have expired.
 
     The following arguments are also passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
