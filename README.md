@@ -113,6 +113,22 @@ Timeout Triggers
 
 A timeout trigger can be used to limit the amount of updates/writes.  It may be more beneficial to your usage pattern.
 
+For the sake of clarity, I'll use an oversimplification that Redis essentially has two different internal data stores that are used independently: one for a Key's payload and another for the Key's expiry.
+
+In the 'classic' behavior (project this was forked from): every time you access an existing session, the GET is followed by sending Redis a new EXPIRE time - essentially every "read" has a corresponding "write" for the Redis-tracked expiry record.
+
+In order to minimize the writes via SETEX, I introduced the timeout trigger. The trigger works by storing some timeout information in the Redis data payload, and using that information to determine when to send a write. Instead of having a GET+EXPIRE for every read, we only have a single GET and eliminate the write caused by the EXPIRE. This has a maintenance cost though - once we hit the timeout trigger, instead of just the GET we need to update the internal timeout payload and issue a SET.
+
+Going back to your situation: when the user stops activity at 40 minutes in, if the timeout trigger is enabled then there has never been an update to the internal payload or Redis about the user activity since the session was first created. The purpose of the trigger is to defer that "write" operation.
+
+In order to make a session valid for "reading" for around an hour, you'd want to do something like:
+
+* a two-hour session with a 10 minute trigger, or
+* a one-hour session with a 50 minute trigger
+
+You can also disable the functionality by setting the trigger to 0. Up to a few thousand daily users, you shouldn't have any issues with the overhead of the "classic" mode. When you hit 10k users and/or start to have clustered web servers communicating with dedicated Redis instances, setting a new EXPIRE after every read operation becomes something you want to avoid.
+
+
 Scenario 1 - Classic Redis
 --------------------------
 
@@ -125,13 +141,13 @@ This is a typical scenario with refreshing:
 ```
 timeout = 200
 
-time 		Redis Calls		timeout
-0			GET+SETEX		200
-100			GET+EXPIRE		300
-200			GET+EXPIRE		400
-300			GET+EXPIRE		500
-400			GET+EXPIRE		600
-500			GET+EXPIRE		700
+time	Redis Calls	timeout
+0	GET+SETEX	200
+100	GET+EXPIRE	300
+200	GET+EXPIRE	400
+300	GET+EXPIRE	500
+400	GET+EXPIRE	600
+500	GET+EXPIRE	700
 ```
 
 Scenario 2 - Timeout Trigger
@@ -151,17 +167,17 @@ timeout_trigger = 600
 The following timeline would occur
 
 ```
-time    	Redis Calls		timeout		next threshold
-0			GET+SET*  		1200		600
-1			GET				1200		600
+time	Redis Calls	timeout	next threshold
+0	GET+SET*	1200	600
+1	GET	1200	600
 ..
-599			GET				1200		600
-600			GET+SET* 		1800		1200
-601			GET    			1800		1200
+599	GET	1200	600
+600	GET+SET*	1800	1200
+601	GET	1800	1200
 ...
-1199		GET    			1800		1200
-1200		GET+SET*		2400		1800
-```	
+1199	GET	1800	1200
+1200	GET+SET*	2400	1800
+```
 
 * This method is compatible with setting a TTL in redis via `SETEX` or doing everything within Python if redis is in a LRU mode
 
