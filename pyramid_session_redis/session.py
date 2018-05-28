@@ -393,7 +393,7 @@ class RedisSession(object):
         self.ensure_id()
         if serialized_session is None:
             serialized_session = self.to_redis()
-        serverside_timeout = True if self.timeout is not None and self._set_redis_ttl else False
+        serverside_timeout = True if ((self.timeout is not None) and (self._set_redis_ttl)) else False
         if serverside_timeout:
             self.redis.setex(self.session_id, self.timeout, serialized_session)
         else:
