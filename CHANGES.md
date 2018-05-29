@@ -10,6 +10,8 @@ Changelog
     * version 1.4.2
     * set default timeout trigger to `None` (issue #12, forked from #11)
     * migrated `pyramid_session_redis._finished_callback` into `RedisSession._deferred_callback`
+    * introduced new `set_redis_ttl_readheavy` option for read-intensive deployments
+    
 
 -10/17/2017
     * version 1.4.1

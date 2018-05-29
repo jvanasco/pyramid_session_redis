@@ -74,7 +74,7 @@ Other Updates 1.4.x+
 * added a `timeout_trigger` option.  this will defer expiry data updates to lower usage on Redis.  This is explained below in more detail.
 * In high load situations, Redis can have performance and storage issues because in the original package sessionIDs are created on every request (such as a getting spidered by a botnet that does not respect sessions). in this package, a 'lazycreate' method is used.  a session_id/cookie will not be generated unless a session is needed in the callback routine.  in order to generate session_id/cookie beforehand, one can use the `RedisSession.ensure_id` function.  To safely check if a session_id exists, one can use the `RedisSession.session_id_safecheck` method as well.
 * added `func_invalid_logger` to constructor. this can be used to log invalid sessions. it is incredibly useful when integrated with a statsd system. (see below)
-
+* added `set_redis_ttl_readheavy` to the factory and session constructors. This option will optimize sessions which have Redis-maintained TTLs by executing a GET+EXPIRE together within a pipeline.
 
 
 Notes:
@@ -88,7 +88,9 @@ Timeout data stored in Python is relatively small when compared to the timeout d
 
 If you want to NEVER have sessions timeout, set the initial `timeout` to "0" or "None".
 
-Setting a timeout_trigger will require Python to track the expiry.
+Setting a `timeout_trigger` will require Python to track the expiry.
+
+Enableing `set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`; it also requires not enabling `timeout_trigger` or `python_expires`.
 
 Examples:
 ---------
@@ -182,6 +184,41 @@ The following timeline would occur
 The removes all calls to `EXPIRE` before the threshold is reached, which can be a considerable savings in read-heavy situations
 
 The caveat to this method: an expiry timestamp must be stored within the payload AND updating the timeout requires a `SET` operation.
+
+
+set_redis_ttl_readheavy
+=======================
+
+This is a new option in `1.4.2` which should improve performance on readheavy installations BUT may degrade performance on writeheavy installations.  This option will aggregate a GET+EXPIRE on every read.
+
+`set_redis_ttl_readheavy` requires the following:
+
+* a `timeout` value is set
+* `set_redis_ttl` is `True`
+* `timeout_trigger` is NOT set
+* `python_expires` is NOT True
+
+The default behavior of this library during a read-only request is this:
+
+* On session access, query Redis via `redis.GET {session_id}`
+* In a pyramid callback, update Redis via `redis.EXPIRE {session_id} {expiry}`
+
+During a read-write:
+
+* On session access, query Redis via `redis.GET {session_id}`
+* In a pyramid callback, update Redis via `redis.SETEX {session_id} {payload} {expiry}`
+
+The new `set_redis_ttl_readheavy` changes this. If enabled, during a read-only request the behavior will be lighter on the Redis instance:
+
+* On session access, open a pipeline with two Redis commands: `pipeline.GET {session_id}`, `pipeline.EXPIRE {session_id} {expiry}`.
+* In a pyramid callback, the duplicate expire is suppressed.
+
+However during a read-write, the activity will be:
+
+* On session access, open a pipeline with two Redis commands: `pipeline.GET {session_id}`, `pipeline.EXPIRE {session_id} {expiry}`.
+* In a pyramid callback, update Redis via `redis.SETEX {session_id} {payload} {expiry}`
+
+Read-heavy applications should see a slight performance bump via the piplined GET+EXPIRE, however write-heavy applications are likely to see a performance degradation as it adds an extra EXPIRE to every request.
 
 
 Invalid Logging
