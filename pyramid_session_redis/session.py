@@ -178,6 +178,7 @@ class RedisSession(object):
     ):
         if timeout_trigger and not python_expires:  # fix this
             python_expires = True
+        self._optimize_refresh = True if (timeout and not timeout_trigger and not python_expires) else False
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
@@ -343,7 +344,18 @@ class RedisSession(object):
         _session_id = session_id or self.session_id
         if _session_id == LAZYCREATE_SESSION:
             raise InvalidSession_Lazycreate("`session_id` is LAZYCREATE_SESSION")
-        persisted = self.redis.get(_session_id)
+
+        # optimize a `TTL refresh` under certain conditions
+        persisted = None
+        if self._optimize_refresh:
+            with self.redis.pipeline() as pipe:
+                persisted = pipe.get(_session_id)
+                _updated = pipe.expire(_session_id, self._timeout)
+            # mark that we shouldn't refresh
+            self._session_state.dont_refresh = True
+        else:        
+            persisted = self.redis.get(_session_id)
+
         if persisted is None:
             raise InvalidSession_NotInBackend("`session_id` (%s) not in Redis" % _session_id)
         try:
@@ -399,6 +411,7 @@ class RedisSession(object):
         else:
             self.redis.set(self.session_id, serialized_session)
         self._session_state.please_persist = False
+        self._session_state.dont_refresh = True
 
     def do_refresh(self, force_redis_ttl=None):
         """
