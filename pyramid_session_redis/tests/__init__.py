@@ -106,6 +106,7 @@ class DummyPipeline(object):
 
     def get(self, key):
         self._history.append(('get', key, ))
+        self._redis_con._history.append(('pipeline.get', key, ))
         return self.store.get(key)
 
     def expire(self, key, timeout):
