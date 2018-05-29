@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 
 import itertools
 import pdb
@@ -577,7 +579,7 @@ class TestRedisSession(unittest.TestCase):
         self.assertEqual(inst.from_redis()['t'], adjusted_timeout)
 
 
-class TestRedisSessionNew(unittest.TestCase):
+class _TestRedisSessionNew_SUPPORT(object):
     """these are 1.2x+ tests"""
 
     def _makeOne(self, redis, session_id, new, new_session,
@@ -675,6 +677,10 @@ class TestRedisSessionNew(unittest.TestCase):
         _session_data = session.redis.store[_session_id]
         _session_serialized = deserialize(_session_data)
         return _session_serialized
+
+
+class TestRedisSessionNew(unittest.TestCase, _TestRedisSessionNew_SUPPORT):
+    """these are 1.2x+ tests"""
 
     def test_init_new_session_notimeout(self):
         session_id = 'session_id'
@@ -872,7 +878,7 @@ class TestRedisSessionNew(unittest.TestCase):
             )
 
 
-class TestRedisSessionNewAlt2(TestRedisSessionNew):
+class TestRedisSessionNewAlt2(_TestRedisSessionNew_SUPPORT, unittest.TestCase):
     """these are 1.4x+ tests"""
     PYTHON_EXPIRES = True
     set_redis_ttl = True
@@ -1022,7 +1028,7 @@ class TestRedisSessionNewAlt2(TestRedisSessionNew):
         self.assertEqual(session2_redis['x'], (session2.timestamp + adjusted_timeout))
 
         sleeptime = session2_redis['x'] - int(time.time()) + 1
-        print "sleeping for ", sleeptime
+        print("sleeping for ", sleeptime)
         time.sleep(sleeptime)
 
         with self.assertRaises(InvalidSession_PayloadTimeout):
@@ -1049,7 +1055,8 @@ class TestRedisSessionNewAlt2(TestRedisSessionNew):
         # 8 - GET
         self.assertEqual(len(session.redis._history), 9)
 
-class TestRedisSessionNewAlt3(TestRedisSessionNew):
+
+class TestRedisSessionNewAlt3(_TestRedisSessionNew_SUPPORT, unittest.TestCase):
     """these are 1.4x+ tests"""
     PYTHON_EXPIRES = False
     set_redis_ttl = True
@@ -1124,7 +1131,7 @@ class TestRedisSessionNewAlt3(TestRedisSessionNew):
         
         # will sleep for a moment...
         sleepy = timeout - 1
-        print "will sleep for:", sleepy
+        print("will sleep for:", sleepy)
         time.sleep(sleepy)
 
         session3 = self._makeOne(

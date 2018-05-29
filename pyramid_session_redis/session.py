@@ -178,7 +178,7 @@ class RedisSession(object):
     ):
         if timeout_trigger and not python_expires:  # fix this
             python_expires = True
-        self._optimize_refresh = True if (timeout and not timeout_trigger and not python_expires) else False
+        self._optimize_refresh = True if (timeout and not timeout_trigger and not python_expires and set_redis_ttl) else False
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
