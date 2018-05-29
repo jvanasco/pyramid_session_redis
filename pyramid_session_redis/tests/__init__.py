@@ -50,6 +50,7 @@ class DummyRedis(object):
         return redis
 
     def get(self, key):
+        self._history.append(('get', key, ))
         return self.store.get(key)
 
     def set(self, key, value, debug=None):
@@ -104,6 +105,8 @@ class DummyPipeline(object):
         self._redis_con._history.append(('pipeline.set', key, value, debug))
 
     def get(self, key):
+        self._history.append(('get', key, ))
+        self._redis_con._history.append(('pipeline.get', key, ))
         return self.store.get(key)
 
     def expire(self, key, timeout):

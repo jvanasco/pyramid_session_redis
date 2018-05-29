@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 
 import itertools
 import pdb
@@ -9,6 +11,8 @@ import unittest
 from ..compat import cPickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import InvalidSession, InvalidSession_PayloadTimeout, InvalidSession_PayloadLegacy
+from . import DummyRedis
+from ..session import RedisSession
 
 
 class TestRedisSession(unittest.TestCase):
@@ -18,7 +22,6 @@ class TestRedisSession(unittest.TestCase):
                  deserialized_fails_new=None, timeout_trigger=None,
                  timeout=1200, python_expires=True,
                  ):
-        from ..session import RedisSession
         return RedisSession(
             redis=redis,
             session_id=session_id,
@@ -36,6 +39,11 @@ class TestRedisSession(unittest.TestCase):
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
                                  session_dict=None, serialize=cPickle.dumps):
+        """
+        Note: this will call `encode_session_payload` with the initial session
+        data. On a typical test this will mean an extra initial call to
+        `encode_session_payload``
+        """
         if session_dict is None:
             session_dict = {}
         time_now = int_time()
@@ -53,7 +61,6 @@ class TestRedisSession(unittest.TestCase):
     def _set_up_session_in_Redis_and_makeOne(self, session_id=None,
                                              session_dict=None, new=True,
                                              timeout=300, detect_changes=True):
-        from . import DummyRedis
         redis = DummyRedis()
         id_generator = self._make_id_generator()
         if session_id is None:
@@ -73,6 +80,7 @@ class TestRedisSession(unittest.TestCase):
             new=new,
             new_session=new_session,
             detect_changes=detect_changes,
+            timeout=timeout,
         )
 
     def test_init_new_session(self):
@@ -571,7 +579,7 @@ class TestRedisSession(unittest.TestCase):
         self.assertEqual(inst.from_redis()['t'], adjusted_timeout)
 
 
-class TestRedisSessionNew(unittest.TestCase):
+class _TestRedisSessionNew_SUPPORT(object):
     """these are 1.2x+ tests"""
 
     def _makeOne(self, redis, session_id, new, new_session,
@@ -580,7 +588,6 @@ class TestRedisSessionNew(unittest.TestCase):
                  deserialized_fails_new=None, timeout_trigger=None,
                  timeout=1200, python_expires=True,
                  ):
-        from ..session import RedisSession
         return RedisSession(
             redis=redis,
             session_id=session_id,
@@ -598,16 +605,33 @@ class TestRedisSessionNew(unittest.TestCase):
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
                                  session_dict=None, serialize=cPickle.dumps,
-                                 session_version=None, expires=None):
+                                 session_version=None, expires=None,
+                                 python_expires=True, reset_history=True):
+        """
+        Note: this will call `encode_session_payload` with the initial session
+        data. On a typical test this will mean an extra initial call to
+        `encode_session_payload`.
+        the `expires` kwarg is to fake an expiry date.
+        """
         if session_dict is None:
             session_dict = {}
-        payload = encode_session_payload(session_dict, int_time(), timeout, expires)
+        time_now = int_time()
+        payload = encode_session_payload(session_dict, time_now, timeout, expires, python_expires=python_expires)
         if session_version is not None:
             payload['v'] = session_version
-        if expires is not None:
-            payload['x'] = expires
+        # code an expires if needed
+        if expires:
+            # `encode_session_payload` will update the expires if we passed it,
+            # so we must insert an expired value manually
+            if python_expires:
+                payload['x'] = expires
+        elif not expires:
+            if python_expires:
+                expires = time_now + timeout
+                payload['x'] = expires
         redis.set(session_id, serialize(payload))
-        redis._history_reset()
+        if reset_history:
+            redis._history_reset()
         return session_id
 
     def _make_id_generator(self):
@@ -618,8 +642,7 @@ class TestRedisSessionNew(unittest.TestCase):
                                              session_dict=None, new=True,
                                              timeout=60, timeout_trigger=30, detect_changes=True,
                                              set_redis_ttl=True, session_version=None,
-                                             expires=None):
-        from . import DummyRedis
+                                             expires=None, python_expires=True):
         redis = DummyRedis()
         id_generator = self._make_id_generator()
         if session_id is None:
@@ -628,12 +651,15 @@ class TestRedisSessionNew(unittest.TestCase):
                                       session_dict=session_dict,
                                       timeout=timeout,
                                       session_version=session_version,
-                                      expires=expires)
+                                      expires=expires,
+                                      python_expires=python_expires,
+                                      )
         new_session = lambda: self._set_up_session_in_redis(
             redis=redis,
             session_id=id_generator(),
             session_dict=session_dict,
             timeout=timeout,
+            python_expires=python_expires,
         )
         return self._makeOne(
             redis=redis,
@@ -641,7 +667,9 @@ class TestRedisSessionNew(unittest.TestCase):
             new=new,
             new_session=new_session,
             detect_changes=detect_changes,
+            timeout=timeout,
             set_redis_ttl=set_redis_ttl,
+            python_expires=python_expires,
         )
 
     def _deserialize_session(self, session, deserialize=cPickle.loads):
@@ -649,6 +677,10 @@ class TestRedisSessionNew(unittest.TestCase):
         _session_data = session.redis.store[_session_id]
         _session_serialized = deserialize(_session_data)
         return _session_serialized
+
+
+class TestRedisSessionNew(unittest.TestCase, _TestRedisSessionNew_SUPPORT):
+    """these are 1.2x+ tests"""
 
     def test_init_new_session_notimeout(self):
         session_id = 'session_id'
@@ -671,8 +703,9 @@ class TestRedisSessionNew(unittest.TestCase):
         _deserialized = self._deserialize_session(session)
         self.assertNotIn('t', _deserialized)
 
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        # get, set
+        self.assertEqual(len(session.redis._history), 2)
+        _redis_op = session.redis._history[1]
         self.assertEqual(_redis_op[0], 'set')
 
         # clear the history, `do_refresh` should do nothing (timeout=0)
@@ -709,8 +742,10 @@ class TestRedisSessionNew(unittest.TestCase):
 
         _deserialized = self._deserialize_session(session)
         self.assertNotIn('t', _deserialized)
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+
+        # get, set
+        self.assertEqual(len(session.redis._history), 2)
+        _redis_op = session.redis._history[1]
         self.assertEqual(_redis_op[0], 'set')
 
         # clear the history, `do_refresh` should do nothing (timeout=0)
@@ -747,8 +782,9 @@ class TestRedisSessionNew(unittest.TestCase):
 
         _deserialized = self._deserialize_session(session)
         self.assertIn('t', _deserialized)
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        # get, set
+        self.assertEqual(len(session.redis._history), 2)
+        _redis_op = session.redis._history[1]
         self.assertEqual(_redis_op[0], 'setex')
 
         # clear the history, `do_refresh` should issue an "expire" (timeout=60)
@@ -787,8 +823,8 @@ class TestRedisSessionNew(unittest.TestCase):
         self.assertDictEqual(dict(session), {})
         _deserialized = self._deserialize_session(session)
         self.assertIn('t', _deserialized)
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        self.assertEqual(len(session.redis._history), 2)
+        _redis_op = session.redis._history[1]
         self.assertEqual(_redis_op[0], 'set')
 
         # clear the history, `do_refresh` should do nothing (timeout=60, set_redis_ttl=False)
@@ -831,7 +867,7 @@ class TestRedisSessionNew(unittest.TestCase):
         new = True
         timeout = 60
         set_redis_ttl = False
-        expires = int_time() - timeout
+        expires = int_time() - timeout - 1
         with self.assertRaises(InvalidSession_PayloadTimeout):
             session = self._set_up_session_in_Redis_and_makeOne(
                 session_id=session_id,
@@ -842,14 +878,16 @@ class TestRedisSessionNew(unittest.TestCase):
             )
 
 
-class TestRedisSessionNewAlt2(TestRedisSessionNew):
+class TestRedisSessionNewAlt2(_TestRedisSessionNew_SUPPORT, unittest.TestCase):
     """these are 1.4x+ tests"""
+    PYTHON_EXPIRES = True
+    set_redis_ttl = True
 
     def test_adjust_timeout(self):
         """
         check that a timeout will trigger a SETEX
 
-        python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew2.test_adjust_timeout
+        python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNewAlt2.test_adjust_timeout
         """
         session_id = 'session_id'
         new = True
@@ -863,6 +901,7 @@ class TestRedisSessionNewAlt2(TestRedisSessionNew):
             timeout=timeout,
             timeout_trigger=timeout_trigger,
             set_redis_ttl=set_redis_ttl,
+            python_expires = self.PYTHON_EXPIRES,
         )
         session.do_persist()  # trigger the real session's set/setex
         self.assertEqual(session.session_id, session_id)
@@ -886,8 +925,235 @@ class TestRedisSessionNewAlt2(TestRedisSessionNew):
         self.assertEqual(timestamp_expiry_new, timestamp_expiry_expected)
 
         # okay now check that redis got the correct commands
-        self.assertEqual(len(session.redis._history), 2)
-        self.assertEqual(session.redis._history[0][0], 'setex')
-        self.assertEqual(session.redis._history[0][2], timeout)
+        # get, setex, get, setex, get
+        self.assertEqual(len(session.redis._history), 5)
         self.assertEqual(session.redis._history[1][0], 'setex')
-        self.assertEqual(session.redis._history[1][2], adjusted_timeout)
+        self.assertEqual(session.redis._history[1][2], timeout)
+        self.assertEqual(session.redis._history[3][0], 'setex')
+        self.assertEqual(session.redis._history[3][2], adjusted_timeout)
+
+
+    def test_timeout_trigger(self):
+        """
+        python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNewAlt2.test_timeout_trigger
+        """
+        session_id = 'session_id'
+        new = True
+        timeout = 3
+        timeout_trigger = 1
+        adjusted_timeout = 4
+        set_redis_ttl = True
+        session = self._set_up_session_in_Redis_and_makeOne(
+            session_id=session_id,
+            new=new,
+            timeout=timeout,
+            timeout_trigger=timeout_trigger,
+            set_redis_ttl=self.set_redis_ttl,
+            python_expires = self.PYTHON_EXPIRES,
+        )
+        session._deferred_callback(None)  # trigger the real session's set/setex
+        self.assertEqual(session.session_id, session_id)
+        self.assertIs(session.new, new)
+        self.assertDictEqual(dict(session), {})
+
+        # this should set:
+        # session.managed_dict = {'FOO': '1'}
+        session['FOO'] = '1'
+        session._deferred_callback(None)  # trigger the real session's set/setex
+
+        serialized_1 = session.from_redis()
+        timeout_1 = serialized_1['t']
+        self.assertEqual(timeout_1, timeout)
+        timestamp_created = serialized_1['c']
+        timestamp_expiry_initial = serialized_1['x']
+
+        session.adjust_timeout_for_session(adjusted_timeout)
+        session._deferred_callback(None)  # trigger the real session's set/setex
+        serialized_2 = session.from_redis()
+        timestamp_expiry_new = serialized_2['x']
+        timeout_2 = serialized_2['t']
+        self.assertEqual(timeout_2, adjusted_timeout)
+
+        timestamp_expiry_expected = timestamp_created + adjusted_timeout
+        self.assertEqual(timestamp_expiry_new, timestamp_expiry_expected)
+
+        # okay now check that redis got the correct commands
+        # 0 - GET
+        # 1 - SETEX
+        # 2 - GET
+        # 3 - SETEX
+        # 4 - GET
+        self.assertEqual(len(session.redis._history), 5)
+        self.assertEqual(session.redis._history[1][0], 'setex')  # this is our foo
+        self.assertEqual(session.redis._history[1][2], timeout)
+        self.assertEqual(session.redis._history[3][0], 'setex')
+        self.assertEqual(session.redis._history[3][2], adjusted_timeout)
+
+        # sleep post-trigger and pre-expire
+        # this should create a new trigger, because we wake up within 1 second...
+        time.sleep(3)
+        id_generator = self._make_id_generator()
+        new_session = lambda: self._set_up_session_in_redis(
+            redis=session.redis,
+            session_id=id_generator(),
+            session_dict={},
+            timeout=timeout,
+            python_expires=self.PYTHON_EXPIRES,
+            set_redis_ttl=self.set_redis_ttl,
+        )
+        session2 = self._makeOne(
+            session.redis,
+            'session_id',
+            True,
+            new_session,
+            set_redis_ttl=self.set_redis_ttl,
+            timeout_trigger=timeout_trigger,
+            timeout = timeout,
+            python_expires=self.PYTHON_EXPIRES,
+        )
+        self.assertEqual(session2.managed_dict['FOO'], '1')
+        session2._deferred_callback(None)  # trigger the real session's set/setex
+        # okay now check that redis got the correct commands
+        # 0 - GET
+        # 1 - SETEX
+        # 2 - GET
+        # 3 - SETEX
+        # 4 - GET
+        # 5 - GET
+        # 6 - SETEX -- this is triggered by the _deferred_callback beine within the timeout
+        self.assertEqual(len(session.redis._history), 7)
+        
+        # now check that the timeout is in the payload...
+        session2_redis = session2.from_redis()
+        self.assertEqual(session2_redis['x'], (session2.timestamp + adjusted_timeout))
+
+        sleeptime = session2_redis['x'] - int(time.time()) + 1
+        print("sleeping for ", sleeptime)
+        time.sleep(sleeptime)
+
+        with self.assertRaises(InvalidSession_PayloadTimeout):
+            session3 = self._makeOne(
+                session.redis,
+                'session_id',
+                True,
+                new_session,
+                set_redis_ttl=self.set_redis_ttl,
+                timeout_trigger=timeout_trigger,
+                timeout = timeout,
+                python_expires=self.PYTHON_EXPIRES,
+            )
+
+        # okay now check that redis got the correct commands
+        # 0 - GET
+        # 1 - SETEX
+        # 2 - GET
+        # 3 - SETEX
+        # 4 - GET
+        # 5 - GET
+        # 6 - SETEX -- this is triggered by the _deferred_callback beine within the timeout
+        # 7 - GET
+        # 8 - GET
+        self.assertEqual(len(session.redis._history), 9)
+
+
+class TestRedisSessionNewAlt3(_TestRedisSessionNew_SUPPORT, unittest.TestCase):
+    """these are 1.4x+ tests"""
+    PYTHON_EXPIRES = False
+    set_redis_ttl = True
+
+    def test_optimized_classic_mode(self):
+        """
+        python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNewAlt3.test_optimized_classic_mode
+        """
+        session_id = 'session_id'
+        new = True
+        timeout = 3
+        adjusted_timeout = 4
+        set_redis_ttl = True
+        session = self._set_up_session_in_Redis_and_makeOne(
+            session_id=session_id,
+            new=new,
+            timeout=timeout,
+            set_redis_ttl=self.set_redis_ttl,
+            python_expires = self.PYTHON_EXPIRES,
+        )
+        session._deferred_callback(None)  # trigger the real session's set/setex
+        self.assertEqual(session.session_id, session_id)
+        self.assertIs(session.new, new)
+        self.assertDictEqual(dict(session), {})
+
+        # okay now check that redis got the correct commands
+        # 0 - pipline.GET
+        # 1 - pipline.EXPIRE
+        # no setex, because the session is empty
+        self.assertEqual(len(session.redis._history), 2)
+        
+        # but if we store something it would have been different...
+        session['FOO'] = '1'
+        session._deferred_callback(None)  # trigger the real session's set/setex
+
+        # 0 - pipline.GET
+        # 1 - pipline.EXPIRE
+        # 2 - SETEX
+        self.assertEqual(len(session.redis._history), 3)
+        self.assertEqual(session.redis._history[2][0], 'setex')  # this is our foo
+        self.assertEqual(session.redis._history[2][2], timeout)
+
+        id_generator = self._make_id_generator()
+        new_session = lambda: self._set_up_session_in_redis(
+            redis=session.redis,
+            session_id=id_generator(),
+            session_dict={},
+            timeout=timeout,
+            python_expires=self.PYTHON_EXPIRES,
+            set_redis_ttl=self.set_redis_ttl,
+        )
+        session2 = self._makeOne(
+            session.redis,
+            'session_id',
+            True,
+            new_session,
+            set_redis_ttl=self.set_redis_ttl,
+            timeout = timeout,
+            python_expires=self.PYTHON_EXPIRES,
+        )
+        self.assertEqual(session2.managed_dict['FOO'], '1')
+        session2._deferred_callback(None)  # trigger the real session's set/setex (but don't)
+        
+        # 0 - pipline.GET
+        # 1 - pipline.EXPIRE
+        # 2 - SETEX
+        # 3 - pipline.GET
+        # 4 - pipline.EXPIRE
+        self.assertEqual(len(session.redis._history), 5)
+        self.assertEqual(session.redis._history[3][0], 'pipeline.get')
+        self.assertEqual(session.redis._history[4][0], 'pipeline.expire')
+        
+        # will sleep for a moment...
+        sleepy = timeout - 1
+        print("will sleep for:", sleepy)
+        time.sleep(sleepy)
+
+        session3 = self._makeOne(
+            session.redis,
+            'session_id',
+            True,
+            new_session,
+            set_redis_ttl=self.set_redis_ttl,
+            timeout = timeout,
+            python_expires=self.PYTHON_EXPIRES,
+        )
+        self.assertEqual(session3.managed_dict['FOO'], '1')
+        session3._deferred_callback(None)  # trigger the real session's set/setex (but don't)
+
+        # 0 - pipline.GET
+        # 1 - pipline.EXPIRE
+        # 2 - SETEX
+        # 3 - pipline.GET
+        # 4 - pipline.EXPIRE
+        # 5 - pipline.GET
+        # 6 - pipline.EXPIRE
+        self.assertEqual(len(session.redis._history), 7)
+        self.assertEqual(session.redis._history[5][0], 'pipeline.get')
+        self.assertEqual(session.redis._history[6][0], 'pipeline.expire')
+        

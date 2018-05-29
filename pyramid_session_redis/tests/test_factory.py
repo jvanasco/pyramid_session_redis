@@ -974,14 +974,16 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
-        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SETEX for the initial creation
+        # 2 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.setex')
         self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[2][2], session_args['timeout'])
 
     def test_scenario_new__timeout_trigger_pythonNoExpires_setRedisTtl(self):
         # note: timeout-trigger will force python_expires
@@ -993,14 +995,16 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
-        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the id
+        # 1 = a pipeline.SETEX for the initial creation
+        # 2 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.setex')
         self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[2][2], session_args['timeout'])
 
     def test_scenario_new__timeout_noTrigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
@@ -1011,14 +1015,16 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
-        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SETEX for the initial creation
+        # 2 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.setex')
         self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[2][2], session_args['timeout'])
 
     def test_scenario_new__timeout_noTrigger_noPythonExpires_setRedisTtl(self):
         """
@@ -1031,14 +1037,16 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.setex')
-        self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'setex')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SETEX for the initial creation
+        # 2 = a SETEX for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.setex')
         self.assertEqual(request.registry._redis_sessions._history[1][2], session_args['timeout'])
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'setex')
+        self.assertEqual(request.registry._redis_sessions._history[2][2], session_args['timeout'])
 
     # --------------------------------------------------------------------------
     # new session - no timeout
@@ -1054,11 +1062,13 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertNotIn('x', stored_session_data)
 
         # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__noTimeout_trigger_pythonNoExpires_setRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
@@ -1069,12 +1079,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__noTimeout_noTrigger_pythonExpires_setRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_pythonExpires_setRedisTtl
@@ -1084,12 +1096,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__noTimeout_noTrigger_noPythonExpires_setRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_noPythonExpires_setRedisTtl
@@ -1099,12 +1113,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     # --------------------------------------------------------------------------
     # existing session - timeout
@@ -1119,9 +1135,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1137,7 +1155,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
 
         # there should be 1 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1150,9 +1170,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1167,9 +1189,13 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = pipeline.get
+        # 2 = pipeline.expire
+        # 3 = pipeline.get
+        # 4 = pipeline.expire
+        self.assertEqual(len(request.registry._redis_sessions._history), 5)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1186,9 +1212,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)        
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1201,9 +1229,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1215,9 +1245,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1229,9 +1261,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'setex')
         self.assertEqual(request.registry._redis_sessions._history[0][2], session_args['timeout'])
 
@@ -1248,12 +1282,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__timeout_trigger_pythonNoExpires_noRedisTtl(self):
         # note: timeout-trigger will force python_expires
@@ -1265,12 +1301,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__timeout_noTrigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_timeout_noTrigger_pythonExpires_noRedisTtl
@@ -1281,12 +1319,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__timeout_noTrigger_noPythonExpires_noRedisTtl(self):
         """
@@ -1299,12 +1339,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SETEX for the initial creation
-        # 1 = a SETEX for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     # --------------------------------------------------------------------------
     # new session - no timeout
@@ -1319,12 +1361,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__noTimeout_trigger_pythonNoExpires_noRedisTtl(self):
         """the ``timeout_trigger`` is irrelevant"""
@@ -1335,12 +1379,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__noTimeout_noTrigger_pythonExpires_noRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_pythonExpires_noRedisTtl
@@ -1350,12 +1396,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     def test_scenario_new__noTimeout_noTrigger_noPythonExpires_noRedisTtl(self):
         session_args = self._args_noTimeout_noTrigger_noPythonExpires_noRedisTtl
@@ -1365,12 +1413,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be two items in the history:
-        # 0 = a pipeline.SET for the initial creation
-        # 1 = a SET for the persist
-        self.assertEqual(len(request.registry._redis_sessions._history), 2)
-        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.set')
-        self.assertEqual(request.registry._redis_sessions._history[1][0], 'set')
+        # there should be three items in the history:
+        # 0 = a pipeline.GET for the initial id
+        # 1 = a pipeline.SET for the initial creation
+        # 2 = a SET for the persist
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
+        self.assertEqual(request.registry._redis_sessions._history[0][0], 'pipeline.get')
+        self.assertEqual(request.registry._redis_sessions._history[1][0], 'pipeline.set')
+        self.assertEqual(request.registry._redis_sessions._history[2][0], 'set')
 
     # --------------------------------------------------------------------------
     # existing session - timeout
@@ -1385,9 +1435,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # there should be 3 items in the history:
+        # 0 = a SET for the initial creation
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     def test_scenario_existing__timeout_trigger_pythonNoExpires_noRedisTtl_noChange(self):
@@ -1399,9 +1451,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # there should be 3 items in the history:
+        # 0 = a SET for the initial creation
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     def test_scenario_existing__timeout_noTrigger_pythonExpires_noRedisTtl_noChange(self):
@@ -1413,14 +1467,17 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data)
         self.assertEqual(stored_session_data['x'], stored_session_data['c'] + stored_session_data['t'])
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     def test_scenario_existing__timeout_noTrigger_noPythonExpires_noRedisTtl_noChange(self):
         """
         a timeout entirely occurs via EXPIRY in redis
+        python -munittest pyramid_session_redis.tests.test_factory.TestRedisSessionFactory_expiries_v1_4_x.test_scenario_existing__timeout_noTrigger_noPythonExpires_noRedisTtl_noChange
         """
         session_args = self._args_timeout_noTrigger_noPythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
@@ -1430,8 +1487,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertNotIn('x', stored_session_data)
 
         # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 0 = a SET for the initial creation
+        # 1 = GET
+        # 2 = GET
+        # print "request.registry._redis_sessions._history", request.registry._redis_sessions._history
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     # --------------------------------------------------------------------------
@@ -1447,9 +1507,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         stored_session_data = self._deserialize_session_stored(request.session)
         self.assertNotIn('x', stored_session_data)
 
-        # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # there should be 3 items in the history:
+        # 0 = a SET for the initial creation
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     def test_scenario_existing__noTimeout_trigger_pythonNoExpires_noRedisTtl(self):
@@ -1462,8 +1524,10 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertNotIn('x', stored_session_data)
 
         # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 0 = a SET for the initial creation
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     def test_scenario_existing__noTimeout_noTrigger_pythonExpires_noRedisTtl(self):
@@ -1475,8 +1539,10 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertNotIn('x', stored_session_data)
 
         # there should be 1 items in the history:
-        # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 0 = a SET for the initial creation
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     def test_scenario_existing__noTimeout_noTrigger_noPythonExpires_noRedisTtl(self):
@@ -1489,7 +1555,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
 
         # there should be 1 items in the history:
         # 0 = a SETEX for the initial creation
-        self.assertEqual(len(request.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request.registry._redis_sessions._history), 3)
         self.assertEqual(request.registry._redis_sessions._history[0][0], 'set')
 
     # --------------------------------------------------------------------------
@@ -1508,9 +1576,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         request1 = self._prep_existing_session(session_args)
         stored_session_data_1_pre = self._deserialize_session_stored(request1.session)
 
-        # there should be 1 items in the history:
+        # there should be 3 items in the history:
         # 0 = a SET for the initial creation
-        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        self.assertEqual(len(request1.registry._redis_sessions._history), 3)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'set')
 
         # let's adjust the timeout and make a request that won't change anything
@@ -1520,9 +1590,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data_1_post)
         self.assertEqual(stored_session_data_1_post['x'], stored_session_data_1_pre['x'] + timeout_diff_1)
 
-        # there should still be 1 items in the history:
+        # there should still be 4 items in the history:
         # 0 = a SET for the initial creation
-        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        # 1 = GET
+        # 2 = GET
+        # 3 = GET
+        self.assertEqual(len(request1.registry._redis_sessions._history), 4)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'set')
 
         #
@@ -1534,11 +1607,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data_unchanged)
         self.assertEqual(stored_session_data_unchanged['x'], stored_session_data_1_post['x'])
 
-        # there should still be 1 items in the history:
+        # there should still be 5 items in the history:
         # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
-        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        # 1 = GET
+        # 2 = GET
+        # 3 = GET
+        # 4 = GET
         self.assertIs(request_unchanged.registry._redis_sessions, request1.registry._redis_sessions)
-        self.assertEqual(len(request_unchanged.registry._redis_sessions._history), 1)
+        self.assertEqual(len(request_unchanged.registry._redis_sessions._history), 5)
         self.assertEqual(request_unchanged.registry._redis_sessions._history[0][0], 'set')
 
         #
@@ -1561,11 +1637,17 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
 
         # there should be 2 items in the history:
         # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
-        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        # 1 = GET
+        # 2 = GET
+        # 3 = GET
+        # 4 = GET
+        # 5 = GET
+        # 6 = GET
+        # 7 = a SET for the update adjust -- which is triggered by RedisSession
         self.assertIs(request_updated.registry._redis_sessions, request_unchanged.registry._redis_sessions)
-        self.assertEqual(len(request_updated.registry._redis_sessions._history), 2)
+        self.assertEqual(len(request_updated.registry._redis_sessions._history), 8)
         self.assertEqual(request_updated.registry._redis_sessions._history[0][0], 'set')
-        self.assertEqual(request_updated.registry._redis_sessions._history[1][0], 'set')
+        self.assertEqual(request_updated.registry._redis_sessions._history[7][0], 'set')
         return
 
     def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self):
@@ -1580,9 +1662,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         request1 = self._prep_existing_session(session_args)
         stored_session_data_1_pre = self._deserialize_session_stored(request1.session)
 
-        # there should be 1 items in the history:
-        # 0 = a SET for the initial creation
-        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        # there should be 3 items in the history:
+        # 0 = a SETEX for the initial creation
+        # 1 = a GET
+        # 2 = a GET
+        self.assertEqual(len(request1.registry._redis_sessions._history), 3)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'setex')
 
         # let's adjust the timeout and make a request that won't change anything
@@ -1592,9 +1676,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data_1_post)
         self.assertEqual(stored_session_data_1_post['x'], stored_session_data_1_pre['x'] + timeout_diff_1)
 
-        # there should still be 1 items in the history:
-        # 0 = a SET for the initial creation
-        self.assertEqual(len(request1.registry._redis_sessions._history), 1)
+        # there should be 4 items in the history:
+        # 0 = a SETEX for the initial creation
+        # 1 = a GET
+        # 2 = a GET
+        # 4 = a GET
+        self.assertEqual(len(request1.registry._redis_sessions._history), 4)
         self.assertEqual(request1.registry._redis_sessions._history[0][0], 'setex')
 
         #
@@ -1606,11 +1693,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertIn('x', stored_session_data_unchanged)
         self.assertEqual(stored_session_data_unchanged['x'], stored_session_data_1_post['x'])
 
-        # there should still be 1 items in the history:
-        # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
-        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        # there should be 4 items in the history:
+        # 0 = a SETEX for the initial creation
+        # 1 = a GET
+        # 2 = a GET
+        # 4 = a GET
+        # 5 = a GET
         self.assertIs(request_unchanged.registry._redis_sessions, request1.registry._redis_sessions)
-        self.assertEqual(len(request_unchanged.registry._redis_sessions._history), 1)
+        self.assertEqual(len(request_unchanged.registry._redis_sessions._history), 5)
         self.assertEqual(request_unchanged.registry._redis_sessions._history[0][0], 'setex')
 
         #
@@ -1632,12 +1722,17 @@ class TestRedisSessionFactory_expiries_v1_4_x(_TestRedisSessionFactoryCore, _Tes
         self.assertEqual(stored_session_data_updated['x'], time_now + session_args['timeout'])
 
         # there should be 2 items in the history:
-        # 0 = a SET for the initial insert -- but it's not triggered by RedisSession
-        # 0 = a SET for the update adjust -- which is triggered by RedisSession
+        # 0 = a SETEX for the initial creation - but it's not triggered by RedisSession
+        # 1 = a GET
+        # 2 = a GET
+        # 4 = a GET
+        # 5 = a GET
+        # 6 = a GET
+        # 7 = a SETEX for the update adjust -- which is triggered by RedisSession
         self.assertIs(request_updated.registry._redis_sessions, request_unchanged.registry._redis_sessions)
-        self.assertEqual(len(request_updated.registry._redis_sessions._history), 2)
+        self.assertEqual(len(request_updated.registry._redis_sessions._history), 8)
         self.assertEqual(request_updated.registry._redis_sessions._history[0][0], 'setex')
-        self.assertEqual(request_updated.registry._redis_sessions._history[1][0], 'setex')
+        self.assertEqual(request_updated.registry._redis_sessions._history[7][0], 'setex')
         return
 
     def test_scenario_flow__noCookie_a(self):
