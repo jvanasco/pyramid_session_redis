@@ -126,6 +126,7 @@ def RedisSessionFactory(
     deserialize=cPickle.loads,
     id_generator=_generate_session_id,
     set_redis_ttl=True,
+    set_redis_ttl_readheavy=None,
     detect_changes=True,
     deserialized_fails_new=None,
     func_check_response_allow_cookies=None,
@@ -220,6 +221,16 @@ def RedisSessionFactory(
     involved with timeout logic.
     Default: ``False``
 
+    ``set_redis_ttl_readheavy``
+     If ``True``, sets TTL data in Redis within a PIPELINE via GET+EXPIRE and
+     supresses automatic TTL refresh during the deferred cleanup phase. If not 
+     ``True``, an EXPIRE is sent as a separate action during the deferred
+     cleanup phase.  The optimized behavior improves performance on read-heavy
+     operations, but may degrade performance on write-heavy operations.  This
+     requires a ``timeout`` and ``set_redis_ttl`` to be True; it is not
+     compatible with ``timeout_trigger`` or ``python_expires``.
+     Default: ``None``
+
     ``detect_changes``
     Boolean value. If set to ``True``, will calculate nested changes after
     serialization to ensure persistence of nested data.
@@ -288,9 +299,17 @@ def RedisSessionFactory(
     if timeout_trigger and not python_expires:  # fix this
         python_expires = True
 
+    # optimize a `TTL refresh` under certain conditions
+    if set_redis_ttl_readheavy:
+        if (not timeout) or (not set_redis_ttl):
+            raise ValueError("`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`")
+        if timeout_trigger or python_expires:
+            raise ValueError("`set_redis_ttl_readheavy` is not compatible with `timeout_trigger` and `python_expires`")
     optimize_redis_ttl = False
-    if set_redis_ttl and (not timeout_trigger) and (not python_expires):
-        optimize_redis_ttl = True
+    
+    _set_redis_ttl_onexit = False
+    if (timeout and set_redis_ttl) and (not timeout_trigger and not python_expires and not set_redis_ttl_readheavy):
+        _set_redis_ttl_onexit = True
 
     # good for all factory() requests
     redis_options = dict(
@@ -334,6 +353,8 @@ def RedisSessionFactory(
             serialize=serialize,
             generator=id_generator,
             set_redis_ttl=set_redis_ttl,
+            # set_redis_ttl_readheavy=set_redis_ttl_readheavy,  # not needed on NEW
+            # _set_redis_ttl_onexit=_set_redis_ttl_onexit,  # not needed on NEW
             new_payload_func=new_payload_func,
             python_expires=python_expires,
         )
@@ -357,6 +378,8 @@ def RedisSessionFactory(
                 serialize=serialize,
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
+                set_redis_ttl_readheavy=set_redis_ttl_readheavy,
+                _set_redis_ttl_onexit=_set_redis_ttl_onexit,
                 detect_changes=detect_changes,
                 deserialized_fails_new=deserialized_fails_new,
                 timeout_trigger=timeout_trigger,
@@ -378,6 +401,8 @@ def RedisSessionFactory(
                 serialize=serialize,
                 deserialize=deserialize,
                 set_redis_ttl=set_redis_ttl,
+                # set_redis_ttl_readheavy=set_redis_ttl_readheavy,  # not needed on NEW
+                # _set_redis_ttl_onexit=_set_redis_ttl_onexit,  # not needed on NEW
                 detect_changes=detect_changes,
                 timeout_trigger=timeout_trigger,
                 timeout=timeout,

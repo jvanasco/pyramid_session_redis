@@ -140,6 +140,29 @@ class RedisSession(object):
      configured as a LRU and does not update the expiry data via SETEX.
      Default: ``True``
 
+    ``set_redis_ttl_readheavy``
+     If ``True``, sets TTL data in Redis within a PIPELINE via GET+EXPIRE and
+     supresses automatic TTL refresh during the deferred cleanup phase. If not 
+     ``True``, an EXPIRE is sent as a separate action during the deferred
+     cleanup phase.  The optimized behavior improves performance on read-heavy
+     operations, but may degrade performance on write-heavy operations.  This
+     requires a ``timeout`` and ``set_redis_ttl`` to be True; it is not
+     compatible with ``timeout_trigger`` or ``python_expires``.
+     Default: ``None``
+     
+    ``_set_redis_ttl_onexit`` If ``True``, automatically queues a TTL Redis set
+    during the cleanup phase. This should be calculated  based on the following
+    criteria:
+        * self._timeout
+        * self._set_redis_ttl
+        * not self._timeout_trigger
+        * not self._python_expires
+        * not self._set_redis_ttl_readheavy
+    This is handled as a config option and not a realtime calcluation to save
+    some processing. Unit Tests will want to pre-calculate this, otherwise the 
+    main factory API of this package handles it.
+    Default: ``None``
+
     ``detect_changes``
     If ``True``, supports change detection Default: ``True``
 
@@ -175,10 +198,11 @@ class RedisSession(object):
         timeout=None,
         timeout_trigger=None,
         python_expires=None,
+        set_redis_ttl_readheavy=None,
+        _set_redis_ttl_onexit=None,
     ):
         if timeout_trigger and not python_expires:  # fix this
             python_expires = True
-        self._optimize_refresh = True if (timeout and not timeout_trigger and not python_expires and set_redis_ttl) else False
         self.redis = redis
         self.serialize = serialize
         self.deserialize = deserialize
@@ -190,6 +214,7 @@ class RedisSession(object):
         if decode_session_payload_func is not None:
             self.decode_session_payload = decode_session_payload_func
         self._set_redis_ttl = set_redis_ttl
+        self._set_redis_ttl_readheavy = set_redis_ttl_readheavy
         self._detect_changes = detect_changes
         self._deserialized_fails_new = deserialized_fails_new
         self._timeout = timeout
@@ -200,6 +225,8 @@ class RedisSession(object):
             session_id=session_id,
             new=new,
         )
+        if _set_redis_ttl_onexit:
+            self._session_state.please_refresh = True
 
     def _resync(self):
         """resyncs the session. this is really only needed for testing."""
@@ -345,9 +372,10 @@ class RedisSession(object):
         if _session_id == LAZYCREATE_SESSION:
             raise InvalidSession_Lazycreate("`session_id` is LAZYCREATE_SESSION")
 
+
         # optimize a `TTL refresh` under certain conditions
         persisted = None
-        if self._optimize_refresh:
+        if self._set_redis_ttl_readheavy:
             with self.redis.pipeline() as pipe:
                 persisted = pipe.get(_session_id)
                 _updated = pipe.expire(_session_id, self._timeout)
