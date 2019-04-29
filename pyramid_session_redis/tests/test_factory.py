@@ -8,7 +8,7 @@ import pprint
 import pdb
 
 from pyramid import testing
-from ..compat import cPickle
+from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (InvalidSession,
                           InvalidSession_NoSessionCookie,
@@ -60,7 +60,7 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         from ..util import create_unique_session_id
         redis = request.registry._redis_sessions
         session_id = create_unique_session_id(redis, timeout=100,
-                                              serialize=cPickle.dumps)
+                                              serialize=pickle.dumps)
         return session_id
 
     def _serialize(self, session_id, secret='secret'):
@@ -718,7 +718,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
 class _TestRedisSessionFactoryCore_UtilsNew(object):
 
-    def _deserialize_session_stored(self, session, deserialize=cPickle.loads):
+    def _deserialize_session_stored(self, session, deserialize=pickle.loads):
         """loads session from backend via id, deserializes"""
         _session_id = session.session_id
         _session_data = session.redis.store[_session_id]
@@ -728,7 +728,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
     def _set_up_session_in_redis(self, redis, session_id,
                                  session_dict=None, timeout=None,
                                  timeout_trigger=None,
-                                 serialize=cPickle.dumps,
+                                 serialize=pickle.dumps,
                                  python_expires=None,
                                  set_redis_ttl=None,
                                  ):
@@ -849,7 +849,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         request = self._load_cookie_session_in_new_request(request_old=request1, session_id=session_id, **session_args)
         return request
 
-    def _adjust_request_session(self, request, serialize=cPickle.dumps, **kwargs):
+    def _adjust_request_session(self, request, serialize=pickle.dumps, **kwargs):
         """
         1. deserializes a session's backend datastore, manipulates it, stores it.
         2. generates/returns a new request that loads the modified session
@@ -2119,5 +2119,5 @@ class TestRedisSessionFactory_loggedExceptions(_TestRedisSessionFactoryCore, _Te
         wrapped_exception = exception_wrapper.args[0]
 
         # we are using picke, so it should be exceptions.EOFError
-        self.assertEqual(request.session.deserialize, cPickle.loads)
+        self.assertEqual(request.session.deserialize, pickle.loads)
         self.assertIsInstance(exception_wrapper.args[0], EOFError)

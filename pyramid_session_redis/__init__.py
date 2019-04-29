@@ -9,7 +9,7 @@ from pyramid.session import (
     signed_serialize,
 )
 
-from .compat import cPickle
+from .compat import pickle
 from .connection import get_default_connection
 from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
@@ -23,7 +23,7 @@ from .util import (
 )
 
 
-__VERSION__ = '1.4.1-dev'
+__VERSION__ = '1.5.0'
 
 
 configs_dotable = ('client_callable',
@@ -122,8 +122,8 @@ def RedisSessionFactory(
     errors='strict',
     unix_socket_path=None,
     client_callable=None,
-    serialize=cPickle.dumps,
-    deserialize=cPickle.loads,
+    serialize=pickle.dumps,
+    deserialize=pickle.loads,
     id_generator=_generate_session_id,
     set_redis_ttl=True,
     set_redis_ttl_readheavy=None,
@@ -199,11 +199,11 @@ def RedisSessionFactory(
 
     ``serialize``
     A function to serialize the session dict for storage in Redis.
-    Default: ``cPickle.dumps``.
+    Default: ``pickle.dumps``. PY2=cPickle
 
     ``deserialize``
     A function to deserialize the stored session data in Redis.
-    Default: ``cPickle.loads``.
+    Default: ``pickle.loads``. PY2=cPickle
 
     ``id_generator``
     A function to create a unique ID to be used as the session key when a

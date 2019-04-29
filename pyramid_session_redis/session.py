@@ -7,7 +7,7 @@ from pyramid.exceptions import ConfigurationError
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
-from .compat import cPickle, token_hex
+from .compat import pickle, token_hex
 from .exceptions import (InvalidSession,
                          InvalidSession_DeserializationError,
                          InvalidSession_Lazycreate,
@@ -188,8 +188,8 @@ class RedisSession(object):
         new,
         new_session,
         new_payload_func=None,
-        serialize=cPickle.dumps,
-        deserialize=cPickle.loads,
+        serialize=pickle.dumps,
+        deserialize=pickle.loads,
         set_redis_ttl=True,
         detect_changes=True,
         deserialized_fails_new=None,

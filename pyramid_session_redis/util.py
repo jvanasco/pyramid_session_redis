@@ -10,9 +10,10 @@ from math import ceil
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
+import six
 
 # local
-from .compat import PY3, token_urlsafe
+from .compat import token_urlsafe
 
 
 # ---------------------
@@ -38,13 +39,13 @@ def warn_future(message):
 
 
 def to_binary(value, enc="UTF-8"):  # pragma: no cover
-    if PY3 and isinstance(value, str):
+    if six.PY3 and isinstance(value, str):
         value = value.encode(enc)
     return value
 
 
 def to_unicode(value):  # pragma: no cover
-    if not PY3:
+    if six.PY2:
         value = unicode(value)
     return value
 

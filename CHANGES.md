@@ -3,8 +3,12 @@ Changelog
 =========
 
 - Unreleased
-	* skipped 1.3 release.  not enough usage to warrant backwards compat right now
+    * skipped 1.3 release.  not enough usage to warrant backwards compat right now
     * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
+
+-2019/04/27
+    * version 1.5.0
+    * using six to handle python3 instead of some homegrown things
 
 -10/17/2017
     * version 1.4.2

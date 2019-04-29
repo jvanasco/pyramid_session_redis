@@ -28,7 +28,10 @@ except IOError:
     README = CHANGES = ''
 
 # set up requires
-install_requires = ['redis>=2.4.11, != 2.9.1', 'pyramid>=1.3']
+install_requires = ['redis>=2.4.11, != 2.9.1',
+                    'pyramid>=1.3',
+                    'six',
+                    ]
 testing_requires = ['nose']
 testing_extras = testing_requires + ['coverage']
 docs_extras = ['sphinx']
@@ -45,8 +48,7 @@ def main():
             'Intended Audience :: Developers',
             "Framework :: Pyramid",
             "Programming Language :: Python :: 2.7",
-            "Programming Language :: Python :: 3.3",
-            "Programming Language :: Python :: 3.4",
+            "Programming Language :: Python :: 3",
             ],
         keywords='pyramid session redis',
         author='Jonathan Vanasco',
