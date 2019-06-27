@@ -9,7 +9,7 @@ from . import (
     DummySession,
 )
 from ..util import int_time
-from ..compat import cPickle
+from ..compat import pickle
 
 
 class Test_parse_settings(unittest.TestCase):

@@ -3,11 +3,23 @@ IMPORTANT
 
 `pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for high performance (particularly with servers under load) and a slightly different API for developer convenience.
 
-This package is now following a multi-version release process.
+This package is following a multi-version release process.
+
+The 1.5.x branch is a stable API and designed for Pyramid < 2.
+This is the last branch that will support Pyramid 1.x.
+Projects using this package on Pyramid 1.x should peg their requirements to the 1.5 branch
+
+	"pyramid_session_redis>1.5,<1.6"
+
+The 1.6 branch will be required for Pyramid2 due to breaking changes.
+
+----
+
+Prior branches:
 
 The 1.2.x branch is in maintenance mode as of 1.2.2, and will culminate in a final 1.3.0 release.
 
-The 1.4.x branch is under active development and subject to change.  It will culminate in a stable 1.5.0 API release.
+The 1.4.x branch is under active development and subject to change.  It culminated in a stable 1.5.0 API release.
 
 ----
 

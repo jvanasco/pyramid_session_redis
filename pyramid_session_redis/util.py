@@ -10,9 +10,12 @@ from math import ceil
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
+import six
+from six import PY2
+from six import PY3
 
 # local
-from .compat import PY3, token_urlsafe
+from .compat import token_urlsafe
 
 
 # ---------------------
@@ -44,7 +47,7 @@ def to_binary(value, enc="UTF-8"):  # pragma: no cover
 
 
 def to_unicode(value):  # pragma: no cover
-    if not PY3:
+    if PY2:
         value = unicode(value)
     return value
 

@@ -8,7 +8,7 @@ import pprint
 import time
 import unittest
 
-from ..compat import cPickle
+from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import InvalidSession, InvalidSession_PayloadTimeout, InvalidSession_PayloadLegacy
 from . import DummyRedis
@@ -17,7 +17,7 @@ from ..session import RedisSession
 
 class TestRedisSession(unittest.TestCase):
     def _makeOne(self, redis, session_id, new, func_new_session,
-                 serialize=cPickle.dumps, deserialize=cPickle.loads,
+                 serialize=pickle.dumps, deserialize=pickle.loads,
                  detect_changes=True, set_redis_ttl=True,
                  deserialized_fails_new=None, timeout_trigger=None,
                  timeout=1200, python_expires=True,
@@ -44,7 +44,7 @@ class TestRedisSession(unittest.TestCase):
         )
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
-                                 session_dict=None, serialize=cPickle.dumps):
+                                 session_dict=None, serialize=pickle.dumps):
         """
         Note: this will call `encode_session_payload` with the initial session
         data. On a typical test this will mean an extra initial call to
@@ -593,7 +593,7 @@ class _TestRedisSessionNew_CORE(object):
     session_id = 'session_id'
 
     def _makeOne(self, redis, session_id, new, func_new_session,
-                 serialize=cPickle.dumps, deserialize=cPickle.loads,
+                 serialize=pickle.dumps, deserialize=pickle.loads,
                  detect_changes=True, set_redis_ttl=True,
                  deserialized_fails_new=None, timeout_trigger=None,
                  timeout=1200, python_expires=True,
@@ -622,7 +622,7 @@ class _TestRedisSessionNew_CORE(object):
         )
 
     def _set_up_session_in_redis(self, redis, session_id, timeout,
-                                 session_dict=None, serialize=cPickle.dumps,
+                                 session_dict=None, serialize=pickle.dumps,
                                  session_version=None, expires=None,
                                  python_expires=True, reset_history=True):
         """
@@ -693,7 +693,7 @@ class _TestRedisSessionNew_CORE(object):
             python_expires=python_expires,
         )
 
-    def _deserialize_session(self, session, deserialize=cPickle.loads):
+    def _deserialize_session(self, session, deserialize=pickle.loads):
         _session_id = session.session_id
         _session_data = session.redis.store[_session_id]
         _session_serialized = deserialize(_session_data)

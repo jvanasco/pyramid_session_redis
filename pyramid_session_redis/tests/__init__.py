@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from ..compat import cPickle
+from ..compat import pickle
 
 
 class DummySessionState(object):
@@ -10,7 +10,7 @@ class DummySessionState(object):
 
 class DummySession(object):
     def __init__(self, session_id, redis, timeout=300,
-                 serialize=cPickle.dumps):
+                 serialize=pickle.dumps):
         self.session_id = session_id
         self.redis = redis
         self.timeout = timeout

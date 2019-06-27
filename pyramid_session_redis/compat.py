@@ -3,20 +3,13 @@
 """
 Compatability module for various pythons and environments.
 """
-import sys
-
-PY3 = sys.version_info[0] == 3
-
-
-try:
-    import cPickle
-except ImportError:  # pragma: no cover
-    # python 3 pickle module
-    import pickle as cPickle
-
+import six
+from six.moves import cPickle as pickle
+from six import PY2
+from six import PY3
 
 try:
-    # python3.6 secretc module
+    # python3.6 secrets module
     from secrets import token_urlsafe, token_hex
 except ImportError:  # pragma: no cover
     import os
