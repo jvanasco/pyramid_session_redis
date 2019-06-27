@@ -6,8 +6,10 @@ Changelog
     * skipped 1.3 release.  not enough usage to warrant backwards compat right now
     * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
 
--2019/04/27
+-2019.06.27
     * version 1.5.0
+    * new requirements to prepare for Pyramid 2.0 deprecations
+    * version 1.4.3, originally scheduled for -2019/04/27
     * using six to handle python3 instead of some homegrown things
 
 -10/17/2017
@@ -15,7 +17,6 @@ Changelog
     * set default timeout trigger to `None` (issue #12, forked from #11)
     * migrated `pyramid_session_redis._finished_callback` into `RedisSession._deferred_callback`
     * introduced new `set_redis_ttl_readheavy` option for read-intensive deployments
-    
 
 -10/17/2017
     * version 1.4.1
