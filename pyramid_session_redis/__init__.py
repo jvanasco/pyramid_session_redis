@@ -339,6 +339,18 @@ def RedisSessionFactory(
         _set_redis_ttl_onexit = True
 
     # good for all factory() requests
+    set_cookie_kwargs = {'max_age': cookie_max_age,
+                          'path': cookie_path,
+                          'domain': cookie_domain,
+                          'secure': cookie_secure,
+                          'httponly': cookie_httponly,
+                          }
+    if cookie_comment is not None:
+        set_cookie_kwargs['comment'] = cookie_comment
+    if cookie_samesite is not None:
+        set_cookie_kwargs['samesite'] = cookie_samesite
+
+    # good for all factory() requests
     redis_options = dict(
         host=host,
         port=port,
@@ -436,22 +448,12 @@ def RedisSessionFactory(
                 python_expires=python_expires,
             )
 
-        _set_cookie_kwargs = {'max_age': cookie_max_age,
-                              'path': cookie_path,
-                              'domain': cookie_domain,
-                              'secure': cookie_secure,
-                              'httponly': cookie_httponly,
-                              }
-        if cookie_comment is not None:
-            _set_cookie_kwargs['comment'] = cookie_comment
-        if cookie_samesite is not None:
-            _set_cookie_kwargs['samesite'] = cookie_samesite
         set_cookie_func = functools.partial(
             _set_cookie,
             session,
             secret=secret,
             cookie_name=cookie_name,
-            **_set_cookie_kwargs
+            **set_cookie_kwargs
         )
         cookie_callback = functools.partial(
             _cookie_callback,
@@ -493,7 +495,7 @@ def _set_cookie(
     response,
     secret,
     cookie_name,
-    **_set_cookie_kwargs
+    **kwargs
 ):
     """
     `session` is via functools.partial
@@ -503,7 +505,7 @@ def _set_cookie(
     response.set_cookie(
         cookie_name,
         cookieval,
-        **_set_cookie_kwargs
+        **kwargs
     )
 
 
