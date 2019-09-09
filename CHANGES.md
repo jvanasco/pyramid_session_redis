@@ -2,9 +2,9 @@
 Changelog
 =========
 
-- Unreleased
-    * skipped 1.3 release.  not enough usage to warrant backwards compat right now
-    * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
+-2019.09.xx
+    * version 1.5.1
+    * support for same_site cookies
 
 -2019.06.27
     * version 1.5.0
@@ -32,6 +32,10 @@ Changelog
     * migrated some RedisSessionFactory functions into a more global (not per-request) block
     * added `func_invalid_logger` to session factory, also renamed internal exceptions. they were not a public api so there is no deprecation issue.
     * this seems fine in our production usage, so pushing live.
+
+- Unreleased
+    * skipped 1.3 release.  not enough usage to warrant backwards compat right now
+    * a bunch of api changes to support lazy-created sessions.  the original structure would immediately create sessions, which can cause issues with bots and spidering.
 
 -1/24/2017:
     * version 1.2.2

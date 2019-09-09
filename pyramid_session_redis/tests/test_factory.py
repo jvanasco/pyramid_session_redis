@@ -146,6 +146,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         cookie_domain = 'example.com'
         cookie_secure = True
         cookie_httponly = False
+        cookie_comment = None  # TODO: QA
+        cookie_samesite = None  # TODO: QA
         secret = 'test secret'
 
         request = self._make_request()
@@ -157,6 +159,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             cookie_domain=cookie_domain,
             cookie_secure=cookie_secure,
             cookie_httponly=cookie_httponly,
+            cookie_comment=cookie_comment,
+            cookie_samesite=cookie_samesite,
             secret=secret,
         )
         session['key'] = 'value'
@@ -179,6 +183,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             domain=cookie_domain,
             secure=cookie_secure,
             httponly=cookie_httponly,
+            comment=cookie_comment,
+            samesite=cookie_samesite,
         )
         expected_header = response_to_check_against.headers.getall(
             'Set-Cookie')[0]

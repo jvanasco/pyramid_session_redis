@@ -23,7 +23,7 @@ from .util import (
 )
 
 
-__VERSION__ = '1.5.0rc1'
+__VERSION__ = '1.5.1'
 
 
 configs_dotable = ('client_callable',
@@ -110,6 +110,8 @@ def RedisSessionFactory(
     cookie_domain=None,
     cookie_secure=False,
     cookie_httponly=True,
+    cookie_comment=None,
+    cookie_samesite=None,
     cookie_on_exception=True,
     url=None,
     host='localhost',
@@ -152,22 +154,47 @@ def RedisSessionFactory(
 
     ``cookie_name``
     The name of the cookie used for sessioning. Default: ``session``.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``name``.
 
     ``cookie_max_age``
     The maximum age of the cookie used for sessioning (in seconds).
     Default: ``None`` (browser scope).
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``max_age``.
 
     ``cookie_path``
     The path used for the session cookie. Default: ``/``.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``path``.
 
     ``cookie_domain``
     The domain used for the session cookie. Default: ``None`` (no domain).
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``domain``.
 
     ``cookie_secure``
     The 'secure' flag of the session cookie. Default: ``False``.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``secure``.
 
     ``cookie_httponly``
     The 'httpOnly' flag of the session cookie. Default: ``True``.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``httponly``.
+
+    ``cookie_comment``
+    The 'comment' attribute of the session cookie.  Default: ``None```
+    This is paseed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``comment``.
+    If set to ``None`` or not specified, it will not be passed on.
+
+    ``cookie_samesite``
+    The 'SameSite' attribute of the session cookie.  Default: ``None```
+    This is paseed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``samesite`` and **requires WebOb 1.8.0 or higher**.
+    If set to ``None`` or not specified, it will not be passed on.
+    Should only be ``"Strict"`` or ``"Lax"``.
 
     ``cookie_on_exception``
     If ``True``, set a session cookie even if an exception occurs
@@ -409,16 +436,22 @@ def RedisSessionFactory(
                 python_expires=python_expires,
             )
 
+        _set_cookie_kwargs = {'max_age': cookie_max_age,
+                              'path': cookie_path,
+                              'domain': cookie_domain,
+                              'secure': cookie_secure,
+                              'httponly': cookie_httponly,
+                              }
+        if cookie_comment is not None:
+            _set_cookie_kwargs['comment'] = cookie_comment
+        if cookie_samesite is not None:
+            _set_cookie_kwargs['samesite'] = cookie_samesite
         set_cookie_func = functools.partial(
             _set_cookie,
             session,
-            cookie_name=cookie_name,
-            cookie_max_age=cookie_max_age,
-            cookie_path=cookie_path,
-            cookie_domain=cookie_domain,
-            cookie_secure=cookie_secure,
-            cookie_httponly=cookie_httponly,
             secret=secret,
+            cookie_name=cookie_name,
+            **_set_cookie_kwargs
         )
         cookie_callback = functools.partial(
             _cookie_callback,
@@ -430,9 +463,7 @@ def RedisSessionFactory(
             func_check_response_allow_cookies=func_check_response_allow_cookies,
         )
         request.add_response_callback(cookie_callback)
-
         request.add_finished_callback(session._deferred_callback)
-
         return session
 
     return factory
@@ -460,13 +491,9 @@ def _set_cookie(
     session,
     request,
     response,
-    cookie_name,
-    cookie_max_age,
-    cookie_path,
-    cookie_domain,
-    cookie_secure,
-    cookie_httponly,
     secret,
+    cookie_name,
+    **_set_cookie_kwargs
 ):
     """
     `session` is via functools.partial
@@ -476,11 +503,7 @@ def _set_cookie(
     response.set_cookie(
         cookie_name,
         cookieval,
-        max_age=cookie_max_age,
-        path=cookie_path,
-        domain=cookie_domain,
-        secure=cookie_secure,
-        httponly=cookie_httponly,
+        **_set_cookie_kwargs
     )
 
 
