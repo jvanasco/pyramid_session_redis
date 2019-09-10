@@ -76,7 +76,7 @@ def _generate_session_id():
     return token_urlsafe(48)
 
 
-def prefixed_id(prefix='session:'):
+def prefixed_id(prefix="session:"):
     """
     Adds a prefix to the unique session id, for cases where you want to
     visually distinguish keys in redis.
@@ -94,33 +94,37 @@ def empty_session_payload(timeout=0, python_expires=None):
     """creates an empty session payload
     """
     _created = int_time()
-    data = {'m': {},  # managed_dict
-            'c': _created,  # created
-            'v': SESSION_API_VERSION,  # session
-            }
+    data = {
+        "m": {},  # managed_dict
+        "c": _created,  # created
+        "v": SESSION_API_VERSION,  # session
+    }
     if timeout:
-        data['t'] = timeout  # timeout
+        data["t"] = timeout  # timeout
         if python_expires:
-            data['x'] = _created + timeout
+            data["x"] = _created + timeout
     return data
 
 
-def encode_session_payload(managed_dict, created, timeout, expires, timeout_trigger=None, python_expires=None):
+def encode_session_payload(
+    managed_dict, created, timeout, expires, timeout_trigger=None, python_expires=None
+):
     """called by a session to recode for storage;
        inverse of ``decode_session_payload``
     """
-    data = {'m': managed_dict,  # managed_dict
-            'c': created,  # created
-            'v': SESSION_API_VERSION,  # session_api version
-            }
+    data = {
+        "m": managed_dict,  # managed_dict
+        "c": created,  # created
+        "v": SESSION_API_VERSION,  # session_api version
+    }
     if expires and python_expires:
-        data['x'] = expires
+        data["x"] = expires
     if timeout:
-        data['t'] = timeout  # timeout
+        data["t"] = timeout  # timeout
         if python_expires:
             time_now = int_time()
             if not timeout_trigger or (time_now >= (expires - timeout_trigger)):
-                data['x'] = time_now + timeout  # expires
+                data["x"] = time_now + timeout  # expires
     return data
 
 
@@ -128,12 +132,13 @@ def decode_session_payload(payload):
     """decode a serialized session payload to kwargs
        inverse of ``encode_session_payload``
     """
-    return {'managed_dict': payload['m'],
-            'created': payload['c'],
-            'version': payload['v'],
-            'timeout': payload.get('t'),
-            'expires': payload.get('x'),
-            }
+    return {
+        "managed_dict": payload["m"],
+        "created": payload["c"],
+        "version": payload["v"],
+        "timeout": payload.get("t"),
+        "expires": payload.get("x"),
+    }
 
 
 def _insert_session_id_if_unique(
@@ -218,34 +223,42 @@ def _parse_settings(settings):
     Convenience function to collect settings prefixed by 'redis.sessions' and
     coerce settings to ``int``, ``float``, and ``bool`` as needed.
     """
-    keys = [s for s in settings if s.startswith('redis.sessions.')]
+    keys = [s for s in settings if s.startswith("redis.sessions.")]
 
     options = {}
 
     for k in keys:
-        param = k.split('.')[-1]
+        param = k.split(".")[-1]
         value = settings[k]
         options[param] = value
 
     # only required setting
-    if 'secret' not in options:
-        raise ConfigurationError('redis.sessions.secret is a required setting')
+    if "secret" not in options:
+        raise ConfigurationError("redis.sessions.secret is a required setting")
 
     # coerce bools
-    for b in ('cookie_secure', 'cookie_httponly', 'cookie_on_exception',
-              'set_redis_ttl', 'python_expires', ):
+    for b in (
+        "cookie_secure",
+        "cookie_httponly",
+        "cookie_on_exception",
+        "set_redis_ttl",
+        "set_redis_ttl_readheavy",
+        "detect_changes",
+        "deserialized_fails_new",
+        "python_expires",
+    ):
         if b in options:
             options[b] = asbool(options[b])
 
     # coerce ints
-    for i in ('port', 'db', 'cookie_max_age'):
+    for i in ("port", "db", "cookie_max_age"):
         if i in options:
             options[i] = int(options[i])
 
     # allow "None" to be a value for some ints
-    for i in ('timeout', 'timeout_trigger'):
+    for i in ("timeout", "timeout_trigger"):
         if i in options:
-            if options[i] == 'None':
+            if options[i] == "None":
                 options[i] = None
             else:
                 options[i] = int(options[i])
@@ -253,18 +266,18 @@ def _parse_settings(settings):
                     options[i] = None
 
     # coerce float
-    if 'socket_timeout' in options:
-        options['socket_timeout'] = float(options['socket_timeout'])
+    if "socket_timeout" in options:
+        options["socket_timeout"] = float(options["socket_timeout"])
 
     # check for settings conflict
-    if 'prefix' in options and 'id_generator' in options:
-        err = 'cannot specify custom id_generator and a key prefix'
+    if "prefix" in options and "id_generator" in options:
+        err = "cannot specify custom id_generator and a key prefix"
         raise ConfigurationError(err)
 
     # convenience setting for overriding key prefixes
-    if 'prefix' in options:
-        prefix = options.pop('prefix')
-        options['id_generator'] = partial(prefixed_id, prefix=prefix)
+    if "prefix" in options:
+        prefix = options.pop("prefix")
+        options["id_generator"] = partial(prefixed_id, prefix=prefix)
 
     return options
 
@@ -276,6 +289,7 @@ def refresh(wrapped):
     handled in a callback.
     To immediately persist a session, call `session.do_refresh`.
     """
+
     def wrapped_refresh(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
         session._session_state.please_refresh = True
@@ -292,6 +306,7 @@ def persist(wrapped):
     handled in a callback.
     To immediately persist a session, call `session.do_persist`.
     """
+
     def wrapped_persist(session, *arg, **kw):
         result = wrapped(session, *arg, **kw)
         session._session_state.please_persist = True
