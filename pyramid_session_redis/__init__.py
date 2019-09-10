@@ -17,20 +17,12 @@ from .util import (
     warn_future,
     empty_session_payload,
     LAZYCREATE_SESSION,
+    configs_bool,  # not used here, but included for legacy
+    configs_dotable,
 )
 
 
 __VERSION__ = "1.5.1"
-
-
-configs_dotable = (
-    "client_callable",
-    "serialize",
-    "deserialize",
-    "id_generator",
-    "func_check_response_allow_cookies",
-    "func_invalid_logger",
-)
 
 
 def check_response_allow_cookies(response):

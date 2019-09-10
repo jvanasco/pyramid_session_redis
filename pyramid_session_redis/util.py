@@ -76,6 +76,40 @@ def _generate_session_id():
     return token_urlsafe(48)
 
 
+# ---------------------
+
+# `_parse_settings` and `includeme` may need to coerce strings into other types
+# these lists are maintained here as a public API, so implementers who need
+# to customize their integration can do so without fear of breaking changes
+
+configs_dotable = (
+    "client_callable",
+    "serialize",
+    "deserialize",
+    "id_generator",
+    "func_check_response_allow_cookies",
+    "func_invalid_logger",
+)
+
+configs_bool = (
+    "cookie_secure",
+    "cookie_httponly",
+    "cookie_on_exception",
+    "set_redis_ttl",
+    "set_redis_ttl_readheavy",
+    "detect_changes",
+    "deserialized_fails_new",
+    "python_expires",
+)
+
+configs_int = ("port", "db", "cookie_max_age")
+
+configs_int_none = ("timeout", "timeout_trigger")
+
+
+# ---------------------
+
+
 def prefixed_id(prefix="session:"):
     """
     Adds a prefix to the unique session id, for cases where you want to
@@ -237,26 +271,17 @@ def _parse_settings(settings):
         raise ConfigurationError("redis.sessions.secret is a required setting")
 
     # coerce bools
-    for b in (
-        "cookie_secure",
-        "cookie_httponly",
-        "cookie_on_exception",
-        "set_redis_ttl",
-        "set_redis_ttl_readheavy",
-        "detect_changes",
-        "deserialized_fails_new",
-        "python_expires",
-    ):
+    for b in configs_bool:
         if b in options:
             options[b] = asbool(options[b])
 
     # coerce ints
-    for i in ("port", "db", "cookie_max_age"):
+    for i in configs_int:
         if i in options:
             options[i] = int(options[i])
 
     # allow "None" to be a value for some ints
-    for i in ("timeout", "timeout_trigger"):
+    for i in configs_int_none:
         if i in options:
             if options[i] == "None":
                 options[i] = None
