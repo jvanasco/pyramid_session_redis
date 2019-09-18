@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 #
-# pyramid_redis_sessions documentation build configuration file, created by
+# pyramid_session_rediss documentation build configuration file, created by
 # sphinx-quickstart on Sun Feb 10 13:51:58 2013.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -47,8 +47,8 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"pyramid_redis_sessions"
-copyright = u"2013, Eric Rasmussen"
+project = u"pyramid_session_redis"
+copyright = u"2016-2019, Jonathan Vanasco"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -171,7 +171,7 @@ html_theme = "default"
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "pyramid_redis_sessionsdoc"
+htmlhelp_basename = "pyramid_session_redisdoc"
 
 
 # -- Options for LaTeX output -------------------------------------------------
@@ -190,9 +190,9 @@ latex_elements = {
 latex_documents = [
     (
         "index",
-        "pyramid_redis_sessions.tex",
-        u"pyramid\\_redis\\_sessions Documentation",
-        u"Eric Rasmussen",
+        "pyramid_session_redis.tex",
+        u"pyramid\\_session\\_redis Documentation",
+        u"Jonathan Vanasco",
         "manual",
     )
 ]
@@ -225,9 +225,9 @@ latex_documents = [
 man_pages = [
     (
         "index",
-        "pyramid_redis_sessions",
-        u"pyramid_redis_sessions Documentation",
-        [u"Eric Rasmussen"],
+        "pyramid_session_redis",
+        u"pyramid_session_redis Documentation",
+        [u"Jonathan Vanasco"],
         1,
     )
 ]
@@ -244,10 +244,10 @@ man_pages = [
 texinfo_documents = [
     (
         "index",
-        "pyramid_redis_sessions",
-        u"pyramid_redis_sessions Documentation",
-        u"Eric Rasmussen",
-        "pyramid_redis_sessions",
+        "pyramid_session_redis",
+        u"pyramid_session_redis Documentation",
+        u"Jonathan Vanasco",
+        "pyramid_session_redis",
         u"Fast pyramid sessions with redis.",
         u"Miscellaneous",
     )
