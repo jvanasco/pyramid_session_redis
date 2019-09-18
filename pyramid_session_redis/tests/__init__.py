@@ -9,8 +9,7 @@ class DummySessionState(object):
 
 
 class DummySession(object):
-    def __init__(self, session_id, redis, timeout=300,
-                 serialize=pickle.dumps):
+    def __init__(self, session_id, redis, timeout=300, serialize=pickle.dumps):
         self.session_id = session_id
         self.redis = redis
         self.timeout = timeout
@@ -21,11 +20,9 @@ class DummySession(object):
         self._session_state = DummySessionState()
 
     def to_redis(self):
-        data = {'m': self.managed_dict,
-                'c': self.created,
-                }
+        data = {"m": self.managed_dict, "c": self.created}
         if self.timeout:
-            data['t'] = self.timeout
+            data["t"] = self.timeout
         return self.serialize(data)
 
 
@@ -50,12 +47,12 @@ class DummyRedis(object):
         return redis
 
     def get(self, key):
-        self._history.append(('get', key, ))
+        self._history.append(("get", key))
         return self.store.get(key)
 
     def set(self, key, value, debug=None):
         self.store[key] = value
-        self._history.append(('set', key, value, debug))
+        self._history.append(("set", key, value, debug))
 
     def setex(self, key, timeout, value, debug=None):
         # Redis is `key, value, timeout`
@@ -63,7 +60,7 @@ class DummyRedis(object):
         # this package uses StrictRedis
         self.store[key] = value
         self.timeouts[key] = timeout
-        self._history.append(('setex', key, timeout, value, debug))
+        self._history.append(("setex", key, timeout, value, debug))
 
     def delete(self, *keys):
         for key in keys:
@@ -74,7 +71,7 @@ class DummyRedis(object):
 
     def expire(self, key, timeout):
         self.timeouts[key] = timeout
-        self._history.append(('expire', key, timeout, ))
+        self._history.append(("expire", key, timeout))
 
     def ttl(self, key):
         return self.timeouts.get(key)
@@ -101,26 +98,27 @@ class DummyPipeline(object):
 
     def set(self, key, value, debug=None):
         self.store[key] = value
-        self._history.append(('set', key, debug))
-        self._redis_con._history.append(('pipeline.set', key, value, debug))
+        self._history.append(("set", key, debug))
+        self._redis_con._history.append(("pipeline.set", key, value, debug))
 
     def get(self, key):
-        self._history.append(('get', key, ))
-        self._redis_con._history.append(('pipeline.get', key, ))
+        self._history.append(("get", key))
+        self._redis_con._history.append(("pipeline.get", key))
         return self.store.get(key)
 
     def expire(self, key, timeout):
-        self._history.append(('expire', key, timeout, ))
-        self._redis_con._history.append(('pipeline.expire', key, timeout, ))
+        self._history.append(("expire", key, timeout))
+        self._redis_con._history.append(("pipeline.expire", key, timeout))
 
     def setex(self, key, timeout, value, debug=None):
         self.store[key] = value
-        self._history.append(('setex', key, timeout, debug))
-        self._redis_con._history.append(('pipeline.setex', key, timeout, value, debug))
+        self._history.append(("setex", key, timeout, debug))
+        self._redis_con._history.append(("pipeline.setex", key, timeout, value, debug))
 
     def watch(self, key):
         if self.raise_watcherror:
             from redis.exceptions import WatchError
+
             raise WatchError
 
     def execute(self):

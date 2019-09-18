@@ -20,9 +20,9 @@ except ImportError:  # pragma: no cover
         return os.urandom(nbytes)
 
     def token_urlsafe(nbytes=32):
-        token = base64.urlsafe_b64encode(token_bytes(nbytes)).rstrip(b'=')
-        return token.decode('ascii') if PY3 else token
+        token = base64.urlsafe_b64encode(token_bytes(nbytes)).rstrip(b"=")
+        return token.decode("ascii") if PY3 else token
 
     def token_hex(nbytes=32):
         token = binascii.hexlify(token_bytes(nbytes))
-        return token.decode('ascii') if PY3 else token
+        return token.decode("ascii") if PY3 else token

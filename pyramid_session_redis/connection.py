@@ -47,10 +47,9 @@ connect.
 from redis import StrictRedis
 
 
-def get_default_connection(request,
-                           url=None,
-                           redis_client=StrictRedis,
-                           **redis_options):
+def get_default_connection(
+    request, url=None, redis_client=StrictRedis, **redis_options
+):
     """
     Default Redis connection handler. Once a connection is established it is
     saved in `request.registry`.
@@ -73,7 +72,7 @@ def get_default_connection(request,
     An instance of `StrictRedis`
     """
     # attempt to get an existing connection from the registry
-    redis = getattr(request.registry, '_redis_sessions', None)
+    redis = getattr(request.registry, "_redis_sessions", None)
 
     # if we found an active connection, return it
     if redis is not None:
@@ -82,23 +81,23 @@ def get_default_connection(request,
     # otherwise create a new connection
     if url is not None:
         # remove defaults to avoid duplicating settings in the `url`
-        redis_options.pop('password', None)
-        redis_options.pop('host', None)
-        redis_options.pop('port', None)
-        redis_options.pop('db', None)
+        redis_options.pop("password", None)
+        redis_options.pop("host", None)
+        redis_options.pop("port", None)
+        redis_options.pop("db", None)
         # the StrictRedis.from_url option no longer takes a socket
         # argument. instead, sockets should be encoded in the URL if
         # used. example:
         #     unix://[:password]@/path/to/socket.sock?db=0
-        redis_options.pop('unix_socket_path', None)
+        redis_options.pop("unix_socket_path", None)
         # connection pools are also no longer a valid option for
         # loading via URL
-        redis_options.pop('connection_pool', None)
+        redis_options.pop("connection_pool", None)
         redis = redis_client.from_url(url, **redis_options)
     else:
         redis = redis_client(**redis_options)
 
     # save the new connection in the registry
-    setattr(request.registry, '_redis_sessions', redis)
+    setattr(request.registry, "_redis_sessions", redis)
 
     return redis

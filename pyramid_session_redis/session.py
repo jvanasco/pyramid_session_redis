@@ -8,14 +8,15 @@ from pyramid.interfaces import ISession
 from zope.interface import implementer
 
 from .compat import pickle, token_hex
-from .exceptions import (InvalidSession,
-                         InvalidSession_DeserializationError,
-                         InvalidSession_Lazycreate,
-                         InvalidSession_PayloadLegacy,
-                         InvalidSession_NotInBackend,
-                         InvalidSession_PayloadTimeout,
-                         RawDeserializationError,
-                         )
+from .exceptions import (
+    InvalidSession,
+    InvalidSession_DeserializationError,
+    InvalidSession_Lazycreate,
+    InvalidSession_PayloadLegacy,
+    InvalidSession_NotInBackend,
+    InvalidSession_PayloadTimeout,
+    RawDeserializationError,
+)
 from .util import (
     persist,
     refresh,
@@ -221,18 +222,14 @@ class RedisSession(object):
         self._timeout_trigger = timeout_trigger
         self._python_expires = python_expires
         self._new = new
-        self._session_state = self._make_session_state(
-            session_id=session_id,
-            new=new,
-        )
+        self._session_state = self._make_session_state(session_id=session_id, new=new)
         if _set_redis_ttl_onexit:
             self._session_state.please_refresh = True
 
     def _resync(self):
         """resyncs the session. this is really only needed for testing."""
         self._session_state = self._make_session_state(
-            session_id=self.session_id,
-            new=self._new,
+            session_id=self.session_id, new=self._new
         )
 
     def new_session(self):
@@ -274,10 +271,7 @@ class RedisSession(object):
         allows this method to execute, and `reify` puts the new result in the
         object's dict.
         """
-        return self._make_session_state(
-            session_id=LAZYCREATE_SESSION,
-            new=True,
-        )
+        return self._make_session_state(session_id=LAZYCREATE_SESSION, new=True)
 
     @reify
     def timestamp(self):
@@ -293,26 +287,28 @@ class RedisSession(object):
             # self.from_redis needs to take a session_id here, because otherwise it
             # would look up self.session_id, which is not ready yet as
             # session_state has not been created yet.
-            (persisted,
-             persisted_hash
-             ) = self.from_redis(session_id=session_id,
-                                 persisted_hash=(True if self._detect_changes
-                                                 else False),
-                                 )
-            expires = persisted.get('x')
+            (persisted, persisted_hash) = self.from_redis(
+                session_id=session_id,
+                persisted_hash=(True if self._detect_changes else False),
+            )
+            expires = persisted.get("x")
             if expires:
                 if self.timestamp > expires:
-                    raise InvalidSession_PayloadTimeout("`session_id` (%s) timed out in python" % session_id)
-            version = persisted.get('v')
+                    raise InvalidSession_PayloadTimeout(
+                        "`session_id` (%s) timed out in python" % session_id
+                    )
+            version = persisted.get("v")
             if not version or (version < SESSION_API_VERSION):
-                raise InvalidSession_PayloadLegacy("`session_id` (%s) is a legacy format" % session_id)
+                raise InvalidSession_PayloadLegacy(
+                    "`session_id` (%s) is a legacy format" % session_id
+                )
         return _SessionState(
             session_id=session_id,
-            managed_dict=persisted['m'],  # managed_dict
-            created=persisted['c'],  # created
-            timeout=persisted.get('t'),  # timeout
-            expires=persisted.get('x'),  # expires
-            version=persisted.get('v'),  # session api version
+            managed_dict=persisted["m"],  # managed_dict
+            created=persisted["c"],  # created
+            timeout=persisted.get("t"),  # timeout
+            expires=persisted.get("x"),  # expires
+            version=persisted.get("v"),  # session api version
             new=new,
             persisted_hash=persisted_hash,
         )
@@ -352,13 +348,14 @@ class RedisSession(object):
         Primarily used by the ``@persist`` decorator to save the current
         session state to Redis.
         """
-        data = self.encode_session_payload(self.managed_dict,
-                                           self.created,
-                                           self.timeout,
-                                           self.expires,
-                                           timeout_trigger=self._timeout_trigger,
-                                           python_expires=self._python_expires,
-                                           )
+        data = self.encode_session_payload(
+            self.managed_dict,
+            self.created,
+            self.timeout,
+            self.expires,
+            timeout_trigger=self._timeout_trigger,
+            python_expires=self._python_expires,
+        )
         return self.serialize(data)
 
     def from_redis(self, session_id=None, persisted_hash=None):
@@ -372,7 +369,6 @@ class RedisSession(object):
         if _session_id == LAZYCREATE_SESSION:
             raise InvalidSession_Lazycreate("`session_id` is LAZYCREATE_SESSION")
 
-
         # optimize a `TTL refresh` under certain conditions
         persisted = None
         if self._set_redis_ttl_readheavy:
@@ -381,16 +377,20 @@ class RedisSession(object):
                 _updated = pipe.expire(_session_id, self._timeout)
             # mark that we shouldn't refresh
             self._session_state.dont_refresh = True
-        else:        
+        else:
             persisted = self.redis.get(_session_id)
 
         if persisted is None:
-            raise InvalidSession_NotInBackend("`session_id` (%s) not in Redis" % _session_id)
+            raise InvalidSession_NotInBackend(
+                "`session_id` (%s) not in Redis" % _session_id
+            )
         try:
             deserialized = self.deserialize(persisted)
         except Exception as e:
             if self._deserialized_fails_new:
-                raise InvalidSession_DeserializationError("`session_id` (%s) did not deserialize correctly" % _session_id)
+                raise InvalidSession_DeserializationError(
+                    "`session_id` (%s) did not deserialize correctly" % _session_id
+                )
             raise RawDeserializationError(e)
         if persisted_hash is True:
             return (deserialized, hashed_value(persisted))
@@ -433,7 +433,9 @@ class RedisSession(object):
         self.ensure_id()
         if serialized_session is None:
             serialized_session = self.to_redis()
-        serverside_timeout = True if ((self.timeout is not None) and (self._set_redis_ttl)) else False
+        serverside_timeout = (
+            True if ((self.timeout is not None) and (self._set_redis_ttl)) else False
+        )
         if serverside_timeout:
             self.redis.setex(self.session_id, self.timeout, serialized_session)
         else:
@@ -553,29 +555,29 @@ class RedisSession(object):
     # session methods persist or refresh using above dict methods
     def new_csrf_token(self):
         token = token_hex(32)
-        self['_csrft_'] = token
+        self["_csrft_"] = token
         return token
 
     def get_csrf_token(self):
-        token = self.get('_csrft_', None)
+        token = self.get("_csrft_", None)
         if token is None:
             token = self.new_csrf_token()
         else:
             token = to_unicode(token)
         return token
 
-    def flash(self, msg, queue='', allow_duplicate=True):
-        storage = self.setdefault('_f_' + queue, [])
+    def flash(self, msg, queue="", allow_duplicate=True):
+        storage = self.setdefault("_f_" + queue, [])
         if allow_duplicate or (msg not in storage):
             storage.append(msg)
             self.changed()  # notify redis of change to ``storage`` mutable
 
-    def peek_flash(self, queue=''):
-        storage = self.get('_f_' + queue, [])
+    def peek_flash(self, queue=""):
+        storage = self.get("_f_" + queue, [])
         return storage
 
-    def pop_flash(self, queue=''):
-        storage = self.pop('_f_' + queue, [])
+    def pop_flash(self, queue=""):
+        storage = self.pop("_f_" + queue, [])
         return storage
 
     # RedisSession extra methods
@@ -603,8 +605,7 @@ class RedisSession(object):
         it has been invalidated but a new session has not been created in its
         place.
         """
-        return '_session_state' not in self.__dict__
-
+        return "_session_state" not in self.__dict__
 
     def _deferred_callback(self, request):
         """
@@ -612,7 +613,7 @@ class RedisSession(object):
         `request` is appended by pyramid's `add_finished_callback` which should
         invkoe this.
         """
-        if '_session_state' not in self.__dict__:
+        if "_session_state" not in self.__dict__:
             # _session_state is a reified property, which is saved into the dict
             # if we call `session.invalidate()` the session is immediately deleted
             # however, accessing it here will trigger a new _session_state creation
@@ -636,4 +637,3 @@ class RedisSession(object):
         if not self._session_state.dont_refresh:
             if self._session_state.please_refresh:
                 self.do_refresh()
-
