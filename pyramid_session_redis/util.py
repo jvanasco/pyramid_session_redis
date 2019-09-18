@@ -89,7 +89,7 @@ configs_dotable = (
     "id_generator",
     "func_check_response_allow_cookies",
     "func_invalid_logger",
-    "signed_serializer",
+    "cookie_signer",
 )
 
 configs_bool = (

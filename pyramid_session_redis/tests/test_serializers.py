@@ -26,70 +26,70 @@ class TestNullSerializer(unittest.TestCase):
 
 class TestCookieSerialization(unittest.TestCase):
     def _makeOne_default(self, secret):
-        signed_serializer = SignedSerializer(
+        cookie_signer = SignedSerializer(
             secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
         )
-        return signed_serializer
+        return cookie_signer
 
     def _makeOne_legacy(self, secret):
-        signed_serializer = LegacyCookieSerializer(secret)
-        return signed_serializer
+        cookie_signer = LegacyCookieSerializer(secret)
+        return cookie_signer
 
     def _makeOne_graceful(self, secret, logging_hook=None):
-        signed_serializer = GracefulCookieSerializer(secret, logging_hook=logging_hook)
-        return signed_serializer
+        cookie_signer = GracefulCookieSerializer(secret, logging_hook=logging_hook)
+        return cookie_signer
 
     def test_roundtrip_default(self):
         secret = "foo"
         session_id = "123"
-        signed_serializer = self._makeOne_default(secret)
-        _serialized = signed_serializer.dumps(session_id)
-        self.assertEqual(session_id, signed_serializer.loads(_serialized))
+        cookie_signer = self._makeOne_default(secret)
+        _serialized = cookie_signer.dumps(session_id)
+        self.assertEqual(session_id, cookie_signer.loads(_serialized))
 
     def test_roundtrip_legacy(self):
         secret = "foo"
         session_id = "123"
-        signed_serializer = self._makeOne_legacy(secret)
-        _serialized = signed_serializer.dumps(session_id)
-        self.assertEqual(session_id, signed_serializer.loads(_serialized))
+        cookie_signer = self._makeOne_legacy(secret)
+        _serialized = cookie_signer.dumps(session_id)
+        self.assertEqual(session_id, cookie_signer.loads(_serialized))
 
     def test_incompatible(self):
         secret = "foo"
         session_id = "123"
-        signed_serializer_current = self._makeOne_default(secret)
-        signed_serializer_legacy = self._makeOne_legacy(secret)
-        _serialized_current = signed_serializer_current.dumps(session_id)
-        _serialized_legacy = signed_serializer_legacy.dumps(session_id)
+        cookie_signer_current = self._makeOne_default(secret)
+        cookie_signer_legacy = self._makeOne_legacy(secret)
+        _serialized_current = cookie_signer_current.dumps(session_id)
+        _serialized_legacy = cookie_signer_legacy.dumps(session_id)
         self.assertNotEqual(_serialized_current, _serialized_legacy)
         self.assertRaises(
-            ValueError, signed_serializer_legacy.loads, _serialized_current
+            ValueError, cookie_signer_legacy.loads, _serialized_current
         )
         self.assertRaises(
-            ValueError, signed_serializer_current.loads, _serialized_legacy
+            ValueError, cookie_signer_current.loads, _serialized_legacy
         )
 
     def test_graceful(self):
         secret = "foo"
         session_id = "123"
-        signed_serializer_current = self._makeOne_default(secret)
-        signed_serializer_legacy = self._makeOne_legacy(secret)
-        signed_serializer_graceful = self._makeOne_graceful(secret)
+        cookie_signer_current = self._makeOne_default(secret)
+        cookie_signer_legacy = self._makeOne_legacy(secret)
+        cookie_signer_graceful = self._makeOne_graceful(secret)
 
-        _serialized_current = signed_serializer_current.dumps(session_id)
-        _serialized_legacy = signed_serializer_legacy.dumps(session_id)
-        _serialized_graceful = signed_serializer_graceful.dumps(session_id)
+        _serialized_current = cookie_signer_current.dumps(session_id)
+        _serialized_legacy = cookie_signer_legacy.dumps(session_id)
+        _serialized_graceful = cookie_signer_graceful.dumps(session_id)
 
         self.assertEqual(_serialized_current, _serialized_graceful)
         self.assertNotEqual(_serialized_legacy, _serialized_graceful)
 
         self.assertEqual(
-            session_id, signed_serializer_graceful.loads(_serialized_current)
+            session_id, cookie_signer_graceful.loads(_serialized_current)
         )
         self.assertEqual(
-            session_id, signed_serializer_graceful.loads(_serialized_graceful)
+            session_id, cookie_signer_graceful.loads(_serialized_graceful)
         )
         self.assertEqual(
-            session_id, signed_serializer_graceful.loads(_serialized_legacy)
+            session_id, cookie_signer_graceful.loads(_serialized_legacy)
         )
 
     def test_graceful_hooks(self):
@@ -113,31 +113,31 @@ class TestCookieSerialization(unittest.TestCase):
 
         logging_hook = LoggingHook()
 
-        signed_serializer_legacy = self._makeOne_legacy(secret)
-        signed_serializer_graceful = self._makeOne_graceful(secret, logging_hook)
-        _serialized_graceful = signed_serializer_graceful.dumps(session_id)
-        _serialized_legacy = signed_serializer_legacy.dumps(session_id)
+        cookie_signer_legacy = self._makeOne_legacy(secret)
+        cookie_signer_graceful = self._makeOne_graceful(secret, logging_hook)
+        _serialized_graceful = cookie_signer_graceful.dumps(session_id)
+        _serialized_legacy = cookie_signer_legacy.dumps(session_id)
 
         self.assertEqual(len(logging_hook._attempts), 0)
         self.assertEqual(len(logging_hook._successes), 0)
 
-        signed_serializer_graceful.loads(_serialized_graceful)
+        cookie_signer_graceful.loads(_serialized_graceful)
 
         self.assertEqual(len(logging_hook._attempts_global), 1)
         self.assertEqual(len(logging_hook._attempts), 1)
         self.assertEqual(len(logging_hook._successes), 1)
 
-        signed_serializer_graceful.loads(_serialized_legacy)
+        cookie_signer_graceful.loads(_serialized_legacy)
         self.assertEqual(len(logging_hook._attempts_global), 2)
         self.assertEqual(len(logging_hook._attempts), 3)
         self.assertEqual(len(logging_hook._successes), 2)
 
-        signed_serializer_graceful.loads(_serialized_graceful)
+        cookie_signer_graceful.loads(_serialized_graceful)
         self.assertEqual(len(logging_hook._attempts_global), 3)
         self.assertEqual(len(logging_hook._attempts), 4)
         self.assertEqual(len(logging_hook._successes), 3)
 
-        self.assertRaises(ValueError, signed_serializer_graceful.loads, "foo")
+        self.assertRaises(ValueError, cookie_signer_graceful.loads, "foo")
         self.assertEqual(len(logging_hook._attempts_global), 4)
         self.assertEqual(len(logging_hook._attempts), 6)
         self.assertEqual(len(logging_hook._successes), 3)

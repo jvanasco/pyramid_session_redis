@@ -69,10 +69,10 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         return session_id
 
     def _serialize(self, session_id, secret="secret"):
-        signed_serializer = SignedSerializer(
+        cookie_signer = SignedSerializer(
             secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
         )
-        return signed_serializer.dumps(session_id)
+        return cookie_signer.dumps(session_id)
 
     def _set_session_cookie(
         self, request, session_id, cookie_name="session", secret="secret"

@@ -12,7 +12,7 @@ Changelog
       which are removed in Pyramid 1.10.0+. This is not handled by constructing a
       `webob.cookies.SignedSerializer()` based on the `secret` and using a `_NullSerializer`
       to provide compatibility (it just lets the input string pass through). If 
-      desired, a devloper can provide a `signed_serializer` function instead of
+      desired, a devloper can provide a `cookie_signer` object instance instead of
       using this function.
     * new `pyramid_session_redis.legacy` - tools to deal with upcoming Pyramid API
       changes (see issue #19)
