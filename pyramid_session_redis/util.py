@@ -89,6 +89,7 @@ configs_dotable = (
     "id_generator",
     "func_check_response_allow_cookies",
     "func_invalid_logger",
+    "signed_serializer",
 )
 
 configs_bool = (
@@ -338,3 +339,16 @@ def persist(wrapped):
         return result
 
     return wrapped_persist
+
+
+class _NullSerializer(object):
+    """
+    A fake serializer for compatibility with ``webob.cookies.SignedSerializer``.
+    Our usage is only signing the session_id, which is a string. 
+    """
+
+    def loads(self, data):
+        return data
+
+    def dumps(self, data):
+        return data

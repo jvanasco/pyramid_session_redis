@@ -2,6 +2,11 @@
 TODO
 =========
 
+# Tests for better integration of the cookie serializer
+
+The existing tests on this concept are largely from pyramid_redis_session and may not test what we need
+
+
 # Tests for `timeout_trigger`
 
 The testsuite needs to test that timeout trigger is being correctly triggered 

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-
+# stdlib
 import functools
 import time
 
+# pypi/pyramid
 from pyramid.exceptions import ConfigurationError
-from pyramid.session import signed_deserialize, signed_serialize
+from webob.cookies import SignedSerializer
 
+# local
 from .compat import pickle
 from .connection import get_default_connection
 from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
@@ -19,10 +21,11 @@ from .util import (
     LAZYCREATE_SESSION,
     configs_bool,  # not used here, but included for legacy
     configs_dotable,
+    _NullSerializer,
 )
 
 
-__VERSION__ = "1.5.1"
+__VERSION__ = "1.5.0rc2"
 
 
 def check_response_allow_cookies(response):
@@ -111,6 +114,7 @@ def RedisSessionFactory(
     func_invalid_logger=None,
     timeout_trigger=None,
     python_expires=True,
+    signed_serializer=None,
     socket_timeout=None,
     connection_pool=None,
     charset="utf-8",
@@ -127,7 +131,8 @@ def RedisSessionFactory(
     Parameters:
 
     ``secret``
-    A string which is used to sign the cookie.
+    A string which is used to sign the cookie.  As an alternate, you can set this
+    to ``None`` and provide a ``signed_serializer`` argument.
 
     ``timeout``
     A number of seconds of inactivity before a session times out.
@@ -283,6 +288,14 @@ def RedisSessionFactory(
     If ``True``, allows for timeout logic to be
     tracked in Python.
 
+    ``signed_serializer``
+    Default: ``None``
+    If specified,  ``secret`` must be ``None``.
+    An object with two methods, ``loads`` and ``dumps``.
+    The ``loads`` method should accept bytes and return a Python object.
+    The ``dumps`` method should accept a Python object and return bytes.
+    A ``ValueError`` should be raised for malformed inputs.  
+
     ``socket_timeout``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
@@ -398,6 +411,18 @@ def RedisSessionFactory(
         cookie_domain=cookie_domain,
     )
 
+    if (secret is not None and signed_serializer is not None) or (
+        secret is None and signed_serializer is None
+    ):
+        raise ValueError(
+            "One, and only one, of `secret` and `signed_serializer` must be provided."
+        )
+    if secret is not None:
+        # the second argument is the salt. customizing this would needlessly complicate integration
+        signed_serializer = SignedSerializer(
+            secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
+        )
+
     def factory(request, new_session_id_func=create_unique_session_id):
 
         # an explicit client callable gets priority over the default
@@ -423,7 +448,9 @@ def RedisSessionFactory(
         try:
             # attempt to retrieve a session_id from the cookie
             session_id = _get_session_id_from_cookie(
-                request=request, cookie_name=cookie_name, secret=secret
+                request=request,
+                cookie_name=cookie_name,
+                signed_serializer=signed_serializer,
             )
             if not session_id:
                 raise InvalidSession_NoSessionCookie("No `session_id` in cookie.")
@@ -471,7 +498,7 @@ def RedisSessionFactory(
         set_cookie_func = functools.partial(
             _set_cookie,
             session,
-            secret=secret,
+            signed_serializer=signed_serializer,
             cookie_name=cookie_name,
             **set_cookie_kwargs
         )
@@ -491,7 +518,7 @@ def RedisSessionFactory(
     return factory
 
 
-def _get_session_id_from_cookie(request, cookie_name, secret):
+def _get_session_id_from_cookie(request, cookie_name, signed_serializer):
     """
     Attempts to retrieve and return a session ID from a session cookie in the
     current request. Returns None if the cookie isn't found or the value cannot
@@ -501,7 +528,7 @@ def _get_session_id_from_cookie(request, cookie_name, secret):
 
     if cookieval is not None:
         try:
-            session_id = signed_deserialize(cookieval, secret)
+            session_id = signed_serializer.loads(cookieval)
             return session_id
         except ValueError:
             pass
@@ -509,12 +536,12 @@ def _get_session_id_from_cookie(request, cookie_name, secret):
     return None
 
 
-def _set_cookie(session, request, response, secret, cookie_name, **kwargs):
+def _set_cookie(session, request, response, signed_serializer, cookie_name, **kwargs):
     """
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
-    cookieval = signed_serialize(session.session_id, secret)
+    cookieval = signed_serializer.dumps(session.session_id)
     response.set_cookie(cookie_name, cookieval, **kwargs)
 
 

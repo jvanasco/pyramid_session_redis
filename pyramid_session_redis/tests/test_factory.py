@@ -9,6 +9,7 @@ import pdb
 
 from pyramid import testing
 from ..compat import pickle
+
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (
     InvalidSession,
@@ -23,8 +24,10 @@ from ..exceptions import (
 from .. import RedisSessionFactory
 from .test_config import dummy_id_generator
 import webob
+from webob.cookies import SignedSerializer
 from ..session import RedisSession
 from .. import RedisSessionFactory
+from ..util import _NullSerializer
 
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
@@ -66,9 +69,10 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         return session_id
 
     def _serialize(self, session_id, secret="secret"):
-        from pyramid.session import signed_serialize
-
-        return signed_serialize(session_id, secret)
+        signed_serializer = SignedSerializer(
+            secret, "PRS", "sha512", serializer=_NullSerializer()
+        )
+        return signed_serializer.dumps(session_id)
 
     def _set_session_cookie(
         self, request, session_id, cookie_name="session", secret="secret"

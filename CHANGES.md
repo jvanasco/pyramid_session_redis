@@ -4,10 +4,29 @@ Changelog
 
 -2019.09.xx
     * version 1.5.1
-    * support for same_site cookies
+    * support for `same_site` cookies
     * inline docs improved
     * configs_bool moved to `utils`, still accessable for now.
-
+    * changed session_id signed serialization. this was provided by the deprecated
+      functions `pyramid.session.signed_serialize` and `pyramid.session.signed_deserialize`,
+      which are removed in Pyramid 1.10.0+. This is not handled by constructing a
+      `webob.cookies.SignedSerializer()` based on the `secret` and using a `_NullSerializer`
+      to provide compatibility (it just lets the input string pass through). If 
+      desired, a devloper can provide a `signed_serializer` function instead of
+      using this function.
+    * new `pyramid_session_redis.legacy` - tools to deal with upcoming Pyramid API
+      changes (see issue #19)
+    * new `pyramid_session_redis.legacy.LegacyCookieSerializer` - implementation
+      of Pyramid `1.x > 1.10` signed cookie via the deprecated `signed_serialize`
+      and `signed_deserialize` functions. these functions have been copied from
+      pyramid and made available through an interface that is compatable with
+      the Pyramid 1.10/2.x decision to use `webob.cookies.SignedSerializer`
+    * new `pyramid_session_redis.legacy.GracefulCookieSerializer` - a serialzer
+      that can temporarily replace the new usage of `SignedSerializer` by allowing
+      a fallback to the legacy signed_serialize/signed_deserialize functions.
+      This serializer allows for logging of serialization attempts and tracking
+      the progress of migrating your userbase.
+    
 -2019.06.27
     * version 1.5.0
     * new requirements to prepare for Pyramid 2.0 deprecations
