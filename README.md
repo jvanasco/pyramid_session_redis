@@ -122,6 +122,19 @@ No Timeout in Python, no Redis TTL (only `SET` used)
 	assume_redis_ttl = True
 
 
+Warnings:
+=========
+
+This package does not incorporate any sort of locking for session updating or handling of race conditions. 
+
+This should not be a problem for the vast majority of users, and is a feature not present on any known Pyramid session providers.
+
+For more information, please see:
+
+* https://github.com/jvanasco/pyramid_session_redis/issues/9
+* https://github.com/Pylons/pyramid/issues/3041
+
+
 Timeout Triggers
 =================
 
