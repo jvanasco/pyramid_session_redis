@@ -1,7 +1,7 @@
 IMPORTANT
 =========
 
-`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (ericrasmussen/pyramid_redis_sessions), with many improvements and API changes designed for high performance (particularly with servers under load) and a slightly different API for developer convenience.
+`pyramid_session_redis` is an actively maintained fork of `pyramid_redis_sessions` (`ericrasmussen/pyramid_redis_sessions``), with many improvements and API changes designed for high performance (particularly with servers under load) and a slightly different API for developer convenience.
 
 This package is following a multi-version release process.
 
@@ -25,7 +25,7 @@ The 1.4.x branch is under active development and subject to change.  It culminat
 
 The 1.2.x branch and earlier are largely compatible with `pyramid_redis_sessions` as-is.  If you are using this, you should pin your installs to `<=1.3.0` or `<1.3`.
 
-The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play pyramid sessions interface.
+The 1.4.x branch and later have several design changes and are not a drop-in replacement.  Some kwargs may have changed.  The structure of the package has changed as well, and advanced users who leverage the internals will need to upgrade.  The package remains a plug-and-play Pyramid sessions interface.
 
 IMPORTANT: The internal payload structure has changed in the 1.4 branch, and is no longer compatible with existing 1.2 sessions (they will be invalid).  I am open to PRs that can handle a graceful fallback.
 
@@ -213,22 +213,22 @@ This is a new option in `1.4.2` which should improve performance on readheavy in
 The default behavior of this library during a read-only request is this:
 
 * On session access, query Redis via `redis.GET {session_id}`
-* In a pyramid callback, update Redis via `redis.EXPIRE {session_id} {expiry}`
+* In a Pyramid callback, update Redis via `redis.EXPIRE {session_id} {expiry}`
 
 During a read-write:
 
 * On session access, query Redis via `redis.GET {session_id}`
-* In a pyramid callback, update Redis via `redis.SETEX {session_id} {payload} {expiry}`
+* In a Pyramid callback, update Redis via `redis.SETEX {session_id} {payload} {expiry}`
 
 The new `set_redis_ttl_readheavy` changes this. If enabled, during a read-only request the behavior will be lighter on the Redis instance:
 
 * On session access, open a pipeline with two Redis commands: `pipeline.GET {session_id}`, `pipeline.EXPIRE {session_id} {expiry}`.
-* In a pyramid callback, the duplicate expire is suppressed.
+* In a Pyramid callback, the duplicate expire is suppressed.
 
 However during a read-write, the activity will be:
 
 * On session access, open a pipeline with two Redis commands: `pipeline.GET {session_id}`, `pipeline.EXPIRE {session_id} {expiry}`.
-* In a pyramid callback, update Redis via `redis.SETEX {session_id} {payload} {expiry}`
+* In a Pyramid callback, update Redis via `redis.SETEX {session_id} {payload} {expiry}`
 
 Read-heavy applications should see a slight performance bump via the piplined GET+EXPIRE, however write-heavy applications are likely to see a performance degradation as it adds an extra EXPIRE to every request.
 
@@ -321,13 +321,13 @@ All support is handled via GitHub : https://github.com/jvanasco/pyramid_session_
 ToDo
 =====
 
-pass
+see `TODO.md`
 
 
 Overview
 ========
 
-pyramid_redis_sessions is a server-side session library for the Pyramid Web
+`pyramid_redis_sessions` is a server-side session library for the Pyramid Web
 Application Development Framework, using Redis for storage. This library
 implements the `Pyramid ISession interface <http://docs.pylonsproject.org/projects/pyramid/en/latest/api/interfaces.html#pyramid.interfaces.ISession>`_.
 
@@ -362,17 +362,12 @@ on Read the Docs.
 Support
 =======
 
-You can report bugs or open feature/support requests in the
-`GitHub issue tracker <https://github.com/ericrasmussen/pyramid_redis_sessions/issues>`_.
-
-You can also get live help in #pyramid on irc.freenode.org. My nick is erasmas,
-but if I'm not available you can still typically get support from the many other
-knowledgeable regulars.
+You can report bugs or open feature/support requests via GitHub : https://github.com/jvanasco/pyramid_session_redis
 
 
 License
 =======
 
-pyramid_redis_sessions is available under a FreeBSD-derived license. See
-`LICENSE.txt <https://github.com/ericrasmussen/pyramid_redis_sessions/blob/master/LICENSE.txt>`_
+`pyramid_session_redis` is available under a FreeBSD-derived license. See
+`LICENSE.txt <https://github.com/jvanasco/pyramid_session_redis/blob/master/LICENSE.txt>`_
 for details.

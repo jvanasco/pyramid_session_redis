@@ -4,10 +4,7 @@ import functools
 import time
 
 from pyramid.exceptions import ConfigurationError
-from pyramid.session import (
-    signed_deserialize,
-    signed_serialize,
-)
+from pyramid.session import signed_deserialize, signed_serialize
 
 from .compat import pickle
 from .connection import get_default_connection
@@ -20,28 +17,12 @@ from .util import (
     warn_future,
     empty_session_payload,
     LAZYCREATE_SESSION,
+    configs_bool,  # not used here, but included for legacy
+    configs_dotable,
 )
 
 
-__VERSION__ = '1.5.0rc1'
-
-
-configs_dotable = ('client_callable',
-                   'serialize',
-                   'deserialize',
-                   'id_generator',
-                   'func_check_response_allow_cookies',
-                   'func_invalid_logger',
-                   )
-
-
-configs_bool = ('cookie_on_exception',
-                'cookie_secure',
-                'cookie_httponly',
-                'assume_redis_lru',
-                'detect_changes',
-                'deserialized_fails_new',
-                )
+__VERSION__ = "1.5.1"
 
 
 def check_response_allow_cookies(response):
@@ -55,7 +36,7 @@ def check_response_allow_cookies(response):
     """
     # The view signals this is cacheable response
     # and we should not stamp a session cookie on it
-    cookieless_headers = ["expires", "cache-control", ]
+    cookieless_headers = ["expires", "cache-control"]
     for header in cookieless_headers:
         if header in response.headers:
             return False
@@ -78,7 +59,7 @@ def includeme(config):
 
     # special rule for converting dotted python paths to callables
     for option in configs_dotable:
-        key = 'redis.sessions.%s' % option
+        key = "redis.sessions.%s" % option
         if key in settings:
             settings[key] = config.maybe_dotted(settings[key])
     session_factory = session_factory_from_settings(settings)
@@ -104,23 +85,20 @@ def session_factory_from_settings(settings):
 def RedisSessionFactory(
     secret,
     timeout=1200,
-    cookie_name='session',
+    cookie_name="session",
     cookie_max_age=None,
-    cookie_path='/',
+    cookie_path="/",
     cookie_domain=None,
     cookie_secure=False,
     cookie_httponly=True,
+    cookie_comment=None,
+    cookie_samesite=None,
     cookie_on_exception=True,
     url=None,
-    host='localhost',
+    host="localhost",
     port=6379,
     db=0,
     password=None,
-    socket_timeout=None,
-    connection_pool=None,
-    charset='utf-8',
-    errors='strict',
-    unix_socket_path=None,
     client_callable=None,
     serialize=pickle.dumps,
     deserialize=pickle.loads,
@@ -133,6 +111,11 @@ def RedisSessionFactory(
     func_invalid_logger=None,
     timeout_trigger=None,
     python_expires=True,
+    socket_timeout=None,
+    connection_pool=None,
+    charset="utf-8",
+    errors="strict",
+    unix_socket_path=None,
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -152,114 +135,173 @@ def RedisSessionFactory(
 
     ``cookie_name``
     The name of the cookie used for sessioning. Default: ``session``.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``name``.
 
     ``cookie_max_age``
     The maximum age of the cookie used for sessioning (in seconds).
     Default: ``None`` (browser scope).
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``max_age``.
 
     ``cookie_path``
     The path used for the session cookie. Default: ``/``.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``path``.
 
     ``cookie_domain``
     The domain used for the session cookie. Default: ``None`` (no domain).
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``domain``.
 
     ``cookie_secure``
-    The 'secure' flag of the session cookie. Default: ``False``.
+    Boolean value; Default: ``False``.
+    The 'secure' flag of the session cookie.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``secure``.
 
     ``cookie_httponly``
-    The 'httpOnly' flag of the session cookie. Default: ``True``.
+    Boolean value; Default: ``True``.
+    The 'httpOnly' flag of the session cookie.
+    This is passed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``httponly``.
+
+    ``cookie_comment``
+    Default: ``None``.
+    The 'comment' attribute of the session cookie.
+    This is paseed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``comment``.
+    If set to ``None`` or not specified, it will not be passed on.
+
+    ``cookie_samesite``
+    Default: ``None``.
+    The 'SameSite' attribute of the session cookie.
+    This is paseed on to the underlying ``WebOb.response.Response.set_cookie``
+    framework as ``samesite`` and **requires WebOb 1.8.0 or higher**.
+    If set to ``None`` or not specified, it will not be passed on.
+    Should only be ``"Strict"`` or ``"Lax"``.
 
     ``cookie_on_exception``
+    Boolean value; Default: ``True``.
     If ``True``, set a session cookie even if an exception occurs
-    while rendering a view. Default: ``True``.
+    while rendering a view.
 
     ``url``
+    Default: ``None``.
     A connection string for a Redis server, in the format:
     redis://username:password@localhost:6379/0
-    Default: ``None``.
 
     ``host``
-    A string representing the IP of your Redis server. Default: ``localhost``.
+    Default: ``localhost``.
+    A string representing the IP of your Redis server.
 
     ``port``
-    An integer representing the port of your Redis server. Default: ``6379``.
+    Default: ``6379``.
+    An integer representing the port of your Redis server.
 
     ``db``
+    Integer value; Default: ``0``
     An integer to select a specific database on your Redis server.
-    Default: ``0``
 
     ``password``
+    Default: ``None``.
     A string password to connect to your Redis server/database if
-    required. Default: ``None``.
-
+    required.
+    
     ``client_callable``
+    Default: ``None``.
     A python callable that accepts a Pyramid `request` and Redis config options
     and returns a Redis client such as redis-py's `StrictRedis`.
-    Default: ``None``.
 
     ``serialize``
-    A function to serialize the session dict for storage in Redis.
     Default: ``pickle.dumps``. PY2=cPickle
+    A function to serialize the session dict for storage in Redis.
 
     ``deserialize``
-    A function to deserialize the stored session data in Redis.
     Default: ``pickle.loads``. PY2=cPickle
+    A function to deserialize the stored session data in Redis.
 
     ``id_generator``
-    A function to create a unique ID to be used as the session key when a
-    session is first created.
     Default: private function that uses sha1 with the time and random elements
     to create a 40 character unique ID.
+    A function to create a unique ID to be used as the session key when a
+    session is first created.
 
     ``set_redis_ttl``
-    Boolean value.  Default `True`. If set to ``True``, will set a TTL. If
+    Boolean value;  Default `True`.
+    If set to ``True``, will set a TTL. If
     ``False`` will not set a TTL and assumes that Redis is configured as a
     least-recently-used cache [http://redis.io/topics/lru-cache] and will NOT
     send EXPIRY data of sessions to Redis (the value of `timeout` will be
     ignored if set). This does not require or imply that no ``timeout`` data is
     handled within the Python payload, it just determines if Redis will be
     involved with timeout logic.
-    Default: ``False``
 
     ``set_redis_ttl_readheavy``
-     If ``True``, sets TTL data in Redis within a PIPELINE via GET+EXPIRE and
-     supresses automatic TTL refresh during the deferred cleanup phase. If not 
-     ``True``, an EXPIRE is sent as a separate action during the deferred
-     cleanup phase.  The optimized behavior improves performance on read-heavy
-     operations, but may degrade performance on write-heavy operations.  This
-     requires a ``timeout`` and ``set_redis_ttl`` to be True; it is not
+     Boolean value; Default: ``None``.
+     If ``True``, sets TTL data in Redis within
+     a PIPELINE via GET+EXPIRE and supresses automatic TTL refresh during the deferred
+     cleanup phase. If not ``True``, an EXPIRE is sent as a separate action during
+     the deferred cleanup phase.  The optimized behavior improves performance on
+     read-heavy operations, but may degrade performance on write-heavy operations.
+     This requires a ``timeout`` and ``set_redis_ttl`` to be True; it is not
      compatible with ``timeout_trigger`` or ``python_expires``.
-     Default: ``None``
 
     ``detect_changes``
-    Boolean value. If set to ``True``, will calculate nested changes after
+    Boolean value; Default: ``True``.
+    If set to ``True``, will calculate nested changes after
     serialization to ensure persistence of nested data.
-    Default: ``True``
 
     ``deserialized_fails_new``
-    If ``True`` will handle deserializtion errors by creating a new session.
+    Boolean value; Default: ``None``.
+    If ``True`` will handle deserializtion errors
+    by creating a new session.
 
     ``func_check_response_allow_cookies``
+    Default: ``None``.
     A callable function that accepts a response, returning ``True`` if the
-    cookie can be sent and ``False`` if it should not.  This defaults to
-    ``None``.  An example callable is available in
+    cookie can be sent and ``False`` if it should not. 
+     An example callable is available in
     ``check_response_allow_cookies``, which checks for `expires` and
     `cache-control` cookies.
 
-    ``python_expires``
-    Int, default ``True``.  If ``True``, allows for timeout logic to be tracked
-    in Python
-
     ``func_invalid_logger``
+    Default: ``None``.
     A callable function that expects a single argument of a raised
     `InvalidSession` exception. If not ``None``, this will be called so your
     application can monitor.
 
     ``timeout_trigger``
-    Int, default  ``None``.  If unset or ``0``, timeouts will be updated on
+    Integer value; Default ``None``.
+    If unset or ``0``, timeouts will be updated on
     every access by setting an EXPIRY in Redis and/or updating the ``expires``
     value in the  session payload.  If set to an INT, the updates will only be
     set once the threshold is crossed.
+
+    ``python_expires``
+    Boolean value; Default ``True``.
+    If ``True``, allows for timeout logic to be
+    tracked in Python.
+
+    ``socket_timeout``
+    Default: ``None``.
+    Passthrough argument to the `StrictRedis` constructor.
+
+    ``connection_pool``
+    Default: ``None``.
+    Passthrough argument to the `StrictRedis` constructor.
+
+    ``charset``
+    Default: ``utf-8``.
+    Passthrough argument to the `StrictRedis` constructor.
+
+    ``errors``
+    Default: ``strict``.
+    Passthrough argument to the `StrictRedis` constructor.
+
+    ``unix_socket_path``
+    Default: ``None``.
+    Passthrough argument to the `StrictRedis` constructor.
 
     Given this example:
 
@@ -284,7 +326,7 @@ def RedisSessionFactory(
     user leaves the site at 49 minutes and returns at 61 minutes, the trigger
     will not have been made and the session will have expired.
 
-    The following arguments are also passed straight to the ``StrictRedis``
+    The following arguments are passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
       socket_timeout
@@ -302,14 +344,33 @@ def RedisSessionFactory(
     # optimize a `TTL refresh` under certain conditions
     if set_redis_ttl_readheavy:
         if (not timeout) or (not set_redis_ttl):
-            raise ValueError("`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`")
+            raise ValueError(
+                "`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`"
+            )
         if timeout_trigger or python_expires:
-            raise ValueError("`set_redis_ttl_readheavy` is not compatible with `timeout_trigger` and `python_expires`")
+            raise ValueError(
+                "`set_redis_ttl_readheavy` is not compatible with `timeout_trigger` and `python_expires`"
+            )
     optimize_redis_ttl = False
-    
+
     _set_redis_ttl_onexit = False
-    if (timeout and set_redis_ttl) and (not timeout_trigger and not python_expires and not set_redis_ttl_readheavy):
+    if (timeout and set_redis_ttl) and (
+        not timeout_trigger and not python_expires and not set_redis_ttl_readheavy
+    ):
         _set_redis_ttl_onexit = True
+
+    # good for all factory() requests
+    set_cookie_kwargs = {
+        "max_age": cookie_max_age,
+        "path": cookie_path,
+        "domain": cookie_domain,
+        "secure": cookie_secure,
+        "httponly": cookie_httponly,
+    }
+    if cookie_comment is not None:
+        set_cookie_kwargs["comment"] = cookie_comment
+    if cookie_samesite is not None:
+        set_cookie_kwargs["samesite"] = cookie_samesite
 
     # good for all factory() requests
     redis_options = dict(
@@ -326,9 +387,7 @@ def RedisSessionFactory(
 
     # good for all factory() requests
     new_payload_func = functools.partial(
-        empty_session_payload,
-        timeout=timeout,
-        python_expires=python_expires,
+        empty_session_payload, timeout=timeout, python_expires=python_expires
     )
 
     # good for all factory() requests
@@ -342,9 +401,11 @@ def RedisSessionFactory(
     def factory(request, new_session_id_func=create_unique_session_id):
 
         # an explicit client callable gets priority over the default
-        redis_conn = client_callable(request, **redis_options) \
-            if client_callable is not None \
+        redis_conn = (
+            client_callable(request, **redis_options)
+            if client_callable is not None
             else get_default_connection(request, url=url, **redis_options)
+        )
 
         new_session_func = functools.partial(
             new_session_id_func,
@@ -362,12 +423,10 @@ def RedisSessionFactory(
         try:
             # attempt to retrieve a session_id from the cookie
             session_id = _get_session_id_from_cookie(
-                request=request,
-                cookie_name=cookie_name,
-                secret=secret,
+                request=request, cookie_name=cookie_name, secret=secret
             )
             if not session_id:
-                raise InvalidSession_NoSessionCookie('No `session_id` in cookie.')
+                raise InvalidSession_NoSessionCookie("No `session_id` in cookie.")
             session_cookie_was_valid = True
             session = RedisSession(
                 redis=redis_conn,
@@ -412,13 +471,9 @@ def RedisSessionFactory(
         set_cookie_func = functools.partial(
             _set_cookie,
             session,
-            cookie_name=cookie_name,
-            cookie_max_age=cookie_max_age,
-            cookie_path=cookie_path,
-            cookie_domain=cookie_domain,
-            cookie_secure=cookie_secure,
-            cookie_httponly=cookie_httponly,
             secret=secret,
+            cookie_name=cookie_name,
+            **set_cookie_kwargs
         )
         cookie_callback = functools.partial(
             _cookie_callback,
@@ -430,9 +485,7 @@ def RedisSessionFactory(
             func_check_response_allow_cookies=func_check_response_allow_cookies,
         )
         request.add_response_callback(cookie_callback)
-
         request.add_finished_callback(session._deferred_callback)
-
         return session
 
     return factory
@@ -456,32 +509,13 @@ def _get_session_id_from_cookie(request, cookie_name, secret):
     return None
 
 
-def _set_cookie(
-    session,
-    request,
-    response,
-    cookie_name,
-    cookie_max_age,
-    cookie_path,
-    cookie_domain,
-    cookie_secure,
-    cookie_httponly,
-    secret,
-):
+def _set_cookie(session, request, response, secret, cookie_name, **kwargs):
     """
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
     cookieval = signed_serialize(session.session_id, secret)
-    response.set_cookie(
-        cookie_name,
-        cookieval,
-        max_age=cookie_max_age,
-        path=cookie_path,
-        domain=cookie_domain,
-        secure=cookie_secure,
-        httponly=cookie_httponly,
-    )
+    response.set_cookie(cookie_name, cookieval, **kwargs)
 
 
 def _delete_cookie(response, cookie_name, cookie_path, cookie_domain):
@@ -524,7 +558,7 @@ def _cookie_callback(
             # web servicess do not serve this response from a cache
             # for requests coming in with a different session cookie.
             # Otherwise we might leak sessions between users.
-            varies = ("Cookie", )
+            varies = ("Cookie",)
             vary = set(response.vary if response.vary is not None else [])
             vary |= set(varies)
             response.vary = vary
