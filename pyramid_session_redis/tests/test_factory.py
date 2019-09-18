@@ -70,7 +70,7 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
 
     def _serialize(self, session_id, secret="secret"):
         signed_serializer = SignedSerializer(
-            secret, "PRS", "sha512", serializer=_NullSerializer()
+            secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
         )
         return signed_serializer.dumps(session_id)
 
