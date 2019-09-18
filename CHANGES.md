@@ -5,6 +5,8 @@ Changelog
 -2019.09.xx
     * version 1.5.1
     * support for same_site cookies
+    * inline docs improved
+    * configs_bool moved to `utils`, still accessable for now.
 
 -2019.06.27
     * version 1.5.0
