@@ -448,9 +448,7 @@ def RedisSessionFactory(
         try:
             # attempt to retrieve a session_id from the cookie
             session_id = _get_session_id_from_cookie(
-                request=request,
-                cookie_name=cookie_name,
-                cookie_signer=cookie_signer,
+                request=request, cookie_name=cookie_name, cookie_signer=cookie_signer
             )
             if not session_id:
                 raise InvalidSession_NoSessionCookie("No `session_id` in cookie.")

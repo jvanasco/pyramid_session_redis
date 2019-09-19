@@ -61,12 +61,8 @@ class TestCookieSerialization(unittest.TestCase):
         _serialized_current = cookie_signer_current.dumps(session_id)
         _serialized_legacy = cookie_signer_legacy.dumps(session_id)
         self.assertNotEqual(_serialized_current, _serialized_legacy)
-        self.assertRaises(
-            ValueError, cookie_signer_legacy.loads, _serialized_current
-        )
-        self.assertRaises(
-            ValueError, cookie_signer_current.loads, _serialized_legacy
-        )
+        self.assertRaises(ValueError, cookie_signer_legacy.loads, _serialized_current)
+        self.assertRaises(ValueError, cookie_signer_current.loads, _serialized_legacy)
 
     def test_graceful(self):
         secret = "foo"
@@ -82,15 +78,9 @@ class TestCookieSerialization(unittest.TestCase):
         self.assertEqual(_serialized_current, _serialized_graceful)
         self.assertNotEqual(_serialized_legacy, _serialized_graceful)
 
-        self.assertEqual(
-            session_id, cookie_signer_graceful.loads(_serialized_current)
-        )
-        self.assertEqual(
-            session_id, cookie_signer_graceful.loads(_serialized_graceful)
-        )
-        self.assertEqual(
-            session_id, cookie_signer_graceful.loads(_serialized_legacy)
-        )
+        self.assertEqual(session_id, cookie_signer_graceful.loads(_serialized_current))
+        self.assertEqual(session_id, cookie_signer_graceful.loads(_serialized_graceful))
+        self.assertEqual(session_id, cookie_signer_graceful.loads(_serialized_legacy))
 
     def test_graceful_hooks(self):
         secret = "foo"

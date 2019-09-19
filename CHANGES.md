@@ -26,6 +26,7 @@ Changelog
       a fallback to the legacy signed_serialize/signed_deserialize functions.
       This serializer allows for logging of serialization attempts and tracking
       the progress of migrating your userbase.
+    * black formatting
     
 -2019.06.27
     * version 1.5.0
