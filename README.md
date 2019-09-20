@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/jvanasco/pyramid_session_redis.png)](https://travis-ci.org/jvanasco/pyramid_session_redis)
+
+
 IMPORTANT
 =========
 

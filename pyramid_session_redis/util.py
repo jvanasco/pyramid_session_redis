@@ -13,6 +13,7 @@ from redis.exceptions import WatchError
 import six
 from six import PY2
 from six import PY3
+from webob.compat import bytes_, text_
 
 # local
 from .compat import token_urlsafe
@@ -349,8 +350,8 @@ class _NullSerializer(object):
     Our usage is only signing the session_id, which is a string. 
     """
 
-    def loads(self, data):
-        return data
+    def dumps(self, appstruct):
+        return bytes_(appstruct, encoding="utf-8")
 
-    def dumps(self, data):
-        return data
+    def loads(self, bstruct):
+        return text_(bstruct, encoding="utf-8")

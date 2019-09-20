@@ -21,13 +21,13 @@ class TestNullSerializer(unittest.TestCase):
         serializer = _NullSerializer()
         data = "foo"
         _serialized = serializer.dumps(data)
-        self.assertEqual(_serialized, serializer.loads(_serialized))
+        self.assertEqual(data, serializer.loads(_serialized))
 
     def test_roundtrip_int(self):
         serializer = _NullSerializer()
         data = 100
         _serialized = serializer.dumps(data)
-        self.assertEqual(_serialized, serializer.loads(_serialized))
+        self.assertEqual(data, serializer.loads(_serialized))
 
 
 class TestCookieSerialization(unittest.TestCase):
