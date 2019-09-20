@@ -31,6 +31,9 @@ from .util import encode_session_payload as encode_session_payload_func
 from .util import decode_session_payload as decode_session_payload_func
 
 
+# ==============================================================================
+
+
 def hashed_value(serialized):
     """
     quick hash of serialized data

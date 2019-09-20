@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 
+# stdlib
 import unittest
 
+# pyramid
 from pyramid import testing
+
+
+# ==============================================================================
 
 
 class TestConnection(unittest.TestCase):

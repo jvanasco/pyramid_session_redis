@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-
+# stdlib
 import unittest
 
+# pyramid
 from webob.cookies import SignedSerializer
+
+# local
 from ..util import _NullSerializer
 from ..legacy import LegacyCookieSerializer
 from ..legacy import GracefulCookieSerializer
+
+
+# ==============================================================================
 
 
 class TestNullSerializer(unittest.TestCase):

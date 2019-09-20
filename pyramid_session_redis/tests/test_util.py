@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
+# stdlib
 import itertools
 import time
 import unittest
 
+# local
 from . import DummyRedis, DummySession
 from ..util import int_time
 from ..compat import pickle
+
+
+# ==============================================================================
 
 
 class Test_parse_settings(unittest.TestCase):

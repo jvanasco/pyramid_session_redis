@@ -302,15 +302,16 @@ The exception `pyramid_session_redis.exceptions.RawDeserializationError` will be
 FAQ:
 ================
 
-coming soon
+Q. What serialization is used?
+------------------------------
 
+A. Serialization is used at two points
 
+* "serializing" the session_id to encode into a signed cookie.
+  originally this was handled by `pickle` (de)serialization (<= v1.5.0), but this step been removed (v1.5.1) as the default id generation creates a cookie-safe value.
 
-To Do:
-================
-
-[ ] The API is a bit messy on the 1.4.x release.
-[ ] Creating a new session still takes 2 SET/SETEX calls -- one for a placeholder, the next to update.  This should be consolidated into one.
+* serializing the session data.  this is handled by pickle. session data is created on the server by your application and stays on the server, so `pickle` is safe to use.
+  you can override this with a custom JSON, msgpack or other (de)serialization routine.
 
 
 Further Reading:

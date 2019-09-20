@@ -3,30 +3,39 @@ Changelog
 =========
 
 -2019.09.xx
+	* SECURITY FIX. **NOT BACKWARDS COMPATIBLE BY DEFAULT**
     * version 1.5.1
     * support for `same_site` cookies
     * inline docs improved
     * configs_bool moved to `utils`, still accessable for now.
-    * changed session_id signed serialization. this was provided by the deprecated
-      functions `pyramid.session.signed_serialize` and `pyramid.session.signed_deserialize`,
-      which are removed in Pyramid 1.10.0+. This is not handled by constructing a
-      `webob.cookies.SignedSerializer()` based on the `secret` and using a `_NullSerializer`
-      to provide compatibility (it just lets the input string pass through). If 
-      desired, a devloper can provide a `cookie_signer` object instance instead of
-      using this function.
+    * black formatting
+    * security fix: changed `session_id` signed serialization.
+      this was provided by the deprecated functions `pyramid.session.signed_serialize`
+      and `pyramid.session.signed_deserialize`, which are removed in Pyramid 1.10.0+ and
+      are considered to be a security vulnerability. using these functions allows
+      a malevolent actor to submit a malicious payload that could cause a security
+      issue.  This functionality is now handled by constructing a 
+      `webob.cookies.SignedSerializer()` (which uses JSON (de)serializtion) based on the
+      provided `secret`, and using a `_NullSerializer` to encode the session_id  
+      (only a string session_id is stored in the cookie, so we just need to let the inpu
+      string pass through). If desired, a devloper can provide a `cookie_signer`
+      object instance to customize this functionality.
     * new `pyramid_session_redis.legacy` - tools to deal with upcoming Pyramid API
       changes (see issue #19)
     * new `pyramid_session_redis.legacy.LegacyCookieSerializer` - implementation
       of Pyramid `1.x > 1.10` signed cookie via the deprecated `signed_serialize`
       and `signed_deserialize` functions. these functions have been copied from
       pyramid and made available through an interface that is compatable with
-      the Pyramid 1.10/2.x decision to use `webob.cookies.SignedSerializer`
+      the Pyramid 1.10/2.x decision to use `webob.cookies.SignedSerializer`. this
+      is only provided for migration and should not be used as it risks security
+      issues.
     * new `pyramid_session_redis.legacy.GracefulCookieSerializer` - a serialzer
       that can temporarily replace the new usage of `SignedSerializer` by allowing
       a fallback to the legacy signed_serialize/signed_deserialize functions.
       This serializer allows for logging of serialization attempts and tracking
-      the progress of migrating your userbase.
-    * black formatting
+      the progress of migrating your userbase.  this
+      is only provided for migration and should not be used as it risks security
+      issues.
     
 -2019.06.27
     * version 1.5.0

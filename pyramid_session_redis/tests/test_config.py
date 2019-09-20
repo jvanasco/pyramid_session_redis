@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
 
+# stdlib
 import unittest
 
+# pyramid
 from pyramid import testing
 from pyramid.threadlocal import get_current_request
+from pyramid.exceptions import ConfigurationError
 
+# local
 from ..exceptions import InvalidSession, InvalidSession_DeserializationError
+
+
+# ==============================================================================
 
 # dotted paths to dummy callables
 _id_path = "pyramid_session_redis.tests.test_config.dummy_id_generator"
@@ -13,7 +20,33 @@ _client_path = "pyramid_session_redis.tests.test_config.dummy_client_callable"
 _invalid_logger = "pyramid_session_redis.tests.test_config.dummy_invalid_logger"
 
 
-class Test_includeme(unittest.TestCase):
+# used to ensure includeme can resolve a dotted path to an id generator
+def dummy_id_generator():
+    return 42
+
+
+# used to ensure includeme can resolve a dotted path to a redis client callable
+def dummy_client_callable(request, **opts):
+    return "client"
+
+
+def dummy_invalid_logger(raised):
+    assert isinstance(raised, InvalidSession)
+    return True
+
+
+class CustomCookieSigner(object):
+    def loads(self, s):
+        return s
+
+    def dumps(self, s):
+        return s
+
+
+# ------------------------------------------------------------------------------
+
+
+class Test_includeme_simple(unittest.TestCase):
     def setUp(self):
         request = testing.DummyRequest()
         self.config = testing.setUp(request=request)
@@ -57,16 +90,56 @@ class Test_includeme(unittest.TestCase):
         self.assertTrue(logging_func(raised_error))
 
 
-# used to ensure includeme can resolve a dotted path to an id generator
-def dummy_id_generator():
-    return 42
+class Test_includeme_advanced(unittest.TestCase):
+    def test_fails__no_cookiesigner__no_secret(self):
+        request = testing.DummyRequest()
+        self.config = testing.setUp(request=request)
+        self.config.registry.settings = {
+            "redis.sessions.db": 9,
+            "redis.sessions.serialize": "pickle.dumps",
+            "redis.sessions.deserialize": "pickle.loads",
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.client_callable": _client_path,
+            "redis.sessions.func_invalid_logger": _invalid_logger,
+            # "redis.sessions.secret": "supersecret",  # don't include!
+            # "redis.sessions.cookie_signer": "",  # don't include!
+        }
+        with self.assertRaises(ConfigurationError) as cm:
+            self.config.include("pyramid_session_redis")
+        self.assertEqual(
+            cm.exception.args[0],
+            "One, and only one, of `redis.sessions.secret` and `redis.sessions.cookie_signer` must be provided.",
+        )
 
+    def test_fails__cookiesigner__secret(self):
+        request = testing.DummyRequest()
+        self.config = testing.setUp(request=request)
+        self.config.registry.settings = {
+            "redis.sessions.db": 9,
+            "redis.sessions.serialize": "pickle.dumps",
+            "redis.sessions.deserialize": "pickle.loads",
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.client_callable": _client_path,
+            "redis.sessions.func_invalid_logger": _invalid_logger,
+            "redis.sessions.secret": "supersecret",
+            "redis.sessions.cookie_signer": CustomCookieSigner(),
+        }
+        with self.assertRaises(ConfigurationError) as cm:
+            self.config.include("pyramid_session_redis")
+        self.assertEqual(
+            cm.exception.args[0],
+            "One, and only one, of `redis.sessions.secret` and `redis.sessions.cookie_signer` must be provided.",
+        )
 
-# used to ensure includeme can resolve a dotted path to a redis client callable
-def dummy_client_callable(request, **opts):
-    return "client"
-
-
-def dummy_invalid_logger(raised):
-    assert isinstance(raised, InvalidSession)
-    return True
+    def test__cookiesigner__custom(self):
+        request = testing.DummyRequest()
+        self.config = testing.setUp(request=request)
+        self.config.registry.settings = {
+            "redis.sessions.db": 9,
+            "redis.sessions.serialize": "pickle.dumps",
+            "redis.sessions.deserialize": "pickle.loads",
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.client_callable": _client_path,
+            "redis.sessions.func_invalid_logger": _invalid_logger,
+            "redis.sessions.cookie_signer": CustomCookieSigner(),
+        }

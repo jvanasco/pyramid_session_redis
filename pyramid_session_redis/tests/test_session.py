@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-
+# stdlib
 import itertools
 import pdb
 import pprint
 import time
 import unittest
 
+# local
 from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (
@@ -17,6 +18,9 @@ from ..exceptions import (
 )
 from . import DummyRedis
 from ..session import RedisSession
+
+
+# ==============================================================================
 
 
 class TestRedisSession(unittest.TestCase):

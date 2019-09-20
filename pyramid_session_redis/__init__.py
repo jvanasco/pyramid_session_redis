@@ -8,7 +8,7 @@ from pyramid.exceptions import ConfigurationError
 from webob.cookies import SignedSerializer
 
 # local
-from .compat import pickle
+from .compat import pickle  # v1.6 - remove
 from .connection import get_default_connection
 from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
@@ -25,7 +25,10 @@ from .util import (
 )
 
 
-__VERSION__ = "1.5.0rc2"
+__VERSION__ = "1.5.1"
+
+
+# ==============================================================================
 
 
 def check_response_allow_cookies(response):
@@ -411,9 +414,8 @@ def RedisSessionFactory(
         cookie_domain=cookie_domain,
     )
 
-    if (secret is not None and cookie_signer is not None) or (
-        secret is None and cookie_signer is None
-    ):
+    _secret_cookiesigner = (secret, cookie_signer)
+    if all(_secret_cookiesigner) or not any(_secret_cookiesigner):
         raise ValueError(
             "One, and only one, of `secret` and `cookie_signer` must be provided."
         )

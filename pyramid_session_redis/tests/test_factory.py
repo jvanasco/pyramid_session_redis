@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-
+# stdlib
 import itertools
 import unittest
 import pprint
 import pdb
 
+# pyramid
 from pyramid import testing
-from ..compat import pickle
+import webob
+from webob.cookies import SignedSerializer
 
+# local
+from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (
     InvalidSession,
@@ -20,14 +24,25 @@ from ..exceptions import (
     InvalidSession_PayloadLegacy,
     RawDeserializationError,
 )
-
 from .. import RedisSessionFactory
 from .test_config import dummy_id_generator
-import webob
-from webob.cookies import SignedSerializer
 from ..session import RedisSession
 from .. import RedisSessionFactory
 from ..util import _NullSerializer
+
+
+# ==============================================================================
+
+
+class CustomCookieSigner(object):
+    def loads(self, s):
+        return s
+
+    def dumps(self, s):
+        return s
+
+
+# ------------------------------------------------------------------------------
 
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
@@ -2394,3 +2409,87 @@ class TestRedisSessionFactory_loggedExceptions(
         # we are using picke, so it should be exceptions.EOFError
         self.assertEqual(request.session.deserialize, pickle.loads)
         self.assertIsInstance(exception_wrapper.args[0], EOFError)
+
+
+class TestRedisSessionFactory_Invalid(unittest.TestCase):
+    def test_fails__no_cookiesigner__no_secret(self):
+        with self.assertRaises(ValueError) as cm:
+            factory = RedisSessionFactory(secret=None)
+        self.assertEqual(
+            cm.exception.args[0],
+            "One, and only one, of `secret` and `cookie_signer` must be provided.",
+        )
+
+    def test_fails__cookiesigner__secret(self):
+        with self.assertRaises(ValueError) as cm:
+            factory = RedisSessionFactory(
+                secret="secret", cookie_signer=CustomCookieSigner()
+            )
+        self.assertEqual(
+            cm.exception.args[0],
+            "One, and only one, of `secret` and `cookie_signer` must be provided.",
+        )
+
+
+class TestRedisSessionFactory_CustomCookie(
+    _TestRedisSessionFactoryCore, unittest.TestCase
+):
+    def _make_factory_custom(self):
+        factory = RedisSessionFactory(None, cookie_signer=CustomCookieSigner())
+        return factory
+
+    def _make_factory_default(self):
+        factory = RedisSessionFactory("secret")
+        return factory
+
+    def _make_request(self):
+        from . import DummyRedis
+
+        request = testing.DummyRequest()
+        request.registry._redis_sessions = DummyRedis()
+        request.exception = None
+        return request
+
+    def test_custom_cookie_used(self):
+        """
+        tests to see the session_id is used as the raw cookie value.
+        Then default cookie_singer will sign the cookie, so the value changes.
+        The `CustomCookieSigner` for this test just uses the a passthrough value.
+        """
+        factory = self._make_factory_custom()
+        request = self._make_request()
+
+        session = factory(request)
+        session["a"] = 1  # we only create a cookie on edit
+
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        hdrs_sc = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(hdrs_sc), 1)
+        self.assertEqual(response.vary, ("Cookie",))
+
+        assert session.session_id in hdrs_sc[0]
+        raw_sessionid_cookie = "session=%s; Path=/; HttpOnly" % session.session_id
+        assert raw_sessionid_cookie in hdrs_sc
+
+    def test_default_cookie_used(self):
+        """
+        tests to see the session_id is NOT used as the cookie value.
+        Then default cookie_singer will sign the cookie, so the value changes.
+        The `CustomCookieSigner` for this test just uses the a passthrough value.
+        """
+        factory = self._make_factory_default()
+        request = self._make_request()
+
+        session = factory(request)
+        session["a"] = 1  # we only create a cookie on edit
+
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        hdrs_sc = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(hdrs_sc), 1)
+        self.assertEqual(response.vary, ("Cookie",))
+
+        assert session.session_id not in hdrs_sc[0]
+        raw_sessionid_cookie = "session=%s; Path=/; HttpOnly" % session.session_id
+        assert raw_sessionid_cookie not in hdrs_sc

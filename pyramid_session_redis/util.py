@@ -267,9 +267,11 @@ def _parse_settings(settings):
         value = settings[k]
         options[param] = value
 
-    # only required setting
-    if "secret" not in options:
-        raise ConfigurationError("redis.sessions.secret is a required setting")
+    _secret_cookiesigner = (options.get("secret"), options.get("cookie_signer"))
+    if all(_secret_cookiesigner) or not any(_secret_cookiesigner):
+        raise ConfigurationError(
+            "One, and only one, of `redis.sessions.secret` and `redis.sessions.cookie_signer` must be provided."
+        )
 
     # coerce bools
     for b in configs_bool:

@@ -7,7 +7,6 @@ and appear under their licensing.  See LICENSE.TXT for more details
 
 """
 # local
-from .compat import pickle
 from .util import _NullSerializer
 
 # stdlib
@@ -20,6 +19,13 @@ import hmac
 from pyramid.compat import bytes_, native_
 from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
+
+# pypi
+import six
+from six.moves import cPickle as pickle
+
+
+# ==============================================================================
 
 
 def signed_serialize(data, secret):
@@ -105,12 +111,17 @@ class GracefulCookieSerializer(object):
     
     By providing a `logging_hook` (see tests for example usage), a developer can profile
     their app to understand how the migration of users is progressing.
+    
+    !!!!! IMPORTANT !!!!!
+
+    Using this or any pickle-based serializer is not recommended, as it can lead to
+    a code exploit during deserialization. This is only provided as a temporary migration tool.    
     """
 
     secret = None
     serializer_current = None
+    serializer_legacy = None
     logging_hook = None
-    strategy = None
 
     def __init__(self, secret, logging_hook=None):
         """
