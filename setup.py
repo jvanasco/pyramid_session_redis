@@ -16,16 +16,6 @@ with open(
     )
 
 
-# get readme and changes
-here = os.path.abspath(os.path.dirname(__file__))
-try:
-    with open(os.path.join(here, "README.md")) as text_file:
-        README = text_file.read()
-    with open(os.path.join(here, "CHANGES.md")) as text_file:
-        CHANGES = text_file.read()
-except IOError:
-    README = CHANGES = ""
-
 # set up requires
 install_requires = [
     "redis>=2.4.11, != 2.9.1",
@@ -47,7 +37,7 @@ def main():
         name="pyramid_session_redis",
         version=package_version,
         description="Pyramid web framework session factory backed by Redis",
-        long_description=README + "\n\n" + CHANGES,
+        long_description="""High performance and actively maintained server-side session framework for Pyramid and Redis.  https://github.com/jvanasco/pyramid_session_redis""",
         classifiers=[
             "Intended Audience :: Developers",
             "Framework :: Pyramid",

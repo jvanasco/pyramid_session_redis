@@ -2,9 +2,9 @@
 Changelog
 =========
 
--2019.09.xx
-	* SECURITY FIX. **NOT BACKWARDS COMPATIBLE BY DEFAULT**
+-2019.09.20
     * version 1.5.1
+	* !!!!! SECURITY FIX. **NOT BACKWARDS COMPATIBLE BY DEFAULT**
     * support for `same_site` cookies
     * inline docs improved
     * configs_bool moved to `utils`, still accessable for now.
