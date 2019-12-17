@@ -1,9 +1,15 @@
 Changelog
 =========
 
+-2019.12.17
+    * version 1.5.2
+    * updated docs to reflect "None" (string) as valid option for samesite.
+      This is not yet supported in WebOb, but will be as it was recently added
+      to the cookie spec.
+
 - 2019.09.20
     * version 1.5.1
-	* !!!!! SECURITY FIX. **NOT BACKWARDS COMPATIBLE BY DEFAULT**
+    * !!!!! SECURITY FIX. **NOT BACKWARDS COMPATIBLE BY DEFAULT**
     * support for `same_site` cookies
     * inline docs improved
     * configs_bool moved to `utils`, still accessable for now.
