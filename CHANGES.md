@@ -6,6 +6,7 @@ Changelog
     * updated docs to reflect "None" (string) as valid option for samesite.
       This is not yet supported in WebOb, but will be as it was recently added
       to the cookie spec.
+    * fixed markup in CHANGES.md (PR #27; thank you @Deimos)
 
 - 2019.09.20
     * version 1.5.1
