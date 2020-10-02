@@ -606,7 +606,7 @@ class TestRedisSession(unittest.TestCase):
 class _TestRedisSessionNew_CORE(object):
     """
     Support functions for 1.2.x+ tests
-    see 
+    see
     """
 
     session_id = "session_id"

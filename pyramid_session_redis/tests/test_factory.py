@@ -1179,7 +1179,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
 
     def test_scenario_new__timeout_noTrigger_noPythonExpires_setRedisTtl_readheavy(
-        self
+        self,
     ):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1307,7 +1307,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
     # --------------------------------------------------------------------------
 
     def test_scenario_existing__timeout_trigger_pythonExpires_setRedisTtl_noChange(
-        self
+        self,
     ):
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
@@ -1331,7 +1331,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
 
     def test_scenario_existing__timeout_trigger_pythonNoExpires_setRedisTtl_noChange(
-        self
+        self,
     ):
         # note: timeout-trigger will force python_expires
 
@@ -1353,7 +1353,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
 
     def test_scenario_existing__timeout_noTrigger_pythonExpires_setRedisTtl_noChange(
-        self
+        self,
     ):
         session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
@@ -1377,7 +1377,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
 
     def test_scenario_existing__timeout_noTrigger_noPythonExpires_setRedisTtl_noChange_classic(
-        self
+        self,
     ):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1401,7 +1401,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
 
     def test_scenario_existing__timeout_noTrigger_noPythonExpires_setRedisTtl_noChange_readheavy(
-        self
+        self,
     ):
         """
         a timeout entirely occurs via EXPIRY in redis
@@ -1723,7 +1723,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(request.registry._redis_sessions._history[0][0], "set")
 
     def test_scenario_existing__timeout_trigger_pythonNoExpires_noRedisTtl_noChange(
-        self
+        self,
     ):
         # note: timeout-trigger will force python_expires
         session_args = self._args_timeout_trigger_noPythonExpires_noRedisTtl
@@ -1741,7 +1741,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(request.registry._redis_sessions._history[0][0], "set")
 
     def test_scenario_existing__timeout_noTrigger_pythonExpires_noRedisTtl_noChange(
-        self
+        self,
     ):
         session_args = self._args_timeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
@@ -1762,7 +1762,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(request.registry._redis_sessions._history[0][0], "set")
 
     def test_scenario_existing__timeout_noTrigger_noPythonExpires_noRedisTtl_noChange(
-        self
+        self,
     ):
         """
         a timeout entirely occurs via EXPIRY in redis

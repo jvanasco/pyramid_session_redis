@@ -1,6 +1,11 @@
 Changelog
 =========
 
+unreleased
+	* upgraded black; 20.8b1
+	* integrated with pre-commit
+
+
 -2019.12.17
     * version 1.5.2
     * updated docs to reflect "None" (string) as valid option for samesite.

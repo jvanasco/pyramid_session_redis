@@ -127,8 +127,7 @@ def int_time():
 
 
 def empty_session_payload(timeout=0, python_expires=None):
-    """creates an empty session payload
-    """
+    """creates an empty session payload"""
     _created = int_time()
     data = {
         "m": {},  # managed_dict
@@ -146,7 +145,7 @@ def encode_session_payload(
     managed_dict, created, timeout, expires, timeout_trigger=None, python_expires=None
 ):
     """called by a session to recode for storage;
-       inverse of ``decode_session_payload``
+    inverse of ``decode_session_payload``
     """
     data = {
         "m": managed_dict,  # managed_dict
@@ -166,7 +165,7 @@ def encode_session_payload(
 
 def decode_session_payload(payload):
     """decode a serialized session payload to kwargs
-       inverse of ``encode_session_payload``
+    inverse of ``encode_session_payload``
     """
     return {
         "managed_dict": payload["m"],
@@ -187,7 +186,7 @@ def _insert_session_id_if_unique(
     new_payload_func=None,
     python_expires=None,
 ):
-    """ Attempt to insert a given ``session_id`` and return the successful id
+    """Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
     the timeout data
 
@@ -347,7 +346,7 @@ def persist(wrapped):
 class _NullSerializer(object):
     """
     A fake serializer for compatibility with ``webob.cookies.SignedSerializer``.
-    Our usage is only signing the session_id, which is a string. 
+    Our usage is only signing the session_id, which is a string.
     """
 
     def dumps(self, appstruct):

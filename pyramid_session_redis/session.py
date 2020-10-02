@@ -146,14 +146,14 @@ class RedisSession(object):
 
     ``set_redis_ttl_readheavy``
      If ``True``, sets TTL data in Redis within a PIPELINE via GET+EXPIRE and
-     supresses automatic TTL refresh during the deferred cleanup phase. If not 
+     supresses automatic TTL refresh during the deferred cleanup phase. If not
      ``True``, an EXPIRE is sent as a separate action during the deferred
      cleanup phase.  The optimized behavior improves performance on read-heavy
      operations, but may degrade performance on write-heavy operations.  This
      requires a ``timeout`` and ``set_redis_ttl`` to be True; it is not
      compatible with ``timeout_trigger`` or ``python_expires``.
      Default: ``None``
-     
+
     ``_set_redis_ttl_onexit`` If ``True``, automatically queues a TTL Redis set
     during the cleanup phase. This should be calculated  based on the following
     criteria:
@@ -163,7 +163,7 @@ class RedisSession(object):
         * not self._python_expires
         * not self._set_redis_ttl_readheavy
     This is handled as a config option and not a realtime calcluation to save
-    some processing. Unit Tests will want to pre-calculate this, otherwise the 
+    some processing. Unit Tests will want to pre-calculate this, otherwise the
     main factory API of this package handles it.
     Default: ``None``
 
@@ -550,7 +550,7 @@ class RedisSession(object):
 
     @persist
     def changed(self):
-        """ Persist all the data that needs to be persisted for this session
+        """Persist all the data that needs to be persisted for this session
         immediately with ``@persist``.
         """
         pass

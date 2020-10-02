@@ -215,7 +215,7 @@ def RedisSessionFactory(
     Default: ``None``.
     A string password to connect to your Redis server/database if
     required.
-    
+
     ``client_callable``
     Default: ``None``.
     A python callable that accepts a Pyramid `request` and Redis config options
@@ -268,7 +268,7 @@ def RedisSessionFactory(
     ``func_check_response_allow_cookies``
     Default: ``None``.
     A callable function that accepts a response, returning ``True`` if the
-    cookie can be sent and ``False`` if it should not. 
+    cookie can be sent and ``False`` if it should not.
      An example callable is available in
     ``check_response_allow_cookies``, which checks for `expires` and
     `cache-control` cookies.
@@ -297,7 +297,7 @@ def RedisSessionFactory(
     An object with two methods, ``loads`` and ``dumps``.
     The ``loads`` method should accept bytes and return a Python object.
     The ``dumps`` method should accept a Python object and return bytes.
-    A ``ValueError`` should be raised for malformed inputs.  
+    A ``ValueError`` should be raised for malformed inputs.
 
     ``socket_timeout``
     Default: ``None``.

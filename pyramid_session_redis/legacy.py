@@ -29,7 +29,7 @@ from six.moves import cPickle as pickle
 
 
 def signed_serialize(data, secret):
-    """ Serialize any pickleable structure (``data``) and sign it
+    """Serialize any pickleable structure (``data``) and sign it
     using the ``secret`` (must be a string).  Return the
     serialization, which includes the signature as its first 40 bytes.
     The ``signed_deserialize`` method will deserialize such a value.
@@ -49,7 +49,7 @@ def signed_serialize(data, secret):
 
 
 def signed_deserialize(serialized, secret, hmac=hmac):
-    """ Deserialize the value returned from ``signed_serialize``.  If
+    """Deserialize the value returned from ``signed_serialize``.  If
     the value cannot be deserialized for any reason, a
     :exc:`ValueError` exception will be raised.
     This function is useful for deserializing a signed cookie value
@@ -104,18 +104,18 @@ class GracefulCookieSerializer(object):
     `GracefulCookieSerializer` is designed to help developers migrate sessions
     across Pyramid/pyramid_session_redis versions by catching deserialization
     failures due to a change in how cookies are signed/checked.
-    
+
     This class will:
         * attempt to deserialize with new format, and fallback to the legacy if that fails
         * serialize into the new format
-    
+
     By providing a `logging_hook` (see tests for example usage), a developer can profile
     their app to understand how the migration of users is progressing.
-    
+
     !!!!! IMPORTANT !!!!!
 
     Using this or any pickle-based serializer is not recommended, as it can lead to
-    a code exploit during deserialization. This is only provided as a temporary migration tool.    
+    a code exploit during deserialization. This is only provided as a temporary migration tool.
     """
 
     secret = None
