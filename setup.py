@@ -21,11 +21,11 @@ install_requires = [
     "redis>=2.4.11, != 2.9.1",
     "pyramid>=1.3,<2",
     "six",
-    # 'zope.interface',  # in Pyramid
+    "zope.interface",  # in Pyramid
 ]
 testing_requires = [
     "nose",
-    # 'webob',  # in Pyramid
+    "webob",  # in Pyramid
 ]
 testing_extras = testing_requires + ["coverage"]
 docs_extras = ["sphinx"]
@@ -54,9 +54,9 @@ def main():
         test_suite="nose.collector",
         include_package_data=True,
         zip_safe=False,
-        tests_require=testing_requires,
-        install_requires=install_requires,
         entry_points="",
+        install_requires=install_requires,
+        tests_require=testing_requires,
         extras_require={"testing": testing_extras, "docs": docs_extras},
     )
 

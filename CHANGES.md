@@ -4,6 +4,7 @@ Changelog
 unreleased
 	* upgraded black; 20.8b1
 	* integrated with pre-commit
+	* replaced travis with github actions
 
 
 -2019.12.17
