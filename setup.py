@@ -41,6 +41,7 @@ def main():
         classifiers=[
             "Intended Audience :: Developers",
             "Framework :: Pyramid",
+            "License :: OSI Approved :: BSD License",
             "Programming Language :: Python :: 2.7",
             "Programming Language :: Python :: 3",
         ],
@@ -48,16 +49,18 @@ def main():
         author="Jonathan Vanasco",
         author_email="jonathan@findmeon.com",
         url="https://github.com/jvanasco/pyramid_session_redis",
-        license="FreeBSD",
-        packages=find_packages(),
-        # test_suite='pyramid_session_redis.tests.test_factory.TestRedisSessionFactory_loggedExceptions',
+        license="BSD",
         test_suite="nose.collector",
+        packages=find_packages(),
         include_package_data=True,
         zip_safe=False,
         entry_points="",
         install_requires=install_requires,
         tests_require=testing_requires,
-        extras_require={"testing": testing_extras, "docs": docs_extras},
+        extras_require={
+            "testing": testing_extras,
+            "docs": docs_extras,
+        },
     )
 
 
