@@ -27,7 +27,7 @@ testing_requires = [
     "nose",
     "webob",  # in Pyramid
 ]
-testing_extras = testing_requires + ["coverage"]
+testing_extras = install_requires + testing_requires + ["coverage"]
 docs_extras = ["sphinx"]
 
 
