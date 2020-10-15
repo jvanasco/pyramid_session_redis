@@ -25,6 +25,7 @@ install_requires = [
 ]
 testing_requires = [
     "nose",
+    "pytest",
     "webob",  # in Pyramid
 ]
 testing_extras = install_requires + testing_requires + ["coverage"]
