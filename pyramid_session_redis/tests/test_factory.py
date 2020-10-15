@@ -7,9 +7,6 @@ import unittest
 import pprint
 import pdb
 
-# pypi
-import six
-
 # pyramid
 from pyramid import testing
 import webob
@@ -2410,13 +2407,12 @@ class TestRedisSessionFactory_loggedExceptions(
         wrapped_exception = exception_wrapper.args[0]
 
         # we are using picke, so it should be:
-        # py2: exceptions.EOFError
-        # py3: pickle.UnpicklingError
         self.assertEqual(request.session.deserialize, pickle.loads)
-        if six.PY2:
-            self.assertIsInstance(exception_wrapper.args[0], EOFError)
-        else:
-            self.assertIsInstance(exception_wrapper.args[0], pickle.UnpicklingError)
+        # py2.7-3.7: exceptions.EOFError
+        # py3.8: pickle.UnpicklingError
+        self.assertIsInstance(
+            exception_wrapper.args[0], (EOFError, pickle.UnpicklingError)
+        )
 
 
 class TestRedisSessionFactory_Invalid(unittest.TestCase):
