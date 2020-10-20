@@ -2,9 +2,12 @@ Changelog
 =========
 
 unreleased
+-2020.10.20
+	* version 1.5.3
 	* upgraded black; 20.8b1
 	* integrated with pre-commit
 	* replaced travis with github actions
+	* packaging fixes
 
 
 -2019.12.17
