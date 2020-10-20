@@ -18,11 +18,8 @@ with open(os.path.join(here, "pyramid_session_redis", "__init__.py")) as v_file:
 long_description = (
     description
 ) = "High performance and actively maintained server-side session framework for Pyramid and Redis."
-try:
-    with open(os.path.join(here, "README.md")) as f:
-        long_description = f.read()
-except:
-    pass
+with open(os.path.join(here, "README.md")) as f:
+    long_description = f.read()
 
 
 # set up requires
@@ -48,6 +45,7 @@ def main():
         version=package_version,
         description=description,
         long_description=long_description,
+        long_description_content_type="text/markdown",
         classifiers=[
             "Intended Audience :: Developers",
             "Framework :: Pyramid",
