@@ -21,7 +21,6 @@ from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
 # pypi
-import six
 from six.moves import cPickle as pickle
 
 
@@ -37,6 +36,9 @@ def signed_serialize(data, secret):
     .. code-block:: python
        cookieval = signed_serialize({'a':1}, 'secret')
        response.set_cookie('signed_cookie', cookieval)
+    :param data: data to serialize
+    :param secret: secret for signing
+    :returns signature: a signed string, compatible with `signed_deserialize`
     """
     pickled = pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
     try:
@@ -57,6 +59,9 @@ def signed_deserialize(serialized, secret, hmac=hmac):
     .. code-block:: python
        cookieval = request.cookies['signed_cookie']
        data = signed_deserialize(cookieval, 'secret')
+    :param serialized: a serialized string
+    :param secret: secret for signing
+    :returns data: the input which was serialized via `signed_serialize`
     """
     # hmac parameterized only for unit tests
     try:
@@ -90,12 +95,21 @@ class LegacyCookieSerializer(object):
     secret = None
 
     def __init__(self, secret):
+        """
+        :param secret: The secret for this serializer
+        """
         self.secret = secret
 
     def loads(self, data):
+        """
+        :param data: data to be deserialized
+        """
         return signed_deserialize(data, self.secret)
 
     def dumps(self, data):
+        """
+        :param data: data to be serialized
+        """
         return signed_serialize(data, self.secret)
 
 
@@ -125,17 +139,17 @@ class GracefulCookieSerializer(object):
 
     def __init__(self, secret, logging_hook=None):
         """
-        args:
-            `secret`: the secret
-        kwargs
-            `logging_hook`: a callable that supports at least two methods
-                * `LoggingHook.attempt("current")`
-                * `LoggingHook.success("current")`
-            each method will be invoked with a string, which will have one of 3
-            possible values:
-                "global" (only attempt), a global attempt was made
-                "current" - attempt/success for the current serializer
-                "legacy" - attempt/success for the legacy serializer
+        :param secret: string. the secret
+        :param logging_hook: callable; default None.
+
+        `logging_hook` is a callable that supports at least two methods
+            * `LoggingHook.attempt("current")`
+            * `LoggingHook.success("current")`
+        Each method will be invoked with a string, which will have one of 3
+        possible values:
+            "global" (only attempt), a global attempt was made
+            "current" - attempt/success for the current serializer
+            "legacy" - attempt/success for the legacy serializer
         """
         self.secret = secret
         self.serializer_current = SignedSerializer(
@@ -145,6 +159,9 @@ class GracefulCookieSerializer(object):
         self.logging_hook = logging_hook
 
     def loads(self, data):
+        """
+        :param data: data to be deserialized
+        """
         if self.logging_hook:
             _hook = self.logging_hook
             _hook.attempt("global")
@@ -166,4 +183,7 @@ class GracefulCookieSerializer(object):
             return self.serializer_legacy.loads(data)
 
     def dumps(self, data):
+        """
+        :param data: data to be serialized
+        """
         return self.serializer_current.dumps(data)

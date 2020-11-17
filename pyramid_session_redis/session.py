@@ -38,6 +38,9 @@ def hashed_value(serialized):
     """
     quick hash of serialized data
     only used for comparison
+
+    :param serialized: string. serialized data to hash.
+    :returns hash: string.
     """
     return hashlib.md5(serialized).hexdigest()
 
@@ -76,6 +79,9 @@ class _SessionState(object):
         this is a backup routine
         compares the persisted hash with a hash of the current value
         returns `False` or `serialized_session`
+
+        :param session:
+        :returns serialized_session:
         """
         if self.dont_persist:
             return False
@@ -140,7 +146,7 @@ class RedisSession(object):
     objects. Default: ``cPickle.loads``.
 
     ``set_redis_ttl``
-     If ``True`` sets TTL data in Redis.  If ``False`` assumes redis is
+     If ``True`` sets TTL data in Redis.  If ``False`` assumes Redis is
      configured as a LRU and does not update the expiry data via SETEX.
      Default: ``True``
 
@@ -254,6 +260,9 @@ class RedisSession(object):
         """
         used to recode for serialization
         this can be overridden via __init__
+
+        :param payload:
+        :returns decoded payload:
         """
         return decode_session_payload_func(payload)
 
@@ -281,8 +290,14 @@ class RedisSession(object):
         return int_time()
 
     def _make_session_state(self, session_id, new):
-        """this will try to load the session_id in redis via ``from_redis``.
-        If this fails, it will raise ``InvalidSession`` variants"""
+        """
+        This will try to load the session_id in Redis via ``from_redis``.
+        If this fails, it will raise ``InvalidSession`` variants
+
+        :param session_id:
+        :param new:
+        :returns `_SessionState``:
+        """
         if session_id == LAZYCREATE_SESSION:
             persisted_hash = None
             persisted = self.new_payload()
@@ -573,7 +588,7 @@ class RedisSession(object):
         storage = self.setdefault("_f_" + queue, [])
         if allow_duplicate or (msg not in storage):
             storage.append(msg)
-            self.changed()  # notify redis of change to ``storage`` mutable
+            self.changed()  # notify Redis of change to ``storage`` mutable
 
     def peek_flash(self, queue=""):
         storage = self.get("_f_" + queue, [])
@@ -620,11 +635,11 @@ class RedisSession(object):
             # _session_state is a reified property, which is saved into the dict
             # if we call `session.invalidate()` the session is immediately deleted
             # however, accessing it here will trigger a new _session_state creation
-            # and insert a placeholder for the session_id into redis.  this would be
+            # and insert a placeholder for the session_id into Redis.  this would be
             # ok in certain situations, however since we don't access any actual
             # data in the session, it won't have the cookie callback triggered --
             # which means the cookie will never get sent to the user, and a phantom
-            # session_id+placeholder will be in redis until it times out.
+            # session_id+placeholder will be in Redis until it times out.
             return
         if not self._session_state.dont_persist:
             if self._session_state.please_persist:

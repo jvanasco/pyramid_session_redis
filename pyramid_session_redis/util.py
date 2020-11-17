@@ -114,6 +114,7 @@ configs_int_none = ("timeout", "timeout_trigger")
 
 def prefixed_id(prefix="session:"):
     """
+    :param prefix: string. the prefix
     Adds a prefix to the unique session id, for cases where you want to
     visually distinguish keys in redis.
     """
@@ -127,7 +128,12 @@ def int_time():
 
 
 def empty_session_payload(timeout=0, python_expires=None):
-    """creates an empty session payload"""
+    """
+    creates an empty session payload
+
+    :param timeout: int. default 0.
+    :param python_expires: bool. default None.
+    """
     _created = int_time()
     data = {
         "m": {},  # managed_dict
@@ -144,8 +150,16 @@ def empty_session_payload(timeout=0, python_expires=None):
 def encode_session_payload(
     managed_dict, created, timeout, expires, timeout_trigger=None, python_expires=None
 ):
-    """called by a session to recode for storage;
+    """
+    called by a session to recode for storage;
     inverse of ``decode_session_payload``
+
+    :param managed_dict: internal dict for encoding.
+    :param created: int. time created.
+    :param timeout: int. seconds.
+    :param expires: int. time expiry.
+    :param timeout_trigger: int. default None.
+    :param python_expires: bool. default None.
     """
     data = {
         "m": managed_dict,  # managed_dict
@@ -164,8 +178,12 @@ def encode_session_payload(
 
 
 def decode_session_payload(payload):
-    """decode a serialized session payload to kwargs
+    """
+    decode a serialized session payload to kwargs
     inverse of ``encode_session_payload``
+
+    :param payload: dict with encoding compatible with `encode_session_payload`
+    :returns payload: dict with legacy/readble format.
     """
     return {
         "managed_dict": payload["m"],
@@ -186,7 +204,8 @@ def _insert_session_id_if_unique(
     new_payload_func=None,
     python_expires=None,
 ):
-    """Attempt to insert a given ``session_id`` and return the successful id
+    """
+    Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
     the timeout data
 
@@ -195,6 +214,16 @@ def _insert_session_id_if_unique(
     ``data_payload`` = payload to use
     ``new_payload_func`` = specify a fallback function to generate a payload
     if both are ``None``, then `empty_session_payload`
+
+    :param redis: redis connection
+    :param timeout: int seconds. used to initialize empty session.
+    :param session_id: string.
+    :param serialize: callable. used to serialize an empty session.
+    :param set_redis_ttl:  bool
+    :param data_payload: dict. default None. initialize session with this payload.
+    :param new_payload_func: callable. default None. create a new payload with this.
+    :param python_expires: bool. default None.
+    :returns session_id: string.
     """
     if data_payload is None:
         if new_payload_func is not None:
@@ -236,6 +265,16 @@ def create_unique_session_id(
 ):
     """
     Returns a unique session id after inserting it successfully in Redis.
+
+    :param redis: redis connection
+    :param timeout: int seconds. used to initialize empty session.
+    :param serialize: callable. used to serialize an empty session.
+    :param generator: callable. used to generate an id.
+    :param set_redis_ttl:  bool
+    :param data_payload: dict. default None. initialize session with this payload.
+    :param new_payload_func: callable. default None. create a new payload with this.
+    :param python_expires: bool. default None.
+    :returns:
     """
     while 1:
         session_id = generator()
@@ -257,6 +296,8 @@ def _parse_settings(settings):
     """
     Convenience function to collect settings prefixed by 'redis.sessions' and
     coerce settings to ``int``, ``float``, and ``bool`` as needed.
+
+    :param settings: dict
     """
     keys = [s for s in settings if s.startswith("redis.sessions.")]
 
@@ -316,6 +357,9 @@ def refresh(wrapped):
     This will mark the `_session_state.please_refresh` as True, to be
     handled in a callback.
     To immediately persist a session, call `session.do_refresh`.
+
+    :param wrapped: a function to wrap with this decorator.
+    :returns wrapped_refresh: a wrapped function.
     """
 
     def wrapped_refresh(session, *arg, **kw):
@@ -333,6 +377,9 @@ def persist(wrapped):
     This will mark the `_session_state.please_persist` as True, to be
     handled in a callback.
     To immediately persist a session, call `session.do_persist`.
+
+    :param wrapped: a function to wrap with this decorator.
+    :returns wrapped_refresh: a wrapped function.
     """
 
     def wrapped_persist(session, *arg, **kw):

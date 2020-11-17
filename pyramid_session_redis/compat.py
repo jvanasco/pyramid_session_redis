@@ -3,7 +3,6 @@
 """
 Compatability module for various pythons and environments.
 """
-import six
 from six.moves import cPickle as pickle
 from six import PY2
 from six import PY3
@@ -21,12 +20,21 @@ except ImportError:  # pragma: no cover
     import binascii
 
     def token_bytes(nbytes=32):
+        """
+        :param nbytes: default 32
+        """
         return os.urandom(nbytes)
 
     def token_urlsafe(nbytes=32):
+        """
+        :param nbytes: default 32
+        """
         token = base64.urlsafe_b64encode(token_bytes(nbytes)).rstrip(b"=")
         return token.decode("ascii") if PY3 else token
 
     def token_hex(nbytes=32):
+        """
+        :param nbytes: default 32
+        """
         token = binascii.hexlify(token_bytes(nbytes))
         return token.decode("ascii") if PY3 else token

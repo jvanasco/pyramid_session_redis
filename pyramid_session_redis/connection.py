@@ -54,22 +54,13 @@ def get_default_connection(
     Default Redis connection handler. Once a connection is established it is
     saved in `request.registry`.
 
-    Parameters:
-
-    ``request``
-    The current pyramid request object
-
-    ``url``
-    An optional connection string that will be passed straight to
-    `StrictRedis.from_url`. The connection string should be in the form:
-        redis://username:password@localhost:6379/0
-
-    ``settings``
-    A dict of keyword args to be passed straight to `StrictRedis`
-
-    Returns:
-
-    An instance of `StrictRedis`
+    :param request: The current Pyramid ``Request`` object.
+    :param url: string. An optional connection string that will be passed
+        directly to `StrictRedis.from_url`. The connection string should be in
+        the form `redis://username:password@localhost:6379/0`
+    :param settings: dict. A dict of keyword args to be passed directly
+        to `StrictRedis`.
+    :returns: An instance of `StrictRedis`
     """
     # attempt to get an existing connection from the registry
     redis = getattr(request.registry, "_redis_sessions", None)
