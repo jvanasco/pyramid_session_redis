@@ -7,8 +7,8 @@ This package provides a fast and stable implementation of Pyramid's `ISession
 interface <https://docs.pylonsproject.org/projects/pyramid/en/latest/api/interfaces.html#pyramid.interfaces.ISession>`_,
 using Redis as its backend.
 
-``pyramid_session_redis`` is a fork of the `ISession
-interface <https://github.com/ericrasmussen/pyramid_redis_sessions>`_ project by
+``pyramid_session_redis`` is a fork of the `pyramid_redis_sessions 
+<https://github.com/ericrasmussen/pyramid_redis_sessions>`_ project by
 Eric Rasmussen. The code and documentation have been changed significantly as the
 API and feature set evolved.
 

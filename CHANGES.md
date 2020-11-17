@@ -1,7 +1,10 @@
 Changelog
 =========
 
-unreleased
+- unreleased
+	* doc fixes
+
+
 -2020.10.20
 	* version 1.5.3
 	* upgraded black; 20.8b1
