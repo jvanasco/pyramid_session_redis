@@ -530,6 +530,7 @@ an instance of `InvalidSession`.
 The `func_invalid_logger` argument may be provided as a dotted-notation string
 in a configuration file.
 
+
 Uncaught Errors
 ================
 
@@ -561,6 +562,14 @@ A. Serialization is used at two points
 
 
 
+
+Examples
+========
+
+There is an example of using this package in `pyramid_session_multi`
+[examples/single_file_app.py](https://github.com/jvanasco/pyramid_session_multi/blob/master/examples/single_file_app.py).
+
+
 Further Reading:
 ================
 
@@ -582,6 +591,7 @@ As of Nov 2016, this was forked into it's own project to allow for distribution
 under PyPi.
 
 All support is handled via GitHub : https://github.com/jvanasco/pyramid_session_redis
+
 
 
 ToDo

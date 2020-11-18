@@ -525,7 +525,6 @@ def _get_session_id_from_cookie(request, cookie_name, cookie_signer):
     be deserialized for any reason.
     """
     cookieval = request.cookies.get(cookie_name)
-
     if cookieval is not None:
         try:
             session_id = cookie_signer.loads(cookieval)
