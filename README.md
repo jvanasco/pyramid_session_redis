@@ -567,7 +567,7 @@ Examples
 ========
 
 There is an example of using this package in `pyramid_session_multi`
-[examples/single_file_app.py](https://github.com/jvanasco/pyramid_session_multi/blob/master/examples/single_file_app.py).
+[examples/single_file_app.py](https://github.com/jvanasco/pyramid_session_multi/blob/main/examples/single_file_app.py).
 
 
 Further Reading:
@@ -584,8 +584,8 @@ To suport multiple Sessions under pyramid
 
 Until Nov 2016 this was maintained as `jvanasco/pyramid_redis_sessions`
 
-* The master branch for `jvanasco/pyramid_redis_sessions` was "custom_deployment"
-* The branched named "master" is the upstream source from ericrasmussen
+* The main branch for `jvanasco/pyramid_redis_sessions` was "custom_deployment"
+* The branched named "main" is the upstream source from ericrasmussen
 
 As of Nov 2016, this was forked into it's own project to allow for distribution
 under PyPi.
@@ -633,5 +633,5 @@ License
 =======
 
 `pyramid_session_redis` is available under a FreeBSD-derived license. See
-`LICENSE.txt <https://github.com/jvanasco/pyramid_session_redis/blob/master/LICENSE.txt>`_
+`LICENSE.txt <https://github.com/jvanasco/pyramid_session_redis/blob/main/LICENSE.txt>`_
 for details.

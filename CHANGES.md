@@ -207,7 +207,7 @@ Changelog
 - 10/13/2013: Many documentation improvements, and some minor refactoring (better
     comments, removing unused functions, etc).
 
-    This update has been in the works on the github master for months
+    This update has been in the works on the github main for months
     with no releases to pypi. It marks another major version bump,
     this time to 1.0a. Releases will follow a more typical versioning
     model from now on (similar to Pyramid's).

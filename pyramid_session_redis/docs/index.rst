@@ -40,14 +40,14 @@ Authors
 The original code was written by `Eric Rasmussen <https://github.com/ericrasmussen>`_.
 
 A complete list of contributors is available in `CONTRIBUTORS.txt
-<https://github.com/jvanasco/pyramid_session_redis/blob/master/CONTRIBUTORS.txt>`_.
+<https://github.com/jvanasco/pyramid_session_redis/blob/main/CONTRIBUTORS.txt>`_.
 
 
 
 License
 =======
 `pyramid_session_redis` is available under a FreeBSD-derived license. See
-`LICENSE.txt <https://github.com/jvanasco/pyramid_session_redis/blob/master/LICENSE.txt>`_
+`LICENSE.txt <https://github.com/jvanasco/pyramid_session_redis/blob/main/LICENSE.txt>`_
 for details.
 
 It is hoped this project can be relicensed under the MIT license in the future.
