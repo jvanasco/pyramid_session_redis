@@ -21,8 +21,11 @@ Current Branch
 
 	"pyramid_session_redis>1.5,<1.6"
 
-* The 1.6 branch will support Pyramid 2, but will not be compatible with Pyramid 1.x,
-due to breaking changes.
+* The 1.6 branch will support Pyramid 2, ~~but will not be compatible with Pyramid 1.x,
+due to breaking changes.~~ The 1.6 branch is currently intended to support Pyramid 1.x
+and Python2. For early adopters of Pyramid2, there is a concept branch which supports
+Pyramid2 but does not support Pyramid 1.x or Python2. The concept branch is NOT likely
+to mature to release, but is provided as a temporary fix.
 
 Prior Branches
 --------------
