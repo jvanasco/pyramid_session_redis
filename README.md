@@ -21,7 +21,8 @@ Current Branch
 
 	"pyramid_session_redis>1.5,<1.6"
 
-* The 1.6 branch will not be compatible with Pyramid 2, due to breaking changes.
+* The 1.6 branch will support Pyramid 2, but will not be compatible with Pyramid 1.x,
+due to breaking changes.
 
 Prior Branches
 --------------
