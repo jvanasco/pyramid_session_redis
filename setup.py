@@ -29,7 +29,7 @@ install_requires = [
 ]
 
 # Pyramid2 drops support for Python2 and Python3.5
-requires_pyramid_2 = True if sys.version_info > (3, 5) else False
+requires_pyramid_2 = True if sys.version_info >= (3, 6) else False
 if requires_pyramid_2:
     install_requires.append("pyramid>=2")
 else:
