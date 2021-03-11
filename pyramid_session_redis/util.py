@@ -2,22 +2,18 @@
 
 # stdlib
 from functools import partial
-import warnings
-from time import time as time_time
 from math import ceil
+from secrets import token_urlsafe
+from time import time as time_time
+import warnings
 
 # pypi
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
-import six
-from six import PY2
-from six import PY3
-from webob.compat import bytes_, text_
 
-# local
-from .compat import token_urlsafe
 
+from webob.compat import bytes_, text_  # this moves to webob.util in 2.0
 
 # ---------------------
 
@@ -39,18 +35,6 @@ SESSION_API_VERSION = 1
 
 def warn_future(message):
     warnings.warn(message, FutureWarning, stacklevel=2)
-
-
-def to_binary(value, enc="UTF-8"):  # pragma: no cover
-    if PY3 and isinstance(value, str):
-        value = value.encode(enc)
-    return value
-
-
-def to_unicode(value):  # pragma: no cover
-    if PY2:
-        value = unicode(value)
-    return value
 
 
 def _generate_session_id():

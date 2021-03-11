@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # stdlib
 import functools
+import pickle
 import time
 
 # pypi/pyramid
@@ -8,7 +9,6 @@ from pyramid.exceptions import ConfigurationError
 from webob.cookies import SignedSerializer
 
 # local
-from .compat import pickle  # v1.6 - remove
 from .connection import get_default_connection
 from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
@@ -25,7 +25,7 @@ from .util import (
 )
 
 
-__VERSION__ = "1.5.3"
+__VERSION__ = "1.6.0.dev0"
 
 
 # ==============================================================================
@@ -222,11 +222,11 @@ def RedisSessionFactory(
     and returns a Redis client such as redis-py's `StrictRedis`.
 
     ``serialize``
-    Default: ``pickle.dumps``. PY2=cPickle
+    Default: ``pickle.dumps``.
     A function to serialize the session dict for storage in Redis.
 
     ``deserialize``
-    Default: ``pickle.loads``. PY2=cPickle
+    Default: ``pickle.loads``.
     A function to deserialize the stored session data in Redis.
 
     ``id_generator``

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from ..compat import pickle
+# stdlib
+import pickle
 
 
 class DummySessionState(object):

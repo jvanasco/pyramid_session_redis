@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 
+# stlib
 import hashlib
+import pickle
+from secrets import token_hex
 
+# pypi
 from pyramid.decorator import reify
 from pyramid.exceptions import ConfigurationError
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
-from .compat import pickle, token_hex
+# local
 from .exceptions import (
     InvalidSession,
     InvalidSession_DeserializationError,
@@ -20,7 +24,6 @@ from .exceptions import (
 from .util import (
     persist,
     refresh,
-    to_unicode,
     warn_future,
     LAZYCREATE_SESSION,
     int_time,
@@ -139,11 +142,11 @@ class RedisSession(object):
 
     ``serialize``
     A function to serialize pickleable Python objects. Default:
-    ``cPickle.dumps``.
+    ``pickle.dumps``.
 
     ``deserialize``
     The dual of ``serialize``, to convert serialized strings back to Python
-    objects. Default: ``cPickle.loads``.
+    objects. Default: ``pickle.loads``.
 
     ``set_redis_ttl``
      If ``True`` sets TTL data in Redis.  If ``False`` assumes Redis is
@@ -580,8 +583,6 @@ class RedisSession(object):
         token = self.get("_csrft_", None)
         if token is None:
             token = self.new_csrf_token()
-        else:
-            token = to_unicode(token)
         return token
 
     def flash(self, msg, queue="", allow_duplicate=True):

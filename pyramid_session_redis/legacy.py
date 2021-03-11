@@ -1,30 +1,51 @@
 # -*- coding: utf-8 -*-
 """
-The functions `signed_serialize` and `signed_deserialize` are taken from Pyramid
-and appear under their licensing.  See LICENSE.TXT for more details
+PLEASE DO NOT USE ME.
 
+This is provided for migrating sessions only.
+The legacy system has security issues.
 
+The following functions are taken from Pyramid and appear under their licensing.
 
+* `signed_serialize`
+* `signed_deserialize`
+* `bytes_`
+* `native_`
+
+See LICENSE.TXT for more details
 """
-# local
-from .util import _NullSerializer
-
 # stdlib
 import base64
 import binascii
 import hashlib
 import hmac
+import pickle
 
 # pyramid
-from pyramid.compat import bytes_, native_
 from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
-# pypi
-from six.moves import cPickle as pickle
+# local
+from .util import _NullSerializer
 
 
 # ==============================================================================
+
+
+def bytes_(s, encoding="latin-1", errors="strict"):
+    """If ``s`` is an instance of ``text_type``, return
+    ``s.encode(encoding, errors)``, otherwise return ``s``"""
+    if isinstance(s, str):
+        return s.encode(encoding, errors)
+    return s
+
+
+def native_(s, encoding="latin-1", errors="strict"):
+    """If ``s`` is an instance of ``text_type``, return
+    ``s``, otherwise return ``str(s, encoding, errors)``"""
+    if isinstance(s, str):
+        return s
+    return str(s, encoding, errors)
 
 
 def signed_serialize(data, secret):
@@ -92,6 +113,13 @@ def signed_deserialize(serialized, secret, hmac=hmac):
 
 
 class LegacyCookieSerializer(object):
+    """
+    PLEASE DO NOT USE ME.
+
+    This is provided for migrating sessions only.
+    The legacy system has security issues.
+    """
+
     secret = None
 
     def __init__(self, secret):

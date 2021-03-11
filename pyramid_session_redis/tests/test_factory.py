@@ -3,9 +3,10 @@ from __future__ import print_function
 
 # stdlib
 import itertools
-import unittest
+import pickle
 import pprint
 import pdb
+import unittest
 
 # pyramid
 from pyramid import testing
@@ -13,7 +14,6 @@ import webob
 from webob.cookies import SignedSerializer
 
 # local
-from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (
     InvalidSession,

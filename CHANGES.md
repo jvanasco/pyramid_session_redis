@@ -3,6 +3,9 @@ Changelog
 
 - unreleased
 	* doc fixes
+	* version 1.6.0dev0
+	* support Pyramid-2
+	* drop Pyramid-1
 
 
 -2020.10.20

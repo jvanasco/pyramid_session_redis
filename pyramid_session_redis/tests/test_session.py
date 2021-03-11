@@ -3,13 +3,13 @@ from __future__ import print_function
 
 # stdlib
 import itertools
+import pickle
 import pdb
 import pprint
 import time
 import unittest
 
 # local
-from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (
     InvalidSession,

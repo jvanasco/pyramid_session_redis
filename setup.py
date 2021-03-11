@@ -25,14 +25,13 @@ with open(os.path.join(HERE, "README.md")) as f:
 # set up requires
 install_requires = [
     "redis>=2.4.11, != 2.9.1",
-    "pyramid>=1.3,<2",
-    "six",
+    "pyramid>=2",
     "zope.interface",  # in Pyramid
 ]
 testing_requires = [
     "nose",
     "pytest",
-    "webob",  # in Pyramid
+    "webob<2",  # in Pyramid; 2.0 has some renamings
 ]
 testing_extras = install_requires + testing_requires + ["coverage"]
 docs_extras = ["sphinx"]
