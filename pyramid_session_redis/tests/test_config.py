@@ -3,7 +3,7 @@
 # stdlib
 import unittest
 
-# pyramid
+# pypi
 from pyramid import testing
 from pyramid.threadlocal import get_current_request
 from pyramid.exceptions import ConfigurationError

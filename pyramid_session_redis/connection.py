@@ -47,6 +47,9 @@ connect.
 from redis import StrictRedis
 
 
+# ==============================================================================
+
+
 def get_default_connection(
     request, url=None, redis_client=StrictRedis, **redis_options
 ):

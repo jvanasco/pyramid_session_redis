@@ -3,7 +3,7 @@
 # stdlib
 import unittest
 
-# pyramid
+# pypi
 from pyramid import testing
 
 

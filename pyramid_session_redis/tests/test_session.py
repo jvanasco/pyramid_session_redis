@@ -3,12 +3,13 @@ from __future__ import print_function
 
 # stdlib
 import itertools
-import pdb
+
+# import pdb
 import pprint
 import time
 import unittest
 
-# local
+# pypi
 from ..compat import pickle
 from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
 from ..exceptions import (

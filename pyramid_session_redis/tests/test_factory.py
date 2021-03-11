@@ -7,7 +7,7 @@ import unittest
 import pprint
 import pdb
 
-# pyramid
+# pypi
 from pyramid import testing
 import webob
 from webob.cookies import SignedSerializer

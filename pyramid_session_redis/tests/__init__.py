@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
+# local
 from ..compat import pickle
+
+
+# ==============================================================================
 
 
 class DummySessionState(object):

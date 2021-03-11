@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 
+# stdlib
 import hashlib
 
+# pypi
 from pyramid.decorator import reify
 from pyramid.exceptions import ConfigurationError
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
-from .compat import pickle, token_hex
+# local
+from .compat import (
+    pickle,
+    token_hex,
+    to_unicode,
+)
 from .exceptions import (
     InvalidSession,
     InvalidSession_DeserializationError,
@@ -20,7 +27,6 @@ from .exceptions import (
 from .util import (
     persist,
     refresh,
-    to_unicode,
     warn_future,
     LAZYCREATE_SESSION,
     int_time,

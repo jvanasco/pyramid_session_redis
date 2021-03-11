@@ -1,30 +1,76 @@
 # -*- coding: utf-8 -*-
 """
-The functions `signed_serialize` and `signed_deserialize` are taken from Pyramid
-and appear under their licensing.  See LICENSE.TXT for more details
+PLEASE DO NOT USE ME.
+This is provided for migrating sessions only.
+The legacy system has security issues.
 
+The following functions are taken from Pyramid and appear under their licensing.
 
+* `pyramid.session.signed_serialize`
+* `pyramid.sessionsigned_deserialize`
+* `pyramid.compat.bytes_`
+* `pyramid.compat.native_`
 
+See LICENSE.TXT for more details
 """
-# local
-from .util import _NullSerializer
-
 # stdlib
 import base64
 import binascii
 import hashlib
 import hmac
 
-# pyramid
-from pyramid.compat import bytes_, native_
+# pypi
 from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
-# pypi
-from six.moves import cPickle as pickle
+
+# local
+from .compat import pickle
+from .compat import PY2
+from .util import _NullSerializer
 
 
 # ==============================================================================
+
+
+if PY2:
+
+    text_type = unicode
+
+    def native_(s, encoding="latin-1", errors="strict"):
+        """If ``s`` is an instance of ``text_type``, return
+        ``s.encode(encoding, errors)``, otherwise return ``str(s)``"""
+        if isinstance(s, text_type):
+            return s.encode(encoding, errors)
+        return str(s)
+
+
+else:
+
+    text_type = str
+
+    def native_(s, encoding="latin-1", errors="strict"):
+        """If ``s`` is an instance of ``text_type``, return
+        ``s``, otherwise return ``str(s, encoding, errors)``"""
+        if isinstance(s, text_type):
+            return s
+        return str(s, encoding, errors)
+
+
+native_.__doc__ = """
+Python 3: If ``s`` is an instance of ``text_type``, return ``s``, otherwise
+return ``str(s, encoding, errors)``
+Python 2: If ``s`` is an instance of ``text_type``, return
+``s.encode(encoding, errors)``, otherwise return ``str(s)``
+"""
+
+
+def bytes_(s, encoding="latin-1", errors="strict"):
+    """If ``s`` is an instance of ``text_type``, return
+    ``s.encode(encoding, errors)``, otherwise return ``s``"""
+    if isinstance(s, text_type):
+        return s.encode(encoding, errors)
+    return s
 
 
 def signed_serialize(data, secret):

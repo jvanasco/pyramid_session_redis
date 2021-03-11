@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 
 from setuptools import find_packages
 from setuptools import setup
@@ -21,14 +22,19 @@ long_description = (
 with open(os.path.join(HERE, "README.md")) as f:
     long_description = f.read()
 
-
-# set up requires
 install_requires = [
     "redis>=2.4.11, != 2.9.1",
-    "pyramid>=1.3,<2",
     "six",
     "zope.interface",  # in Pyramid
 ]
+
+# Pyramid2 drops support for Python2 and Python3.5
+requires_pyramid_2 = True if sys.version_info > (3, 5) else False
+if requires_pyramid_2:
+    install_requires.append("pyramid>=2")
+else:
+    install_requires.append("pyramid>=1.3,<2")
+
 testing_requires = [
     "nose",
     "pytest",

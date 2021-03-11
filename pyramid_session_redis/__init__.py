@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
+
 # stdlib
 import functools
 import time
 
-# pypi/pyramid
+# pypi
 from pyramid.exceptions import ConfigurationError
 from webob.cookies import SignedSerializer
 
 # local
-from .compat import pickle  # v1.6 - remove
+from .compat import pickle
 from .connection import get_default_connection
 from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
@@ -25,7 +26,7 @@ from .util import (
 )
 
 
-__VERSION__ = "1.5.3"
+__VERSION__ = "1.6.0.dev0"
 
 
 # ==============================================================================

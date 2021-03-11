@@ -4,7 +4,7 @@ from __future__ import print_function
 # stdlib
 import unittest
 
-# pyramid
+# pypi
 from webob.cookies import SignedSerializer
 
 # local

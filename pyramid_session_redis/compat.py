@@ -1,11 +1,20 @@
 # -*- coding: utf-8 -*-
 
 """
-Compatability module for various pythons and environments.
+Compatability module for various Pythons and Environments.
 """
 from six.moves import cPickle as pickle
 from six import PY2
 from six import PY3
+
+
+# !!!: MIGRATION. these move in webob 2.0
+try:
+    from webob.compat import bytes_ as webob_bytes_
+    from webob.compat import text_ as webob_text_
+except:
+    from webob.util import bytes_ as webob_bytes_
+    from webob.util import text_ as webob_text_
 
 
 # ==============================================================================
@@ -38,3 +47,9 @@ except ImportError:  # pragma: no cover
         """
         token = binascii.hexlify(token_bytes(nbytes))
         return token.decode("ascii") if PY3 else token
+
+
+def to_unicode(value):  # pragma: no cover
+    if PY2:
+        value = unicode(value)
+    return value
