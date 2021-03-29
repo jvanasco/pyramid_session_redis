@@ -16,12 +16,20 @@ import hashlib
 import hmac
 
 # pyramid
-from pyramid.compat import bytes_, native_
 from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
 # pypi
 from six.moves import cPickle as pickle
+from six import ensure_binary, ensure_str
+
+
+def bytes_(s, encoding='latin-1', errors='strict'):
+    return ensure_binary(s, encoding, errors)
+
+
+def native_(s, encoding='latin-1', errors='strict'):
+    return ensure_str(s, encoding, errors)
 
 
 # ==============================================================================
