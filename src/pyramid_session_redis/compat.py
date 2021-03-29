@@ -4,8 +4,19 @@
 Compatability module for various pythons and environments.
 """
 from six.moves import cPickle as pickle
+from six import ensure_binary, ensure_str
 from six import PY2
 from six import PY3
+
+# !!!: MIGRATION. these move in webob 2.0
+try:
+    # webon 1.x
+    from webob.compat import bytes_ as webob_bytes_
+    from webob.compat import text_ as webob_text_
+except:
+    # webon 2.x
+    from webob.util import bytes_ as webob_bytes_
+    from webob.util import text_ as webob_text_
 
 
 # ==============================================================================
@@ -38,3 +49,17 @@ except ImportError:  # pragma: no cover
         """
         token = binascii.hexlify(token_bytes(nbytes))
         return token.decode("ascii") if PY3 else token
+
+
+def bytes_(s, encoding="latin-1", errors="strict"):
+    return ensure_binary(s, encoding, errors)
+
+
+def native_(s, encoding="latin-1", errors="strict"):
+    return ensure_str(s, encoding, errors)
+
+
+def to_unicode(value):  # pragma: no cover
+    if PY2:
+        value = unicode(value)
+    return value

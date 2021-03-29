@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from ..compat import pickle
+from pyramid_session_redis.compat import pickle
+
+
+# ==============================================================================
 
 
 class DummySessionState(object):

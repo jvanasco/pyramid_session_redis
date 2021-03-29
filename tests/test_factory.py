@@ -3,19 +3,19 @@ from __future__ import print_function
 
 # stdlib
 import itertools
-import unittest
-import pprint
 import pdb
+import pprint
+import unittest
 
-# pyramid
+# pypi
 from pyramid import testing
 import webob
 from webob.cookies import SignedSerializer
 
 # local
-from ..compat import pickle
-from ..util import encode_session_payload, int_time, LAZYCREATE_SESSION
-from ..exceptions import (
+from pyramid_session_redis import RedisSessionFactory
+from pyramid_session_redis.compat import pickle
+from pyramid_session_redis.exceptions import (
     InvalidSession,
     InvalidSession_NoSessionCookie,
     InvalidSession_NotInBackend,
@@ -24,11 +24,21 @@ from ..exceptions import (
     InvalidSession_PayloadLegacy,
     RawDeserializationError,
 )
-from .. import RedisSessionFactory
+from pyramid_session_redis.session import RedisSession
+from pyramid_session_redis.util import _NullSerializer
+from pyramid_session_redis.util import (
+    encode_session_payload,
+    int_time,
+    LAZYCREATE_SESSION,
+)
+from pyramid_session_redis.util import create_unique_session_id
+from pyramid_session_redis import session_factory_from_settings
+from pyramid_session_redis import session_factory_from_settings
+from pyramid_session_redis import check_response_allow_cookies
+
+# local test suite
+from . import DummyRedis
 from .test_config import dummy_id_generator
-from ..session import RedisSession
-from .. import RedisSessionFactory
-from ..util import _NullSerializer
 
 
 # ==============================================================================
@@ -75,8 +85,6 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         self.assertNotIn("Max-Age=0", header_value)
 
     def _get_session_id(self, request):
-        from ..util import create_unique_session_id
-
         redis = request.registry._redis_sessions
         session_id = create_unique_session_id(
             redis, timeout=100, serialize=pickle.dumps
@@ -96,7 +104,6 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         request.cookies[cookie_name] = cookieval
 
     def _make_request(self, request_old=None):
-        from . import DummyRedis
 
         if request_old:
             # grab the registry data to persist, otherwise it gets discarded
@@ -630,8 +637,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertEqual(new_session.timeout, 555)
 
     def test_client_callable(self):
-        from . import DummyRedis
-
         request = self._make_request()
         redis = DummyRedis()
         client_callable = lambda req, **kw: redis
@@ -639,16 +644,12 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertEqual(inst.redis, redis)
 
     def test_session_factory_from_settings(self):
-        from .. import session_factory_from_settings
-
         request = self._make_request()
         settings = {"redis.sessions.secret": "secret", "redis.sessions.timeout": "999"}
         inst = session_factory_from_settings(settings)(request)
         self.assertEqual(inst.timeout, 999)
 
     def test_session_factory_from_settings_no_timeout(self):
-        from .. import session_factory_from_settings
-
         """settings should allow `None` and `0`; both becoming `None`"""
         request_none = self._make_request()
         settings_none = {
@@ -664,8 +665,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertEqual(inst_0.timeout, None)
 
     def test_check_response(self):
-        from .. import check_response_allow_cookies
-
         factory = RedisSessionFactory(
             "secret", func_check_response_allow_cookies=check_response_allow_cookies
         )
@@ -2447,8 +2446,6 @@ class TestRedisSessionFactory_CustomCookie(
         return factory
 
     def _make_request(self):
-        from . import DummyRedis
-
         request = testing.DummyRequest()
         request.registry._redis_sessions = DummyRedis()
         request.exception = None

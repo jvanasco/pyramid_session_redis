@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # stdlib
-from functools import partial
 import warnings
-from time import time as time_time
+from functools import partial
 from math import ceil
+from time import time as time_time
 
 # pypi
 from pyramid.exceptions import ConfigurationError
@@ -16,13 +16,18 @@ from six import PY3
 from webob.compat import bytes_, text_
 
 # local
-from .compat import token_urlsafe
+from .compat import (
+    token_urlsafe,
+    webob_bytes_,
+    webob_text_,
+)
 
 
-# ---------------------
+# ==============================================================================
+
 
 # create a custom class+object instance for handling lazycreated ids
-# this is what dogpile cache's NO_VALUE does
+# (this is what dogpile cache's NO_VALUE does)
 class LazyCreateSession(object):
     pass
 
@@ -30,11 +35,11 @@ class LazyCreateSession(object):
 LAZYCREATE_SESSION = LazyCreateSession()
 
 
-# ---------------------
-
-
 # this stored in the sessions. it is used to detect api version mismatches
 SESSION_API_VERSION = 1
+
+
+# ------------------------------------------------------------------------------
 
 
 def warn_future(message):
@@ -397,7 +402,7 @@ class _NullSerializer(object):
     """
 
     def dumps(self, appstruct):
-        return bytes_(appstruct, encoding="utf-8")
+        return webob_bytes_(appstruct, encoding="utf-8")
 
     def loads(self, bstruct):
-        return text_(bstruct, encoding="utf-8")
+        return webob_text_(bstruct, encoding="utf-8")
