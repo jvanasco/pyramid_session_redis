@@ -25,13 +25,15 @@ from .exceptions import (
     RawDeserializationError,
 )
 from .util import (
-    persist,
-    refresh,
-    warn_future,
-    LAZYCREATE_SESSION,
-    int_time,
-    SESSION_API_VERSION,
     empty_session_payload,
+    int_time,
+    LAZYCREATE_SESSION,
+    NotSpecified,
+    persist,
+    recookie,
+    refresh,
+    SESSION_API_VERSION,
+    warn_future,
 )
 from .util import encode_session_payload as encode_session_payload_func
 from .util import decode_session_payload as decode_session_payload_func
@@ -54,11 +56,16 @@ def hashed_value(serialized):
 class _SessionState(object):
     # markers for update
     please_persist = None
+    please_recookie = None
     please_refresh = None
 
     # these markers are consulted in cleanup routines
     dont_persist = None
     dont_refresh = None
+
+    # optional attributes, not set by default
+    cookie_expires = NotSpecified
+    cookie_max_age = NotSpecified
 
     def __init__(
         self,
@@ -71,6 +78,10 @@ class _SessionState(object):
         new,
         persisted_hash,
     ):
+        """
+        all these args are guaranteed to be submitted for the object;
+        no need to create default object attributes
+        """
         self.session_id = session_id
         self.managed_dict = managed_dict
         self.created = created
@@ -606,8 +617,41 @@ class RedisSession(object):
 
     # RedisSession extra methods
 
+    @recookie
+    def adjust_cookie_expires(self, expires):
+        """
+        Adjust the `expires` value on the cookie.
+        This may be removed in webob 1.9
+
+        A datetime.timedelta object representing an amount of time, datetime.datetime or None.
+
+        Expires and Max-Age have a somewhat convoluted relationship;
+        Max-Age always takes precedence. You should be using Max-Age instead
+        """
+        self._session_state.cookie_expires = expires
+
+    @recookie
+    def adjust_cookie_max_age(self, max_age):
+        """
+        Permanently adjusts the max-age for this cookie to ``max_age``
+        This value is used as the Max-Age of the generated cookie
+
+        An integer representing a number of seconds, datetime.timedelta, or None.
+
+        Expires and Max-Age have a somewhat convoluted relationship;
+        Max-Age always takes precedence. You should be using Max-Age.
+        """
+        self._session_state.cookie_max_age = max_age
+
     @persist
-    def adjust_timeout_for_session(self, timeout_seconds):
+    def adjust_session_expires(self, expires_epoch):
+        """
+        Updates the epoch used for python timeouts.
+        """
+        self._session_state.expires = expires_epoch
+
+    @persist
+    def adjust_session_timeout(self, timeout_seconds):
         """
         Permanently adjusts the timeout for this session to ``timeout_seconds``
         for as long as this session is active. Useful in situations where you
@@ -615,12 +659,9 @@ class RedisSession(object):
         """
         self._session_state.timeout = timeout_seconds
 
-    @persist
-    def adjust_expires_for_session(self, expires_epoch):
-        """
-        Updates the epoch used for python timeouts.
-        """
-        self._session_state.expires = expires_epoch
+    # rename these
+    adjust_expires_for_session = adjust_session_expires
+    adjust_timeout_for_session = adjust_session_timeout
 
     @property
     def _invalidated(self):

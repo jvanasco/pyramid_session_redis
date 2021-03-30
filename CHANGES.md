@@ -2,15 +2,33 @@ Changelog
 =========
 
 - unreleased
-	* doc fixes
 
+-2021.03.30
+    * version 1.6.0
+    * doc fixes
+    * supports Pyramid-2; backwards compatible to Pyramid-1.x and Python-2.
+    * packaging reorganization;
+      * no changes to API or usage
+      * package source now in /src
+      * package tests now in /tests
+      * `.compat` now the source for various imports
+      * anticipated support for pending webob2 changes
+    * API now accepts "cookie_expires" on creation [Addresses: #30]
+    * Session has new methods:
+        * `Session.adjust_cookie_expires(expires)`
+        * `Session.adjust_cookie_max_age(max_age)`
+    * Session now attempts to be aware of "recookie" requests
+    * renamed `adjust_expires_for_session` to `adjust_session_expires`
+        * legacy function still works
+    * renamed `adjust_timeout_for_session` to `adjust_session_timeout`
+        * legacy function still works
 
 -2020.10.20
-	* version 1.5.3
-	* upgraded black; 20.8b1
-	* integrated with pre-commit
-	* replaced travis with github actions
-	* packaging fixes
+    * version 1.5.3
+    * upgraded black; 20.8b1
+    * integrated with pre-commit
+    * replaced travis with github actions
+    * packaging fixes
 
 
 -2019.12.17
@@ -32,9 +50,9 @@ Changelog
       and `pyramid.session.signed_deserialize`, which are removed in Pyramid 1.10.0+ and
       are considered to be a security vulnerability. using these functions allows
       a malevolent actor to submit a malicious payload that could cause a security
-      issue.  This functionality is now handled by constructing a 
+      issue.  This functionality is now handled by constructing a
       `webob.cookies.SignedSerializer()` (which uses JSON (de)serializtion) based on the
-      provided `secret`, and using a `_NullSerializer` to encode the session_id  
+      provided `secret`, and using a `_NullSerializer` to encode the session_id
       (only a string session_id is stored in the cookie, so we just need to let the inpu
       string pass through). If desired, a devloper can provide a `cookie_signer`
       object instance to customize this functionality.
@@ -54,7 +72,7 @@ Changelog
       the progress of migrating your userbase.  this
       is only provided for migration and should not be used as it risks security
       issues.
-    
+
 - 2019.06.27
     * version 1.5.0
     * new requirements to prepare for Pyramid 2.0 deprecations

@@ -600,13 +600,22 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         verifyObject(ISession, inst)
 
-    def test_adjust_timeout_for_session(self):
+    def _test_adjust_session_timeout(self, variant=None):
         inst = self._set_up_session_in_Redis_and_makeOne(timeout=100)
         adjusted_timeout = 200
-        inst.adjust_timeout_for_session(adjusted_timeout)
+        if not variant:
+            inst.adjust_session_timeout(adjusted_timeout)
+        else:
+            getattr(inst, variant)(adjusted_timeout)
         inst.do_persist()
         self.assertEqual(inst.timeout, adjusted_timeout)
         self.assertEqual(inst.from_redis()["t"], adjusted_timeout)
+
+    def test_adjust_session_timeout(self):
+        self._test_adjust_session_timeout()
+
+    def test_adjust_session_timeout__legacy(self):
+        self._test_adjust_session_timeout(variant="adjust_timeout_for_session")
 
 
 class _TestRedisSessionNew_CORE(object):
@@ -1020,6 +1029,12 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
 
         python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew_TimeoutAdjustments_A.test_adjust_timeout
         """
+        self._test_adjust_timeout()
+
+    def test_adjust_timeout__legacy(self):
+        self._test_adjust_timeout(variant="adjust_timeout_for_session")
+
+    def _test_adjust_timeout(self, variant=None):
         session = self._session_new()
         serialized_1 = (
             session.from_redis()
@@ -1029,9 +1044,10 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
         self.assertEqual(timeout_1, self.timeout)
         timestamp_created = serialized_1["c"]
         timestamp_expiry_initial = serialized_1["x"]
-
-        session.adjust_timeout_for_session(self.adjusted_timeout)
-
+        if not variant:
+            session.adjust_session_timeout(self.adjusted_timeout)
+        else:
+            getattr(session, variant)(self.adjusted_timeout)
         session._deferred_callback(None)  # trigger the real session's set/setex
         self.assertEqual(len(session.redis._history), 3)
         self.assertEqual(session.redis._history[0][0], "get")
@@ -1068,6 +1084,12 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
     adjusted_timeout = 4
 
     def test_timeout_trigger(self):
+        self._test_timeout_trigger()
+
+    def test_timeout_trigger__legacy(self):
+        self._test_timeout_trigger(variant="adjust_timeout_for_session")
+
+    def _test_timeout_trigger(self, variant=None):
         """
         python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew_TimeoutAdjustments_B.test_timeout_trigger
         """
@@ -1083,8 +1105,10 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         self.assertEqual(timeout_1, self.timeout)
         timestamp_created = serialized_1["c"]
         timestamp_expiry_initial = serialized_1["x"]
-
-        session.adjust_timeout_for_session(self.adjusted_timeout)
+        if not variant:
+            session.adjust_session_timeout(self.adjusted_timeout)
+        else:
+            getattr(session, variant)(self.adjusted_timeout)
         session._deferred_callback(None)  # trigger the real session's set/setex
 
         serialized_2 = session.from_redis()

@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 # stdlib
+import datetime
 import itertools
 import pdb
 import pprint
@@ -575,21 +576,102 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
 
+    def test_existing_session_adjust_cookie_expires(self):
+        # existing session -> adjust_cookie_expires()
+
+        # set to None
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_expires(None)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertNotIn("; expires=", set_cookie_headers[0])
+        self.assertNotIn("; Max-Age=", set_cookie_headers[0])
+
+        # set to 100
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_expires(datetime.timedelta(100))
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn("; expires=", set_cookie_headers[0])
+        self.assertIn("; Max-Age=8640000", set_cookie_headers[0])
+
+    def test_existing_session_adjust_cookie_max_age(self):
+        # existing session -> adjust_cookie_max_age()
+        # set to None
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_max_age(None)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertNotIn("; expires=", set_cookie_headers[0])
+        self.assertNotIn("; Max-Age=", set_cookie_headers[0])
+
+        # set to "100"
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_max_age(100)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn("; expires=", set_cookie_headers[0])
+        self.assertIn("; Max-Age=100", set_cookie_headers[0])
+
+        # set to datetime.timedelta(100)
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_max_age(datetime.timedelta(100))
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn("; expires=", set_cookie_headers[0])
+        self.assertIn("; Max-Age=8640000", set_cookie_headers[0])
+
     def test_instance_conforms(self):
         request = self._make_request()
         inst = self._makeOne(request)
         verifyObject(ISession, inst)
 
-    def test_adjusted_session_timeout_persists(self):
+    def _test_adjusted_session_timeout_persists(self, variant):
         request = self._make_request()
         inst = self._makeOne(request)
-        inst.adjust_timeout_for_session(555)
+        getattr(inst, variant)(555)
         inst._deferred_callback(None)  # native callback for persistance
         session_id = inst.session_id
         cookieval = self._serialize(session_id)
         request.cookies["session"] = cookieval
         new_session = self._makeOne(request)
         self.assertEqual(new_session.timeout, 555)
+
+    def test_adjusted_session_timeout_persists(self):
+        self._test_adjusted_session_timeout_persists("adjust_session_timeout")
+
+    def test_adjusted_session_timeout_persists__legacy(self):
+        self._test_adjusted_session_timeout_persists("adjust_timeout_for_session")
 
     def test_client_callable(self):
         request = self._make_request()

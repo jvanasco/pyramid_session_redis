@@ -1,6 +1,14 @@
-=========
 TODO
-=========
+=====
+
+# Features
+
+* Issue #30 - Support "Expires" on Creation and Adjust
+  * [X] Creation
+  * [x] Adjust
+
+* Issue #31 - Support "max-age" on adjust
+  * [x] Adjust
 
 # Tests for better integration of the cookie serializer
 
