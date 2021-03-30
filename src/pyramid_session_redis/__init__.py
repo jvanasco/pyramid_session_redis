@@ -97,6 +97,7 @@ def RedisSessionFactory(
     cookie_domain=None,
     cookie_secure=False,
     cookie_httponly=True,
+    cookie_expires=None,
     cookie_comment=None,
     cookie_samesite=None,
     cookie_on_exception=True,
@@ -173,6 +174,10 @@ def RedisSessionFactory(
     The 'httpOnly' flag of the session cookie.
     This is passed on to the underlying ``WebOb.response.Response.set_cookie``
     framework as ``httponly``.
+
+    ``cookie_expires``
+    Default: ``None``.
+    Passed to `WebOb.response.Response.set_cookie` as ``expires``
 
     ``cookie_comment``
     Default: ``None``.
@@ -387,6 +392,8 @@ def RedisSessionFactory(
         set_cookie_kwargs["comment"] = cookie_comment
     if cookie_samesite is not None:
         set_cookie_kwargs["samesite"] = cookie_samesite
+    if cookie_expires is not None:
+        set_cookie_kwargs["expires"] = cookie_expires
 
     # good for all factory() requests
     redis_options = dict(
