@@ -1,35 +1,41 @@
 # -*- coding: utf-8 -*-
 """
-The functions `signed_serialize` and `signed_deserialize` are taken from Pyramid
-and appear under their licensing.  See LICENSE.TXT for more details
 
+PLEASE DO NOT USE ME.
+PLEASE DO NOT USE ME.
+PLEASE DO NOT USE ME.
+PLEASE DO NOT USE ME.
+PLEASE DO NOT USE ME.
+PLEASE DO NOT USE ME.
+PLEASE DO NOT USE ME.
 
+The functions in this namespace are provided for migrating sessions only.
 
+The legacy system has security issues.
+
+The following functions are taken from Pyramid and appear under their licensing.
+
+* `pyramid.session.signed_serialize`
+* `pyramid.sessionsigned_deserialize`
+
+See LICENSE.TXT for more details
 """
-# local
-from .util import _NullSerializer
-
 # stdlib
 import base64
 import binascii
 import hashlib
 import hmac
 
-# pyramid
+# pypi
 from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
-# pypi
-from six.moves import cPickle as pickle
-from six import ensure_binary, ensure_str
 
-
-def bytes_(s, encoding='latin-1', errors='strict'):
-    return ensure_binary(s, encoding, errors)
-
-
-def native_(s, encoding='latin-1', errors='strict'):
-    return ensure_str(s, encoding, errors)
+# local
+from .compat import bytes_
+from .compat import native_
+from .compat import pickle
+from .util import _NullSerializer
 
 
 # ==============================================================================

@@ -6,9 +6,18 @@ import time
 import unittest
 
 # local
+from pyramid_session_redis.compat import pickle
+from pyramid_session_redis.util import _generate_session_id
+from pyramid_session_redis.util import _insert_session_id_if_unique
+from pyramid_session_redis.util import _parse_settings
+from pyramid_session_redis.util import create_unique_session_id
+from pyramid_session_redis.util import int_time
+from pyramid_session_redis.util import persist
+from pyramid_session_redis.util import prefixed_id
+from pyramid_session_redis.util import refresh
+
+# local test suite
 from . import DummyRedis, DummySession
-from ..util import int_time
-from ..compat import pickle
 
 
 # ==============================================================================
@@ -16,8 +25,6 @@ from ..compat import pickle
 
 class Test_parse_settings(unittest.TestCase):
     def _makeOne(self, settings):
-        from ..util import _parse_settings
-
         return _parse_settings(settings)
 
     def _makeSettings(self):
@@ -80,8 +87,6 @@ class Test__insert_session_id_if_unique(unittest.TestCase):
         serialize=lambda x: x,
         set_redis_ttl=True,
     ):
-        from ..util import _insert_session_id_if_unique
-
         return _insert_session_id_if_unique(
             redis, timeout, session_id, serialize, set_redis_ttl
         )
@@ -119,8 +124,6 @@ class Test__insert_session_id_if_unique(unittest.TestCase):
 
 class Test_create_unique_session_id(unittest.TestCase):
     def _makeOne(self, redis=DummyRedis(), timeout=300):
-        from ..util import create_unique_session_id
-
         serialize = lambda x: x
         ids = itertools.count(start=1, step=1)
         generator = lambda: next(ids)
@@ -139,8 +142,6 @@ class Test_create_unique_session_id(unittest.TestCase):
 
 class Test__generate_session_id(unittest.TestCase):
     def _makeOne(self):
-        from ..util import _generate_session_id
-
         return _generate_session_id
 
     def test_it(self):
@@ -151,8 +152,6 @@ class Test__generate_session_id(unittest.TestCase):
 
 class Test_prefixed_id(unittest.TestCase):
     def _makeOne(self):
-        from ..util import prefixed_id
-
         return prefixed_id
 
     def test_it(self):
@@ -164,8 +163,6 @@ class Test_prefixed_id(unittest.TestCase):
 
 class Test_persist_decorator(unittest.TestCase):
     def _makeOne(self, wrapped):
-        from ..util import persist
-
         return persist(wrapped)
 
     def _makeSession(self, timeout):
@@ -190,8 +187,6 @@ class Test_persist_decorator(unittest.TestCase):
 
 class Test_refresh_decorator(unittest.TestCase):
     def _makeOne(self, wrapped):
-        from ..util import refresh
-
         return refresh(wrapped)
 
     def _makeSession(self, timeout):

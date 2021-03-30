@@ -9,25 +9,26 @@ Overview
 improvements and API changes designed for high performance (particularly with
 servers under load) and a slightly different API for developer convenience.
 
-This package is following a multi-version release process:
+This package was planning to follow a multi-version release process, however
+that plan was abandoned in favor of ensuring backards compatibility.
 
-Current Branch
---------------
+The `main` and `1.6` branches are designed to support both:
 
-* The 1.5.x branch is a stable API and designed for Pyramid < 2.
-* The 1.5.x branch is the last branch that will support Pyramid 1.x.
-* Projects using this package on Pyramid 1.x should peg their requirements to
-  the 1.5 branch:
+* Python 2
+* Python 3
 
-	"pyramid_session_redis>1.5,<1.6"
+and 
 
-* The 1.6 branch will support Pyramid 2, but will not be compatible with Pyramid 1.x,
-due to breaking changes.
+* Pyramid 1.x
+* Pyramid 2.0
+
 
 Prior Branches
 --------------
 
-The 1.4.x branch is in maintenance mode. It led to the stable 1.5.0 API release.
+The 1.5.x branch is in maintenance mode. No updates are expected.
+
+The 1.4.x branch is EOL. It led to the stable 1.5.0 API release.
 
 The 1.2.x branch is EOL as of 1.2.2. Previous plans were to support a final
 1.3.0 release.
