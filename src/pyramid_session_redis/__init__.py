@@ -14,18 +14,19 @@ from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
 from .util import (
     _generate_session_id,
+    _NullSerializer,
     _parse_settings,
-    create_unique_session_id,
-    warn_future,
-    empty_session_payload,
-    LAZYCREATE_SESSION,
     configs_bool,  # not used here, but included for legacy
     configs_dotable,
-    _NullSerializer,
+    create_unique_session_id,
+    empty_session_payload,
+    LAZYCREATE_SESSION,
+    NotSpecified,
+    warn_future,
 )
 
 
-__VERSION__ = "1.6.0dev0"
+__VERSION__ = "1.6.0.dev0"
 
 
 # ==============================================================================
@@ -97,6 +98,7 @@ def RedisSessionFactory(
     cookie_domain=None,
     cookie_secure=False,
     cookie_httponly=True,
+    cookie_expires=True,
     cookie_comment=None,
     cookie_samesite=None,
     cookie_on_exception=True,
@@ -173,6 +175,11 @@ def RedisSessionFactory(
     The 'httpOnly' flag of the session cookie.
     This is passed on to the underlying ``WebOb.response.Response.set_cookie``
     framework as ``httponly``.
+
+    ``cookie_expires``
+    Default: ``None``.
+    Passed to `WebOb.response.Response.set_cookie` as ``expires``.
+    BEWARE: WebOb may be removing this in 1.9.
 
     ``cookie_comment``
     Default: ``None``.
@@ -385,6 +392,8 @@ def RedisSessionFactory(
     }
     if cookie_comment is not None:
         set_cookie_kwargs["comment"] = cookie_comment
+    if cookie_expires is not None:
+        set_cookie_kwargs["expires"] = cookie_expires
     if cookie_samesite is not None:
         set_cookie_kwargs["samesite"] = cookie_samesite
 
@@ -563,6 +572,17 @@ def _cookie_callback(
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
+    # `session._session_state` will not exist after `invalidate` and other methods
+    # so we will sextract some info from it...
+    please_recookie = None
+    _override_args = {}
+    if "_session_state" in session.__dict__:
+        if session._session_state.please_recookie:
+            please_recookie = True
+            if session._session_state.cookie_expires != NotSpecified:
+                _override_args["expires"] = session._session_state.cookie_expires
+            if session._session_state.cookie_max_age != NotSpecified:
+                _override_args["max_age"] = session._session_state.cookie_max_age
     if func_check_response_allow_cookies is not None:
         if not func_check_response_allow_cookies(response):
             # if we don't want to send cookies on this response,
@@ -574,24 +594,32 @@ def _cookie_callback(
         if session_cookie_was_valid:
             delete_cookie_func(response=response)
         return
+
+    # helper function for multiple contexts
+    def _set_cookie_and_response():
+        set_cookie_func(request=request, response=response, **_override_args)
+
+        # If we set a cookie we need to make sure that downstream
+        # web servicess do not serve this response from a cache
+        # for requests coming in with a different session cookie.
+        # Otherwise we might leak sessions between users.
+        varies = ("Cookie",)
+        vary = set(response.vary if response.vary is not None else [])
+        vary |= set(varies)
+        response.vary = vary
+
     if session.new:
         if not session.session_id_safecheck:
             return
-        if cookie_on_exception is True or request.exception is None:
-            set_cookie_func(request=request, response=response)
-
-            # If we set a cookie we need to make sure that downstream
-            # web servicess do not serve this response from a cache
-            # for requests coming in with a different session cookie.
-            # Otherwise we might leak sessions between users.
-            varies = ("Cookie",)
-            vary = set(response.vary if response.vary is not None else [])
-            vary |= set(varies)
-            response.vary = vary
-
+        if request.exception is None or cookie_on_exception is True:
+            _set_cookie_and_response()
         elif session_cookie_was_valid:
             # We don't set a cookie for the new session here (as
             # cookie_on_exception is False and an exception was raised), but we
             # still need to delete the existing cookie for the session that the
             # request started with (as the session has now been invalidated).
             delete_cookie_func(response=response)
+    else:
+        if please_recookie:
+            if request.exception is None or cookie_on_exception is True:
+                _set_cookie_and_response()
