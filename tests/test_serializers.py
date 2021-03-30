@@ -4,10 +4,10 @@ from __future__ import print_function
 # stdlib
 import unittest
 
-# pypi
-from webob.cookies import SignedSerializer
-
 # local
+from pyramid_session_redis import (
+    SignedSerializer,
+)  # this is webob.cookies.SignedSerializer
 from pyramid_session_redis.util import _NullSerializer
 from pyramid_session_redis.legacy import LegacyCookieSerializer
 from pyramid_session_redis.legacy import GracefulCookieSerializer

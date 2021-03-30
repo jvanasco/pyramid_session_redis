@@ -10,11 +10,11 @@ from six import PY3
 
 # !!!: MIGRATION. these move in webob 2.0
 try:
-    # webon 1.x
+    # webob 1.x
     from webob.compat import bytes_ as webob_bytes_
     from webob.compat import text_ as webob_text_
 except:
-    # webon 2.x
+    # webob 2.x
     from webob.util import bytes_ as webob_bytes_
     from webob.util import text_ as webob_text_
 

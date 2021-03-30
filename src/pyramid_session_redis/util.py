@@ -10,14 +10,12 @@ from time import time as time_time
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
-import six
-from six import PY2
-from six import PY3
-from webob.compat import bytes_, text_
 
 # local
 from .compat import (
     token_urlsafe,
+    PY2,
+    PY3,
     webob_bytes_,
     webob_text_,
 )

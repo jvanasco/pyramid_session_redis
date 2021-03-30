@@ -7,17 +7,17 @@ Overview
 `pyramid_session_redis` is an actively maintained fork of
 [`pyramid_redis_sessions`](`ericrasmussen/pyramid_redis_sessions``), with many
 improvements and API changes designed for high performance (particularly with
-servers under load) and a slightly different API for developer convenience.
+servers under load) and a slightly different API designed for developer convenience.
 
 This package was planning to follow a multi-version release process, however
-that plan was abandoned in favor of ensuring backards compatibility.
+that plan was abandoned in favor of maintaining backards compatibility.
 
 The `main` and `1.6` branches are designed to support both:
 
 * Python 2
 * Python 3
 
-and 
+and
 
 * Pyramid 1.x
 * Pyramid 2.0
@@ -26,7 +26,8 @@ and
 Prior Branches
 --------------
 
-The 1.5.x branch is in maintenance mode. No updates are expected.
+The 1.5.x branch is now in maintenance mode. No updates are expected, as 1.6 is
+backwards compatible.
 
 The 1.4.x branch is EOL. It led to the stable 1.5.0 API release.
 
@@ -36,16 +37,19 @@ The 1.2.x branch is EOL as of 1.2.2. Previous plans were to support a final
 Prior Branch Details
 ____________________
 
-The 1.2.x branch and earlier are largely "drop-in-replacement" compatible with
+The 1.2.x branch and earlier are a largely "drop-in-replacement", compatible with
 Eric Rasmussen's `pyramid_redis_sessions` as-is.  If you are migrating from that
 project and do not want to upgrade code, you should pin your install of this 
-library to `pyramid_session_redis<=1.3.0` or `pyramid_session_redis<1.3`.
+library to `pyramid_session_redis<=1.3.0` or `pyramid_session_redis<1.3`. *Upgrading
+is not difficult, and there are several security and performance issues with the
+previous library.*
 
 The 1.4.x branch and later have several design changes and are not a drop-in
-replacement, they require some editing for migration: some kwargs have changed;
+replacement, they require some light editing for migration: some kwargs have changed;
 the structure of the package changed (imports); and advanced users who leverage
 the internal systems will need to upgrade. The package is a plug-and-play
-Pyramid ISessions interface, so there are very small changes.
+Pyramid ISessions interface, so these are very small changes that can be implemented
+and tested in under an hour.
 
 Prior Branch Incompatibilities
 ______________________________

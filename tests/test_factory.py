@@ -9,14 +9,16 @@ import re
 import unittest
 
 # pypi
+import webob
 from pyramid import testing
 from pyramid.interfaces import ISession
-import webob
-from webob.cookies import SignedSerializer
 from zope.interface.verify import verifyObject
 
 # local
 from pyramid_session_redis import RedisSessionFactory
+from pyramid_session_redis import (
+    SignedSerializer,
+)  # this is webob.cookies.SignedSerializer
 from pyramid_session_redis.compat import pickle
 from pyramid_session_redis.exceptions import (
     InvalidSession,
