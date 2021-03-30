@@ -129,6 +129,9 @@ class RedisSession(object):
     Methods that are read-only (items, keys, values, etc.) are decorated
     with ``@refresh`` to reset the session's expire time in Redis.
 
+    Methods that request the SetCookie headers are updated are decorated
+    with ``@recookie``.
+
     Session methods make use of the dict methods that already communicate with
     Redis, so they are not decorated.
 
@@ -621,7 +624,10 @@ class RedisSession(object):
     def adjust_cookie_expires(self, expires):
         """
         Adjust the `expires` value on the cookie.
-        This may be removed in webob 1.9
+        The underlying functionality may be removed in WebOb 1.9.
+
+        This method ONLY affects the SetCookie Headers.
+        This method does not affect the session logic or any values.
 
         A datetime.timedelta object representing an amount of time, datetime.datetime or None.
 
@@ -636,6 +642,9 @@ class RedisSession(object):
         Permanently adjusts the max-age for this cookie to ``max_age``
         This value is used as the Max-Age of the generated cookie
 
+        This method ONLY affects the SetCookie Headers.
+        This method does not affect the session logic or any values.
+
         An integer representing a number of seconds, datetime.timedelta, or None.
 
         Expires and Max-Age have a somewhat convoluted relationship;
@@ -646,16 +655,16 @@ class RedisSession(object):
     @persist
     def adjust_session_expires(self, expires_epoch):
         """
-        Updates the epoch used for python timeouts.
+        Updates the epoch used for Python timeout on expiry logic.
         """
         self._session_state.expires = expires_epoch
 
     @persist
     def adjust_session_timeout(self, timeout_seconds):
         """
-        Permanently adjusts the timeout for this session to ``timeout_seconds``
-        for as long as this session is active. Useful in situations where you
-        want to change the expire time for a session dynamically.
+        Permanently adjusts the `timeout` for this Session to ``timeout_seconds``
+        for as long as this Session is active. Useful in situations where you
+        want to change the expiry time for a Session dynamically.
         """
         self._session_state.timeout = timeout_seconds
 
