@@ -19,9 +19,9 @@ from pyramid_session_redis.exceptions import (
 
 
 # dotted paths to dummy callables
-_id_path = "pyramid_session_redis.tests.test_config.dummy_id_generator"
-_client_path = "pyramid_session_redis.tests.test_config.dummy_client_callable"
-_invalid_logger = "pyramid_session_redis.tests.test_config.dummy_invalid_logger"
+_id_path = "tests.test_config.dummy_id_generator"
+_client_path = "tests.test_config.dummy_client_callable"
+_invalid_logger = "tests.test_config.dummy_invalid_logger"
 
 
 # ------------------------------------------------------------------------------

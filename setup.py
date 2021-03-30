@@ -34,7 +34,9 @@ testing_requires = [
     "webob",  # in Pyramid
 ]
 testing_extras = install_requires + testing_requires + ["coverage"]
-docs_extras = ["sphinx"]
+docs_extras = [
+    "sphinx",
+]
 
 setup(
     name="pyramid_session_redis",

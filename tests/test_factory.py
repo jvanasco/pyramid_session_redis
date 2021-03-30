@@ -5,12 +5,15 @@ from __future__ import print_function
 import itertools
 import pdb
 import pprint
+import re
 import unittest
 
 # pypi
 from pyramid import testing
+from pyramid.interfaces import ISession
 import webob
 from webob.cookies import SignedSerializer
+from zope.interface.verify import verifyObject
 
 # local
 from pyramid_session_redis import RedisSessionFactory
@@ -166,9 +169,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertIs(session.new, True)
 
     def test_factory_parameters_used_to_set_cookie(self):
-        import re
-        import webob
-
         cookie_name = "testcookie"
         cookie_max_age = 300
         cookie_path = "/path"
@@ -229,8 +229,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         # calculated from Max-Age.
 
     def test_factory_parameters_used_to_delete_cookie(self):
-        import webob
-
         cookie_name = "testcookie"
         cookie_path = "/path"
         cookie_domain = "example.com"
@@ -269,8 +267,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_new_session_cookie_on_exception_true_no_exception(self):
         # cookie_on_exception is True by default, no exception raised
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request)
         request.session["a"] = 1  # ensure a lazycreate is triggered
@@ -282,8 +278,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_new_session_cookie_on_exception_true_exception(self):
         # cookie_on_exception is True by default, exception raised
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request)
         request.session["a"] = 1  # ensure a lazycreate is triggered
@@ -296,8 +290,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_new_session_cookie_on_exception_false_no_exception(self):
         # cookie_on_exception is False, no exception raised
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, cookie_on_exception=False)
         request.session["a"] = 1  # ensure a lazycreate is triggered
@@ -309,8 +301,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_new_session_cookie_on_exception_false_exception(self):
         # cookie_on_exception is False, exception raised
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, cookie_on_exception=False)
         request.session["a"] = 1  # ensure a lazycreate is triggered
@@ -321,8 +311,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_new_session_invalidate(self):
         # new session -> invalidate()
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request)
         request.session["a"] = 1  # ensure a lazycreate is triggered
@@ -334,8 +322,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_new_session_session_after_invalidate_coe_True_no_exception(self):
         # new session -> invalidate() -> new session
         # cookie_on_exception is True by default, no exception raised
-        import webob
-
         request = self._make_request()
         session = request.session = self._makeOne(request)
         session["a"] = 1  # ensure a lazycreate is triggered
@@ -350,8 +336,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_new_session_session_after_invalidate_coe_True_exception(self):
         # new session -> invalidate() -> new session
         # cookie_on_exception is True by default, exception raised
-        import webob
-
         request = self._make_request()
         session = request.session = self._makeOne(request)
         session["a"] = 1  # ensure a lazycreate is triggered
@@ -367,8 +351,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_new_session_session_after_invalidate_coe_False_no_exception(self):
         # new session -> invalidate() -> new session
         # cookie_on_exception is False, no exception raised
-        import webob
-
         request = self._make_request()
         session = request.session = self._makeOne(request, cookie_on_exception=False)
         session.invalidate()
@@ -382,8 +364,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_new_session_session_after_invalidate_coe_False_exception(self):
         # new session -> invalidate() -> new session
         # cookie_on_exception is False, exception raised
-        import webob
-
         request = self._make_request()
         session = request.session = self._makeOne(request, cookie_on_exception=False)
         session.invalidate()
@@ -396,8 +376,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_new_session_multiple_invalidates(self):
         # new session -> invalidate() -> new session -> invalidate()
         # Invalidate more than once, no new session after last invalidate()
-        import webob
-
         request = self._make_request()
         session = request.session = self._makeOne(request)
         session["a"] = 1  # ensure a lazycreate is triggered
@@ -412,8 +390,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         # new session -> invalidate() -> invalidate()
         # Invalidate more than once, no new session in between invalidate()s,
         # no new session after last invalidate()
-        import webob
-
         request = self._make_request()
         session = request.session = self._makeOne(request)
         session["a"] = 1  # ensure a lazycreate is triggered
@@ -437,8 +413,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     # as in test_ctor_with_cookie_still_valid.
 
     def test_existing_session(self):
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -450,8 +424,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_existing_session_invalidate(self):
         # existing session -> invalidate()
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -474,8 +446,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         python -m unittest pyramid_session_redis.tests.test_factory.TestRedisSessionFactory.test_existing_session_invalidate_nodupe
         """
         # existing session -> invalidate()
-        import webob
-
         request = self._make_request()
         session_id = self._get_session_id(request)
         self._set_session_cookie(request=request, session_id=session_id)
@@ -506,8 +476,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_existing_session_session_after_invalidate_coe_True_no_exception(self):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is True by default, no exception raised
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -524,8 +492,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_existing_session_session_after_invalidate_coe_True_exception(self):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is True by default, exception raised
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -543,8 +509,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_existing_session_session_after_invalidate_coe_False_no_exception(self):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is False, no exception raised
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -561,8 +525,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_existing_session_session_after_invalidate_coe_False_exception(self):
         # existing session -> invalidate() -> new session
         # cookie_on_exception is False, exception raised
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -582,8 +544,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_existing_session_multiple_invalidates(self):
         # existing session -> invalidate() -> new session -> invalidate()
         # Invalidate more than once, no new session after last invalidate()
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -602,8 +562,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         # existing session -> invalidate() -> invalidate()
         # Invalidate more than once, no new session in between invalidate()s,
         # no new session after last invalidate()
-        import webob
-
         request = self._make_request()
         self._set_session_cookie(
             request=request, session_id=self._get_session_id(request)
@@ -618,9 +576,6 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertIn("Max-Age=0", set_cookie_headers[0])
 
     def test_instance_conforms(self):
-        from pyramid.interfaces import ISession
-        from zope.interface.verify import verifyObject
-
         request = self._make_request()
         inst = self._makeOne(request)
         verifyObject(ISession, inst)
@@ -844,8 +799,6 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         )
 
     def _prep_new_session(self, session_args):
-        import webob
-
         request = self._make_request()
 
         request.session = self._makeOne(request, **session_args)
@@ -862,8 +815,6 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
     def _load_cookie_session_in_new_request(
         self, request_old, session_id="existing_session", **session_args
     ):
-        import webob
-
         # we need a request, but must persist the redis datastore
         request = self._make_request(request_old=request_old)
         self._set_session_cookie(request=request, session_id=session_id)
@@ -877,8 +828,6 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         return request
 
     def _prep_existing_session(self, session_args):
-        import webob
-
         session_id = "existing_session"
 
         def _insert_new_session():
@@ -2095,8 +2044,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         """no cookie created when making a request"""
         # session_args should behave the same for all
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
         response = webob.Response()
@@ -2109,8 +2056,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         """no cookie created when accessing a session attrib"""
         # session_args should behave the same for all
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
         v = request.session.get("foo", None)
@@ -2124,8 +2069,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         """no cookie created when accessing a session_id"""
         # session_args should behave the same for all
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
         session_id = request.session.session_id
@@ -2139,8 +2082,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         """cookie created when setting a value"""
         # session_args should behave the same for all
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
 
@@ -2168,8 +2109,6 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         """cookie created when setting a value"""
         # session_args should behave the same for all
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
-        import webob
-
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
 

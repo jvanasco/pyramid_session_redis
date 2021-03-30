@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+# pypi
+from redis.exceptions import WatchError
+
+# local
 from pyramid_session_redis.compat import pickle
 
 
@@ -120,8 +124,6 @@ class DummyPipeline(object):
 
     def watch(self, key):
         if self.raise_watcherror:
-            from redis.exceptions import WatchError
-
             raise WatchError
 
     def execute(self):
