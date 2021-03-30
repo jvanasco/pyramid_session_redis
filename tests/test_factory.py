@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 # stdlib
+import datetime
 import itertools
 import pdb
 import pprint
@@ -579,6 +580,81 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
+
+    def test_existing_session_adjust_cookie_expires(self):
+        # existing session -> adjust_cookie_expires()
+
+        # set to None
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_expires(None)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertNotIn("; expires=", set_cookie_headers[0])
+        self.assertNotIn("; Max-Age=", set_cookie_headers[0])
+
+        # set to 100
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_expires(datetime.timedelta(100))
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn("; expires=", set_cookie_headers[0])
+        self.assertIn("; Max-Age=8640000", set_cookie_headers[0])
+
+    def test_existing_session_adjust_cookie_max_age(self):
+        # existing session -> adjust_cookie_max_age()
+        # set to None
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_max_age(None)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertNotIn("; expires=", set_cookie_headers[0])
+        self.assertNotIn("; Max-Age=", set_cookie_headers[0])
+
+        # set to "100"
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_max_age(100)
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn("; expires=", set_cookie_headers[0])
+        self.assertIn("; Max-Age=100", set_cookie_headers[0])
+
+        # set to datetime.timedelta(100)
+        request = self._make_request()
+        self._set_session_cookie(
+            request=request, session_id=self._get_session_id(request)
+        )
+        session = request.session = self._makeOne(request)
+        session.adjust_cookie_max_age(datetime.timedelta(100))
+        response = webob.Response()
+        request.response_callbacks[0](request, response)
+        set_cookie_headers = response.headers.getall("Set-Cookie")
+        self.assertEqual(len(set_cookie_headers), 1)
+        self.assertIn("; expires=", set_cookie_headers[0])
+        self.assertIn("; Max-Age=8640000", set_cookie_headers[0])
 
     def test_instance_conforms(self):
         request = self._make_request()

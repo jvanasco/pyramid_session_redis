@@ -33,6 +33,10 @@ class LazyCreateSession(object):
 LAZYCREATE_SESSION = LazyCreateSession()
 
 
+class NotSpecified(object):
+    pass
+
+
 # this stored in the sessions. it is used to detect api version mismatches
 SESSION_API_VERSION = 1
 
@@ -354,25 +358,6 @@ def _parse_settings(settings):
     return options
 
 
-def refresh(wrapped):
-    """
-    Decorator to reset the expire time for this session's key in Redis.
-    This will mark the `_session_state.please_refresh` as True, to be
-    handled in a callback.
-    To immediately persist a session, call `session.do_refresh`.
-
-    :param wrapped: a function to wrap with this decorator.
-    :returns wrapped_refresh: a wrapped function.
-    """
-
-    def wrapped_refresh(session, *arg, **kw):
-        result = wrapped(session, *arg, **kw)
-        session._session_state.please_refresh = True
-        return result
-
-    return wrapped_refresh
-
-
 def persist(wrapped):
     """
     Decorator to persist in Redis all the data that needs to be persisted for
@@ -391,6 +376,39 @@ def persist(wrapped):
         return result
 
     return wrapped_persist
+
+
+def recookie(wrapped):
+    """
+    Decorator to mark a session as needing to recookie.
+    This is necessary when setting a new max-age/etc
+    """
+
+    def wrapped_recookie(session, *arg, **kw):
+        result = wrapped(session, *arg, **kw)
+        session._session_state.please_recookie = True
+        return result
+
+    return wrapped_recookie
+
+
+def refresh(wrapped):
+    """
+    Decorator to reset the expire time for this session's key in Redis.
+    This will mark the `_session_state.please_refresh` as True, to be
+    handled in a callback.
+    To immediately persist a session, call `session.do_refresh`.
+
+    :param wrapped: a function to wrap with this decorator.
+    :returns wrapped_refresh: a wrapped function.
+    """
+
+    def wrapped_refresh(session, *arg, **kw):
+        result = wrapped(session, *arg, **kw)
+        session._session_state.please_refresh = True
+        return result
+
+    return wrapped_refresh
 
 
 class _NullSerializer(object):

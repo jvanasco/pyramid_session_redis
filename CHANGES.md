@@ -13,6 +13,10 @@ Changelog
       * `.compat` now the source for various imports
       * anticipated support for pending webob2 changes
     * API now accepts "cookie_expires" on creation [Addresses: #30]
+    * Session has new methods:
+    	* `Session.adjust_cookie_expires(expires)`
+    	* `Session.adjust_cookie_max_age(max_age)`
+	* Session now attempts to be aware of "recookie" requests
 
 -2020.10.20
     * version 1.5.3

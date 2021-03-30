@@ -61,29 +61,99 @@ PRs that can handle a graceful fallback are welcome.
 
 The 1.2 format guaranteed internal sessions to be in this format:
 
-	{'managed_dict': {},
-	 'created': INT,
-	 'timeout': INT,
-	 }
-	
+    {'managed_dict': {},
+     'created': INT,
+     'timeout': INT,
+     }
+    
 The 1.4 version streamlines the keys for a lighter footprint and generally
 looks like this:
 
-	{'m': {},  # managed_dict
-	 'c': INT,  # created
-	 'v': SESSION_API_VERSION,  # api version INT
-	 # the following are optional and not guaranteed to be in a session
-	 't': INT,  # timeout, not gua
-	 'x': INT,  # expiry
-	 }
+    {'m': {},  # managed_dict
+     'c': INT,  # created
+     'v': SESSION_API_VERSION,  # api version INT
+     # the following are optional and not guaranteed to be in a session
+     't': INT,  # timeout
+     'x': INT,  # expiry
+     }
 
 Key Takeaways:
 
-* keys were shortened to 1 letter
-* an api version is now used, to handle graceful changes in the future
-* the timeout is no longer guaranteed to be present
-  the library now supports the entire timeout to be handled in Redis
-* an expiry timeout may also exist
+* Keys were shortened to 1 letter
+* An API Version is now used, to handle graceful changes in the future
+* The Timeout is no longer guaranteed to be present.
+  The library now supports the entire Timeout to be handled in Redis
+* An "Expiry Timeout" may also exist
+
+
+Key Concepts
+============================================
+
+
+Timeout vs Expires/MaxAge
+-------------------------
+
+This package allows you to set both *Timeout* and *Expiry* values.  The two
+concepts are closely related, but very different.
+
+A *Timeout* is an internal value and moving target. It specifies how long a
+Session should last before it times out due to inactivity. The timeout is
+typically refreshed when the session is accessed.
+
+For example, consider these settings:
+
+	timeout = 1800
+	timeout_trigger = 900
+
+The `timeout` setting is specifying the Session should remain active for 1800
+seconds since it's last activity.  The `timeout_trigger` setting is an
+optimization that defers modifying the Session's timeout on READ operations until
+at least 900 seconds have passed since the last modification. Modifications will
+always occur on WRITE operations.  Depending on your configuration, the timeout
+may be stored in Redis, as part of the Python Payload, or both.
+
+To illustrate how the above settings work, consider a timeline in which a User
+visits a website and then visits it again 2000 seconds later:
+
+> Visit 1 | 0s    | Session A (new)
+> Visit N | 2000s | Session B (new)
+
+When the User makes the last visit, the Session would have timed out, because it
+exceeded the 1800 second mark in the timeout.
+
+Now assume the User makes 3 visits in this timeline, and a second visit happens
+at the 899 mark:
+
+> Visit 1 | 0s    | Session A (new)
+> Visit 2 | 899s  | Session A
+> Visit N | 2000s | Session B (new)
+
+When the User makes the last visit, the Session would still 
+have timed out, because the second visit did not meet the timeout_trigger
+threshold.
+
+But, if the second visit happens just 2 seconds later, at the 901 mark, the
+timeout_trigger is reached and the session's timeout will be extended:
+
+> Visit 1 | 0s    | Session A (new)
+> Visit 2 | 901s  | Session A (update timeout trigger)
+> Visit N | 2000s | Session A (update timeout trigger)
+
+When the User makes the last visit, it would still happen within the context of
+the original Session and the timeout will be extended even further.
+
+*Expires* and *Max-Age* are values that related to Cookie settings.
+
+*Expires* is created on a Cookie as either a specified Date, or a null value; if
+the value is null (explicit or unspecified), the Cookie will be set as a
+"Session" cookie and only last for the duration of the web browser application
+being open.
+
+*Max-Age* is created on a Cookie as the number of seconds until the Cookie
+expires.  A zero or negative value will expire (delete) the cookie immediately.
+If both Expires and Max-Age are set, Max-Age has precedence.
+
+
 
 Key Differences From pyramid_redis_sessions
 ============================================
@@ -174,7 +244,7 @@ Installation
 
 Install via pypi:
 
-	pip install pyramid_session_redis
+    pip install pyramid_session_redis
 
 
 Configuration
@@ -187,47 +257,47 @@ For complete documentation on the `RedisSessionFactory` that uses these
 settings, see :doc:`api`. Otherwise, keep reading for the quick list:
 
 
-	# session settings
-	redis.sessions.secret = your_cookie_signing_secret
-	redis.sessions.timeout = 1200
+    # session settings
+    redis.sessions.secret = your_cookie_signing_secret
+    redis.sessions.timeout = 1200
 
-	# session cookie settings
-	redis.sessions.cookie_name = session
-	redis.sessions.cookie_max_age = max_age_in_seconds
-	redis.sessions.cookie_path = /
-	redis.sessions.cookie_domain =
-	redis.sessions.cookie_secure = False
-	redis.sessions.cookie_httponly = False
-	redis.sessions.cookie_on_exception = True
+    # session cookie settings
+    redis.sessions.cookie_name = session
+    redis.sessions.cookie_max_age = 31536000  # 1 year in seconds
+    redis.sessions.cookie_path = /
+    redis.sessions.cookie_domain =
+    redis.sessions.cookie_secure = False
+    redis.sessions.cookie_httponly = False
+    redis.sessions.cookie_on_exception = True
 
-	# you can supply a redis connection string as a URL
-	redis.sessions.url = redis://username:password@localhost:6379/0
+    # you can supply a redis connection string as a URL
+    redis.sessions.url = redis://username:password@localhost:6379/0
 
-	# or as individual settings (note: the URL gets preference if you do both)
-	redis.sessions.host = localhost
-	redis.sessions.port = 6379
-	redis.sessions.db = 0
-	redis.sessions.password = None
+    # or as individual settings (note: the URL gets preference if you do both)
+    redis.sessions.host = localhost
+    redis.sessions.port = 6379
+    redis.sessions.db = 0
+    redis.sessions.password = None
 
-	# additional options can be supplied to redis-py's StrictRedis
-	redis.sessions.socket_timeout =
-	redis.sessions.connection_pool =
-	redis.sessions.charset = utf-8
-	redis.sessions.errors = strict
-	redis.sessions.unix_socket_path =
+    # additional options can be supplied to redis-py's StrictRedis
+    redis.sessions.socket_timeout =
+    redis.sessions.connection_pool =
+    redis.sessions.charset = utf-8
+    redis.sessions.errors = strict
+    redis.sessions.unix_socket_path =
 
-	# in the advanced section we'll cover how to instantiate your own client
-	redis.sessions.client_callable = my.dotted.python.callable
+    # in the advanced section we'll cover how to instantiate your own client
+    redis.sessions.client_callable = my.dotted.python.callable
 
-	# along with defining your own serialize and deserialize methods
-	redis.sessions.serialize = cPickle.dumps
-	redis.sessions.deserialize = cPickle.loads
+    # along with defining your own serialize and deserialize methods
+    redis.sessions.serialize = cPickle.dumps
+    redis.sessions.deserialize = cPickle.loads
 
-	# you can specify a prefix to be used with session keys in redis
-	redis.sessions.prefix = mycoolprefix
+    # you can specify a prefix to be used with session keys in redis
+    redis.sessions.prefix = mycoolprefix
 
-	# or you can supply your own UID generator callable for session keys
-	redis.sessions.id_generator = niftyuid
+    # or you can supply your own UID generator callable for session keys
+    redis.sessions.id_generator = niftyuid
 
 
 Initialization
@@ -237,30 +307,30 @@ Lastly, you need to tell Pyramid to use `pyramid_session_redis` as your
 Session factory. The preferred way is adding it with `config.include`,
 like this:
 
-	def main(global_config, **settings):
-	    config = Configurator(settings=settings)
-	    config.include('pyramid_session_redis')
+    def main(global_config, **settings):
+        config = Configurator(settings=settings)
+        config.include('pyramid_session_redis')
 
 Alternately, instead of using the Configurator's include method, you can
 activate Pyramid by changing your application's ".ini" file, use the following
 line:
 
-	pyramid.includes = pyramid_session_redis
+    pyramid.includes = pyramid_session_redis
 
 The above method is recommended because it's simpler, idiomatic, and still fully
 configurable. It even has the added benefit of automatically resolving dotted
-python paths used in the advanced options.
+Python paths used in the advanced options.
 
 However, you can also explicitly pass a settings dict to the
 `session_factory_from_settings` function. This can be helpful if you configure
 or modify your settings in code:
 
-	from pyramid_session_redis import session_factory_from_settings
+    from pyramid_session_redis import session_factory_from_settings
 
-	def main(global_config, **settings):
-	    config = Configurator(settings=settings)
-    	session_factory = pyramid_session_redis(settings)
-	    config.set_session_factory(session_factory)
+    def main(global_config, **settings):
+        config = Configurator(settings=settings)
+        session_factory = pyramid_session_redis(settings)
+        config.set_session_factory(session_factory)
 
 
 Timeout Notes
@@ -282,7 +352,7 @@ to "0" or "None".
 
 Setting a `timeout_trigger` will require Python to track the expiry.
 
-Enableing `set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`;
+Enabling `set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`;
 it also requires not enabling `timeout_trigger` or `python_expires`.
 
 
@@ -291,17 +361,17 @@ Timeout Examples
 
 Timeout in Python, with Redis TTL via `SETEX`/`EXPIRE`:
 
-	timeout = 60
+    timeout = 60
 
 Timeout in Python, no Redis TTL (only `SET` used)
 
-	timeout = 60
-	assume_redis_ttl = True
-	
+    timeout = 60
+    assume_redis_ttl = True
+    
 No Timeout in Python, no Redis TTL (only `SET` used)
 
-	timeout = 0  # or None
-	assume_redis_ttl = True
+    timeout = 0  # or None
+    assume_redis_ttl = True
 
 
 Warning: Session Locking and Race Conditions
@@ -327,7 +397,7 @@ It may be more beneficial to your usage pattern.
 
 For the sake of clarity, I'll use an oversimplification that Redis essentially
 has two different internal data stores that are used independently: one for a
-Key's payload and another for the Key's expiry.
+Key's Payload and another for the Key's Expiry.
 
 In the 'classic' behavior (project this was forked from): every time you access
 an existing session, the GET is followed by sending Redis a new EXPIRE time;
@@ -371,7 +441,7 @@ This is useful, but means many session operations will trigger two Redis calls
 
 This is a typical scenario with refreshing:
 
-	timeout = 200
+    timeout = 200
 
 The following timeline would occur:
 
@@ -398,8 +468,8 @@ Given the following example, the package will use a 1200s timeout for requests,
 but only trigger an update of the expiry time when the current time is within
 600s of the expiry:
 
-	timeout = 1200
-	timeout_trigger = 600
+    timeout = 1200
+    timeout_trigger = 600
 
 The following timeline would occur:
 
@@ -466,7 +536,7 @@ However during a read-write, the activity will be:
 * In a Pyramid callback, update Redis via
   `redis.SETEX {session_id} {payload} {expiry}`
 
-Read-heavy applications should see a slight performance bump via the piplined
+Read-heavy applications should see a slight performance bump via the pipelined
 GET+EXPIRE, however write-heavy applications are likely to see a performance
 degradation as it adds an extra EXPIRE to every request.
 
@@ -498,41 +568,41 @@ Specifically there are the following classes:
 * ``InvalidSession_NotInBackend(InvalidSession)``
   The Session id was not in the backend.
 * ``InvalidSession_DeserializationError(InvalidSession)``
-	Error deserializing.
-	This is raised if ``deserialized_fails_new`` is True. Otherwise the
-	exception is wrapped in a ``RawDeserializationError`` and raised without
-	being caught.
+  Error deserializing.
+  This is raised if ``deserialized_fails_new`` is True. Otherwise the
+  exception is wrapped in a ``RawDeserializationError`` and raised without
+  being caught.
 * ``InvalidSession_PayloadTimeout(InvalidSession)`` 
-	The inner Python payload timed out.
+  The inner Python payload timed out.
 * ``InvalidSession_PayloadLegacy(InvalidSession)`` 
-	The Session is running on an earlier version.
+  The Session is running on an earlier version.
 
 The factory accepts a `func_invalid_logger` callable argument. The input is the
 raised exception BEFORE a new cookie is generated, and will be the request and
 an instance of `InvalidSession`.
 
-	from pyramid_session_redis.exceptions import *
-	from my_statsd import new_statsd_client()
-	
-	statsd_client = new_statsd_client()
+    from pyramid_session_redis.exceptions import *
+    from my_statsd import new_statsd_client()
+    
+    statsd_client = new_statsd_client()
 
     def my_logger(request, raised_exception):
-    	"""
-    	raised_exception will be an instance of InvalidSession
-    	log the exception to statsd for metrics
-    	"""
-    	if isinstance(raised_exception, InvalidSession_NoSessionCookie):
-    		statsd_client.incr('invalid_session.NoSessionCookie')
-    	elif isinstance(raised_exception, InvalidSession_NotInBackend):
-    		statsd_client.incr('invalid_session.NotInBackend')
-    	elif isinstance(raised_exception, InvalidSession_DeserializationError):
-    		statsd_client.incr('invalid_session.DeserializationError')
+        """
+        raised_exception will be an instance of InvalidSession
+        log the exception to statsd for metrics
+        """
+        if isinstance(raised_exception, InvalidSession_NoSessionCookie):
+            statsd_client.incr('invalid_session.NoSessionCookie')
+        elif isinstance(raised_exception, InvalidSession_NotInBackend):
+            statsd_client.incr('invalid_session.NotInBackend')
+        elif isinstance(raised_exception, InvalidSession_DeserializationError):
+            statsd_client.incr('invalid_session.DeserializationError')
 
-	factory = RedisSessionFactory(...
-								  func_invalid_logger=my_logger,
-								  ...
-								  )
-		
+    factory = RedisSessionFactory(...
+                                  func_invalid_logger=my_logger,
+                                  ...
+                                  )
+        
 The `func_invalid_logger` argument may be provided as a dotted-notation string
 in a configuration file.
 
@@ -579,12 +649,12 @@ There is an example of using this package in `pyramid_session_multi`
 Further Reading:
 ================
 
-For more information about Redis performance under python please see an
+For more information about Redis performance under Python please see an
 associated project:
 
 * https://github.com/jvanasco/dogpile_backend_redis_advanced
 
-To suport multiple Sessions under pyramid
+To suport multiple Sessions under Pyramid
 
 * https://github.com/jvanasco/pyramid_session_multi
 
