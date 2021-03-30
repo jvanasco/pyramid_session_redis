@@ -614,6 +614,8 @@ class RedisSession(object):
         want to change the expire time for a session dynamically.
         """
         # TODO: affect the cookie max-age/expires
+        # REFERENCE: https://github.com/jvanasco/pyramid_session_redis/issues/30
+        # REFERENCE: https://github.com/jvanasco/pyramid_session_redis/issues/31
         self._session_state.timeout = timeout_seconds
 
     @persist
@@ -622,6 +624,8 @@ class RedisSession(object):
         Updates the epoch used for python timeouts.
         """
         # TODO: tests missing
+        # REFERENCE: https://github.com/jvanasco/pyramid_session_redis/issues/30
+        # REFERENCE: https://github.com/jvanasco/pyramid_session_redis/issues/31
         self._session_state.expires = expires_epoch
 
     @property

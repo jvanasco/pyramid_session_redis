@@ -2,15 +2,24 @@ Changelog
 =========
 
 - unreleased
-	* doc fixes
 
+-2021.03.30
+    * version 1.6.0
+    * supports Pyramid-2; backwards compatible to Pyramid-1.x and Python-2.
+    * packaging reorganization;
+      * no changes to API or usage
+      * package source now in /src
+      * package tests now in /tests
+      * `.compat` now the source for various imports
+      * anticipated support for pending webob2 changes
+    * API now accepts "cookie_expires" on creation [Addresses: #30]
 
 -2020.10.20
-	* version 1.5.3
-	* upgraded black; 20.8b1
-	* integrated with pre-commit
-	* replaced travis with github actions
-	* packaging fixes
+    * version 1.5.3
+    * upgraded black; 20.8b1
+    * integrated with pre-commit
+    * replaced travis with github actions
+    * packaging fixes
 
 
 -2019.12.17
