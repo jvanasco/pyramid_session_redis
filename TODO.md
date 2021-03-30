@@ -1,15 +1,6 @@
 TODO
 =====
 
-# Features
-
-* Issue #30 - Support "Expires" on Creation and Adjust
-  * [X] Creation
-  * [x] Adjust
-
-* Issue #31 - Support "max-age" on adjust
-  * [x] Adjust
-
 # Tests for better integration of the cookie serializer
 
 The existing tests on this concept are largely from pyramid_redis_session and may not test what we need

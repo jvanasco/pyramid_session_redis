@@ -22,6 +22,11 @@ Changelog
         * legacy function still works
     * renamed `adjust_timeout_for_session` to `adjust_session_timeout`
         * legacy function still works
+    * Closes:
+        * #30 - Support "Expires" on Creation and Adjust
+        * #31 - Support "max-age" on adjust
+        * #32 - Pyramid 2.0 support
+
 
 -2020.10.20
     * version 1.5.3
