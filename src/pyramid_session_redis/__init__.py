@@ -98,7 +98,7 @@ def RedisSessionFactory(
     cookie_domain=None,
     cookie_secure=False,
     cookie_httponly=True,
-    cookie_expires=True,
+    cookie_expires=None,
     cookie_comment=None,
     cookie_samesite=None,
     cookie_on_exception=True,
