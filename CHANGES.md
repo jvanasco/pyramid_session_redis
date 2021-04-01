@@ -3,6 +3,11 @@ Changelog
 
 - unreleased
 
+-2021.04.01
+	* version 1.6.1
+	* fix invalid `expires` default. thank you, @olemoign
+	* doc fixes
+
 -2021.03.30
     * version 1.6.0
     * doc fixes
