@@ -4,10 +4,14 @@
 Overview
 ========
 
-`pyramid_session_redis` is an actively maintained fork of
-[`pyramid_redis_sessions`](`ericrasmussen/pyramid_redis_sessions``), with many
+`pyramid_session_redis` is a mature, stable and actively maintained Server-Side
+Sessions plugin for the Pyramid web framework.
+
+Originally, this library was a fork of
+[`pyramid_redis_sessions`](`/ericrasmussen/pyramid_redis_sessions`), focused on
 improvements and API changes designed for high performance (particularly with
-servers under load) and a slightly different API designed for developer convenience.
+servers under load), and a slightly different API designed for developer
+convenience.
 
 This package was planning to follow a multi-version release process, however
 that plan was abandoned in favor of ensuring backards compatibility.
@@ -40,13 +44,18 @@ ____________________
 The 1.2.x branch and earlier are largely a "drop-in-replacement" compatible with
 Eric Rasmussen's `pyramid_redis_sessions` as-is.  If you are migrating from that
 project and do not want to upgrade code, you should pin your install of this
-library to `pyramid_session_redis<=1.3.0` or `pyramid_session_redis<1.3`.
+library to `pyramid_session_redis<=1.3.0` or `pyramid_session_redis<1.3`
 
-The 1.4.x branch and later have several design changes and are not a drop-in
-replacement, they require some editing for migration: some kwargs have changed;
+**Please be aware that you will be limited to using outdated versions of Pyramid 
+1.x if using the 1.2.x branch.**
+
+Starting with the 1.4.x branch, several design changes were made and this library
+is not a drop-in replacement, **HOWEVER** upgrading will only require minimal
+editing of your code: some editing for migration; some kwargs have changed;
 the structure of the package changed (imports); and advanced users who leverage
-the internal systems will need to upgrade. The package is a plug-and-play
-Pyramid ISessions interface, so there are very small changes.
+the internal systems may need to upgrade. It should not take more than 5 minutes
+to convert.  The package is still a plug-and-play Pyramid ISessions interface, so
+there are very small changes.
 
 Prior Branch Incompatibilities
 ______________________________
@@ -113,6 +122,7 @@ visits a website and then visits it again 2000 seconds later:
 
 > Visit 1 | 0s    | Session A (new)
 > Visit N | 2000s | Session B (new)
+
 When the User makes the last visit, the Session would have timed out, because it
 exceeded the 1800 second mark in the timeout.
 
@@ -122,6 +132,7 @@ at the 899 mark:
 > Visit 1 | 0s    | Session A (new)
 > Visit 2 | 899s  | Session A
 > Visit N | 2000s | Session B (new)
+
 When the User makes the last visit, the Session would still
 have timed out, because the second visit did not meet the timeout_trigger
 threshold.
@@ -132,6 +143,7 @@ timeout_trigger is reached and the session's timeout will be extended:
 > Visit 1 | 0s    | Session A (new)
 > Visit 2 | 901s  | Session A (update timeout trigger)
 > Visit N | 2000s | Session A (update timeout trigger)
+
 When the User makes the last visit, it would still happen within the context of
 the original Session and the timeout will be extended even further.
 
@@ -150,8 +162,8 @@ If both Expires and Max-Age are set, Max-Age has precedence.
 The Confusion?
 --------------
 
-If Redis stores our timeout info, it stores it in an "expiry" value.
-
+If Redis stores our Timeout info, it stores it in an "expiry" value via `SETEX`
+or similar calls.  
 
 
 Key Differences From pyramid_redis_sessions
@@ -249,8 +261,9 @@ Install via pypi:
 Configuration
 =============
 
-Configure `pyramid_session_redis` via your Paste config file. Only
-`redis.sessions.secret` is required. All other settings are optional.
+Configure `pyramid_session_redis` via your Paste config file or however you
+prefer to configure Pyramid. Only `redis.sessions.secret` is required.
+All other settings are optional.
 
 For complete documentation on the `RedisSessionFactory` that uses these
 settings, see :doc:`api`. Otherwise, keep reading for the quick list:
@@ -623,19 +636,23 @@ Q. What serialization is used?
 
 A. Serialization is used at two points
 
-* Serializing the session data.
-  This is handled by `pickle`. Session data is created on the server by your
-  application and stays on the server, so `pickle` is safe to use in
-  this context. If you wish to avoid `pickle` or use another encoder can override
-  this with a custom JSON, msgpack or other (de)serialization routine.
-
+* Serializing the Session data.
+  The server-side data serialization is handled by `pickle`. This Session data is
+  created on the server by your application and remains on the server. `pickle`
+  is safe to use in this context, as user-generated payloads can not be introduced
+  to these (de)serialization routines. If you wish to avoid `pickle`, or your
+  prefer to use another encoder, you can easily specify a different (de)serialization
+  routine such as a custom JSON, msgpack or pretty much anything else.
 
 * Serializing the `session_id` to encode into a signed cookie.
-  Originally this was handled by `pickle` (de)serialization (<= v1.5.0), but
-  this step been removed (v1.5.1) as the default id generation creates a
-  cookie-safe value and leveraging `pickle` in this context was a security risk.
-
-
+  This library uses `WebOb.cookies.SignedSerializer` to securely manage a HMAC
+  signature of the `session_id` combined with a site-secret. The library allows
+  for a custom replacement to be provided as well.
+  
+  In the original library, the session id and signature were turned into a
+  cookie-safe value via `pickle` (de)serialization - a detail that remained in
+  this library through `<=v1.5.0`. This approach was identified as a security
+  risk, and was removed from this library starting in `v1.5.1`.  
 
 
 Examples
@@ -668,7 +685,6 @@ under PyPi.
 All support is handled via GitHub : https://github.com/jvanasco/pyramid_session_redis
 
 
-
 ToDo
 =====
 
@@ -679,21 +695,6 @@ Changelog
 ==========
 
 see `CHANGES.md`
-
-
-Why Use Redis for Your Sessions
-===============================
-Redis is fast, widely deployed, and stable. It works best when your data can
-fit in memory, but is configurable and still quite fast when you need to sync
-to disk. There are plenty of existing benchmarks, opinion pieces, and articles
-if you want to learn about its use cases. But for `pyramid_redis_sessions`, I'm
-interested in it specifically for these reasons:
-
-* it really is bleeping fast (choose your own expletive)
-* it has a very handy built-in mechanism for setting expirations on keys
-* the watch mechanism is a nice, lightweight alternative to full transactions
-* session data tends to be important but not mission critical, but if it is...
-* it has configurable `persistence <http://redis.io/topics/persistence>`_
 
 
 Support
