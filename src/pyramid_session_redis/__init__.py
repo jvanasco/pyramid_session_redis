@@ -122,8 +122,10 @@ def RedisSessionFactory(
     cookie_signer=None,
     socket_timeout=None,
     connection_pool=None,
-    charset="utf-8",
-    errors="strict",
+    charset=None,
+    errors=None,
+    encoding=None,
+    encoding_errors=None,
     unix_socket_path=None,
 ):
     """
@@ -322,6 +324,14 @@ def RedisSessionFactory(
     Default: ``strict``.
     Passthrough argument to the `StrictRedis` constructor.
 
+    ``encoding``
+    Default: ``utf-8``.
+    Passthrough argument to the `StrictRedis` constructor.
+
+    ``encoding_errors``
+    Default: ``strict``.
+    Passthrough argument to the `StrictRedis` constructor.
+
     ``unix_socket_path``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
@@ -356,6 +366,8 @@ def RedisSessionFactory(
       connection_pool
       charset
       errors
+      encoding
+      encoding_errors
       unix_socket_path
     """
     if timeout == 0:
@@ -405,10 +417,18 @@ def RedisSessionFactory(
         password=password,
         socket_timeout=socket_timeout,
         connection_pool=connection_pool,
-        charset=charset,
-        errors=errors,
         unix_socket_path=unix_socket_path,
     )
+
+    # accept newer encoding and encoding_errors args while retaining backwards compatibility
+    if encoding is not None:
+        redis_options["encoding"] = encoding
+    else:
+        redis_options["charset"] = "utf-8" if charset is None else charset
+    if encoding_errors is not None:
+        redis_options["encoding_errors"] = encoding_errors
+    else:
+        redis_options["errors"] = "strict" if errors is None else errors
 
     # good for all factory() requests
     new_payload_func = functools.partial(
