@@ -37,7 +37,6 @@ from pyramid_session_redis.util import (
 )
 from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis import session_factory_from_settings
-from pyramid_session_redis import session_factory_from_settings
 from pyramid_session_redis import check_response_allow_cookies
 
 # local test suite
@@ -700,6 +699,23 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         settings_0 = {"redis.sessions.secret": "secret", "redis.sessions.timeout": "0"}
         inst_0 = session_factory_from_settings(settings_0)(request_0)
         self.assertEqual(inst_0.timeout, None)
+
+    def test_session_factory_from_settings_redis_encodings(self):
+        settings_old = {
+            "redis.sessions.secret": "secret",
+            "redis.sessions.redis_charset": "ascii",
+            "redis.sessions.redis_errors": "replace",
+        }
+        session_using_old = session_factory_from_settings(settings_old)
+        assert session_using_old
+
+        settings_new = {
+            "redis.sessions.secret": "secret",
+            "redis.sessions.redis_encoding": "ascii",
+            "redis.sessions.redis_encoding_errors": "replace",
+        }
+        session_using_new = session_factory_from_settings(settings_new)
+        assert session_using_new
 
     def test_check_response(self):
         factory = RedisSessionFactory(
