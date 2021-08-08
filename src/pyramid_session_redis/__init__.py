@@ -120,13 +120,13 @@ def RedisSessionFactory(
     timeout_trigger=None,
     python_expires=True,
     cookie_signer=None,
-    socket_timeout=None,
-    connection_pool=None,
-    charset=None,
-    errors=None,
-    encoding=None,
-    encoding_errors=None,
-    unix_socket_path=None,
+    redis_socket_timeout=None,
+    redis_connection_pool=None,
+    redis_charset=None,
+    redis_errors=None,
+    redis_encoding=None,
+    redis_encoding_errors=None,
+    redis_unix_socket_path=None,
 ):
     """
     Constructs and returns a session factory that will provide session data
@@ -308,31 +308,31 @@ def RedisSessionFactory(
     The ``dumps`` method should accept a Python object and return bytes.
     A ``ValueError`` should be raised for malformed inputs.
 
-    ``socket_timeout``
+    ``redis_socket_timeout``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``connection_pool``
+    ``redis_connection_pool``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``charset``
+    ``redis_charset``
     Default: ``utf-8``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``errors``
+    ``redis_errors``
     Default: ``strict``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``encoding``
+    ``redis_encoding``
     Default: ``utf-8``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``encoding_errors``
+    ``redis_encoding_errors``
     Default: ``strict``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``unix_socket_path``
+    ``redis_unix_socket_path``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
 
@@ -362,13 +362,13 @@ def RedisSessionFactory(
     The following arguments are passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
-      socket_timeout
-      connection_pool
-      charset
-      errors
-      encoding
-      encoding_errors
-      unix_socket_path
+      redis_socket_timeout
+      redis_connection_pool
+      redis_charset
+      redis_errors
+      redis_encoding
+      redis_encoding_errors
+      redis_unix_socket_path
     """
     if timeout == 0:
         timeout = None
@@ -415,20 +415,20 @@ def RedisSessionFactory(
         port=port,
         db=db,
         password=password,
-        socket_timeout=socket_timeout,
-        connection_pool=connection_pool,
-        unix_socket_path=unix_socket_path,
+        socket_timeout=redis_socket_timeout,
+        connection_pool=redis_connection_pool,
+        unix_socket_path=redis_unix_socket_path,
     )
 
     # accept newer encoding and encoding_errors args while retaining backwards compatibility
-    if encoding is not None:
-        redis_options["encoding"] = encoding
+    if redis_encoding is not None:
+        redis_options["encoding"] = redis_encoding
     else:
-        redis_options["charset"] = "utf-8" if charset is None else charset
-    if encoding_errors is not None:
-        redis_options["encoding_errors"] = encoding_errors
+        redis_options["charset"] = "utf-8" if redis_charset is None else redis_charset
+    if redis_encoding_errors is not None:
+        redis_options["encoding_errors"] = redis_encoding_errors
     else:
-        redis_options["errors"] = "strict" if errors is None else errors
+        redis_options["errors"] = "strict" if redis_errors is None else redis_errors
 
     # good for all factory() requests
     new_payload_func = functools.partial(
