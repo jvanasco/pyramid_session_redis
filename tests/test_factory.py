@@ -703,8 +703,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_session_factory_from_settings_redis_encodings(self):
         settings_old = {
             "redis.sessions.secret": "secret",
-            "redis.sessions.redis_charset": "ascii",
-            "redis.sessions.redis_errors": "replace",
+            "redis.sessions.charset": "ascii",
+            "redis.sessions.errors": "replace",
         }
         session_using_old = session_factory_from_settings(settings_old)
         assert session_using_old
@@ -716,6 +716,30 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         }
         session_using_new = session_factory_from_settings(settings_new)
         assert session_using_new
+
+    def test_session_factory_incompatible_kwargs(self):
+        # incompatible args should raise a ValueError
+        _test_matrix = (
+            ("redis_socket_timeout", "socket_timeout", 1),
+            ("redis_connection_pool", "connection_pool", 1),
+            ("redis_encoding", "charset", "ascii"),
+            ("redis_encoding_errors", "errors", "ascii"),
+            ("redis_unix_socket_path", "unix_socket_path", "/path/to"),
+        )
+        for _set in _test_matrix:
+            with self.assertRaises(ValueError) as cm_expected_exception:
+                _settings = {
+                    "redis.sessions.secret": "secret",  # required
+                    "redis.sessions.%s" % _set[0]: _set[2],
+                    "redis.sessions.%s" % _set[1]: _set[2],
+                }
+                session_using_old = session_factory_from_settings(_settings)
+            exception_wrapper = cm_expected_exception.exception
+            wrapped_exception = exception_wrapper.args[0]
+            assert wrapped_exception == "Submit only one of `%s`, `%s`" % (
+                _set[0],
+                _set[1],
+            )
 
     def test_check_response(self):
         factory = RedisSessionFactory(
