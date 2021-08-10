@@ -438,7 +438,7 @@ def RedisSessionFactory(
     if socket_timeout is not None:
         if redis_socket_timeout:
             raise ValueError(
-                "Submit only one of `socket_timeout`, `redis_socket_timeout`"
+                "Submit only one of `redis_socket_timeout`, `socket_timeout`"
             )
         warn_future(
             "`socket_timeout` has been deprecated in favor of `redis_socket_timeout`"
@@ -446,23 +446,23 @@ def RedisSessionFactory(
     if connection_pool is not None:
         if redis_connection_pool:
             raise ValueError(
-                "Submit only one of `connection_pool`, `redis_connection_pool`"
+                "Submit only one of `redis_connection_pool`, `connection_pool`"
             )
         warn_future(
             "`connection_pool` has been deprecated in favor of `redis_connection_pool`"
         )
     if charset is not None:
         if redis_encoding:
-            raise ValueError("Submit only one of `charset`, `redis_encoding`")
+            raise ValueError("Submit only one of `redis_encoding`, `charset`")
         warn_future("`charset` has been deprecated in favor of `redis_encoding`")
     if errors is not None:
         if redis_encoding_errors:
-            raise ValueError("Submit only one of `errors`, `redis_encoding_errors`")
+            raise ValueError("Submit only one of `redis_encoding_errors`, `errors`")
         warn_future("`errors` has been deprecated in favor of `redis_encoding_errors`")
     if unix_socket_path is not None:
         if redis_unix_socket_path:
             raise ValueError(
-                "Submit only one of `unix_socket_path`, `redis_unix_socket_path`"
+                "Submit only one of `redis_unix_socket_path`, `unix_socket_path`"
             )
         warn_future(
             "`unix_socket_path` has been deprecated in favor of `redis_unix_socket_path`"
