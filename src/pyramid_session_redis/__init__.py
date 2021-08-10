@@ -26,7 +26,7 @@ from .util import (
 )
 
 
-__VERSION__ = "1.6.1"
+__VERSION__ = "1.6.2"
 
 
 # ==============================================================================
@@ -120,10 +120,13 @@ def RedisSessionFactory(
     timeout_trigger=None,
     python_expires=True,
     cookie_signer=None,
+    socket_timeout=None,  # redis, deprecated
+    connection_pool=None,  # redis, deprecated
+    charset=None,  # redis, deprecated
+    errors=None,  # redis, deprecated
+    unix_socket_path=None,  # redis, deprecated
     redis_socket_timeout=None,
     redis_connection_pool=None,
-    redis_charset=None,
-    redis_errors=None,
     redis_encoding=None,
     redis_encoding_errors=None,
     redis_unix_socket_path=None,
@@ -316,14 +319,6 @@ def RedisSessionFactory(
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``redis_charset``
-    Default: ``utf-8``.
-    Passthrough argument to the `StrictRedis` constructor.
-
-    ``redis_errors``
-    Default: ``strict``.
-    Passthrough argument to the `StrictRedis` constructor.
-
     ``redis_encoding``
     Default: ``utf-8``.
     Passthrough argument to the `StrictRedis` constructor.
@@ -335,6 +330,31 @@ def RedisSessionFactory(
     ``redis_unix_socket_path``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
+
+    ``socket_timeout``
+    Default: ``None``.
+    Deprecated passthrough argument to the `StrictRedis` constructor.
+    Please upgrade to ``redis_socket_timeout``.
+
+    ``connection_pool``
+    Default: ``None``.
+    Deprecated passthrough argument to the `StrictRedis` constructor.
+    Please upgrade to ``redis_connection_pool``.
+
+    ``charset``
+    Default: ``utf-8``.
+    Deprecated passthrough argument to the `StrictRedis` constructor.
+    Please upgrade to ``redis_encoding``.
+
+    ``errors``
+    Default: ``strict``.
+    Deprecated passthrough argument to the `StrictRedis` constructor.
+    Please upgrade to ``redis_encoding_errors``.
+
+    ``unix_socket_path``
+    Default: ``None``.
+    Deprecated passthrough argument to the `StrictRedis` constructor.
+    Please upgrade to ``redis_unix_socket_path``.
 
     Given this example:
 
@@ -362,13 +382,18 @@ def RedisSessionFactory(
     The following arguments are passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
-      redis_socket_timeout
-      redis_connection_pool
-      redis_charset
-      redis_errors
-      redis_encoding
-      redis_encoding_errors
-      redis_unix_socket_path
+        modern                 | deprecated
+        -----------------------+--------------------
+        redis_socket_timeout   | socket_timeout
+        redis_connection_pool  | connection_pool
+        redis_encoding         | charset
+        redis_encoding_errors  | errors
+        redis_unix_socket_path | unix_socket_path
+
+    Users are encouraged to use the modern `redis_` namespace and not the
+    deprecated legacy kwargs. Warnings will be emitted when deprecated kwargs
+    are used. Submitting two equivalent kwargs will result in a ValueError being
+    raised.
     """
     if timeout == 0:
         timeout = None
@@ -409,6 +434,54 @@ def RedisSessionFactory(
     if cookie_samesite is not None:
         set_cookie_kwargs["samesite"] = cookie_samesite
 
+    # handle redis deprecations
+    if socket_timeout is not None:
+        if redis_socket_timeout:
+            raise ValueError(
+                "Submit only one of `socket_timeout`, `redis_socket_timeout`"
+            )
+        warn_future(
+            "`socket_timeout` has been deprecated in favor of `redis_socket_timeout`"
+        )
+    if connection_pool is not None:
+        if redis_connection_pool:
+            raise ValueError(
+                "Submit only one of `connection_pool`, `redis_connection_pool`"
+            )
+        warn_future(
+            "`connection_pool` has been deprecated in favor of `redis_connection_pool`"
+        )
+    if charset is not None:
+        if redis_encoding:
+            raise ValueError("Submit only one of `charset`, `redis_encoding`")
+        warn_future("`charset` has been deprecated in favor of `redis_encoding`")
+    if errors is not None:
+        if redis_encoding_errors:
+            raise ValueError("Submit only one of `errors`, `redis_encoding_errors`")
+        warn_future("`errors` has been deprecated in favor of `redis_encoding_errors`")
+    if unix_socket_path is not None:
+        if redis_unix_socket_path:
+            raise ValueError(
+                "Submit only one of `unix_socket_path`, `redis_unix_socket_path`"
+            )
+        warn_future(
+            "`unix_socket_path` has been deprecated in favor of `redis_unix_socket_path`"
+        )
+
+    # favor the new terms to the old.
+    # black formats this horribly within the dict, so calculate here for legibility
+    redis_socket_timeout = (
+        redis_socket_timeout if redis_socket_timeout is not None else socket_timeout
+    )
+    redis_connection_pool = (
+        redis_connection_pool if redis_connection_pool is not None else connection_pool
+    )
+    redis_unix_socket_path = (
+        redis_unix_socket_path
+        if redis_unix_socket_path is not None
+        else unix_socket_path
+    )
+
     # good for all factory() requests
     redis_options = dict(
         host=host,
@@ -424,11 +497,11 @@ def RedisSessionFactory(
     if redis_encoding is not None:
         redis_options["encoding"] = redis_encoding
     else:
-        redis_options["charset"] = "utf-8" if redis_charset is None else redis_charset
+        redis_options["charset"] = "utf-8" if charset is None else charset
     if redis_encoding_errors is not None:
         redis_options["encoding_errors"] = redis_encoding_errors
     else:
-        redis_options["errors"] = "strict" if redis_errors is None else redis_errors
+        redis_options["errors"] = "strict" if errors is None else errors
 
     # good for all factory() requests
     new_payload_func = functools.partial(

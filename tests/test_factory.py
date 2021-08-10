@@ -703,8 +703,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     def test_session_factory_from_settings_redis_encodings(self):
         settings_old = {
             "redis.sessions.secret": "secret",
-            "redis.sessions.redis_charset": "ascii",
-            "redis.sessions.redis_errors": "replace",
+            "redis.sessions.charset": "ascii",
+            "redis.sessions.errors": "replace",
         }
         session_using_old = session_factory_from_settings(settings_old)
         assert session_using_old

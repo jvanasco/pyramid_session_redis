@@ -33,7 +33,6 @@ from .util import (
     recookie,
     refresh,
     SESSION_API_VERSION,
-    warn_future,
 )
 from .util import encode_session_payload as encode_session_payload_func
 from .util import decode_session_payload as decode_session_payload_func
