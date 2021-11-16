@@ -25,7 +25,7 @@ with open(os.path.join(HERE, "README.md")) as f:
 install_requires = [
     "redis>=2.4.11, != 2.9.1",
     "pyramid>=1.3",
-    "six",
+    "six>=1.12.0",
     "zope.interface",  # in Pyramid
 ]
 testing_requires = [
