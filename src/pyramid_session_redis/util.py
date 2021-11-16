@@ -12,13 +12,11 @@ from pyramid.settings import asbool
 from redis.exceptions import WatchError
 
 # local
-from .compat import (
-    token_urlsafe,
-    PY2,
-    PY3,
-    webob_bytes_,
-    webob_text_,
-)
+from .compat import PY2
+from .compat import PY3
+from .compat import token_urlsafe
+from .compat import webob_bytes_
+from .compat import webob_text_
 
 
 # ==============================================================================

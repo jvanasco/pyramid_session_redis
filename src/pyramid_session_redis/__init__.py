@@ -5,6 +5,9 @@ import time
 
 # pypi
 from pyramid.exceptions import ConfigurationError
+
+from redis import VERSION as redis_version  # since at least the 2.x branch
+
 from webob.cookies import SignedSerializer
 
 # local
@@ -12,21 +15,19 @@ from .compat import pickle
 from .connection import get_default_connection
 from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
 from .session import RedisSession
-from .util import (
-    _generate_session_id,
-    _NullSerializer,
-    _parse_settings,
-    configs_bool,  # not used here, but included for legacy
-    configs_dotable,
-    create_unique_session_id,
-    empty_session_payload,
-    LAZYCREATE_SESSION,
-    NotSpecified,
-    warn_future,
-)
+from .util import LAZYCREATE_SESSION
+from .util import NotSpecified
+from .util import _NullSerializer
+from .util import _generate_session_id
+from .util import _parse_settings
+from .util import configs_bool  # not used here, but included for legacy
+from .util import configs_dotable
+from .util import create_unique_session_id
+from .util import empty_session_payload
+from .util import warn_future
 
 
-__VERSION__ = "1.6.2"
+__VERSION__ = "1.6.3"
 
 
 # ==============================================================================
@@ -436,37 +437,54 @@ def RedisSessionFactory(
 
     # handle redis deprecations
     if socket_timeout is not None:
+        warn_future(
+            "`socket_timeout` has been deprecated in favor of `redis_socket_timeout`"
+        )
         if redis_socket_timeout:
             raise ValueError(
                 "Submit only one of `redis_socket_timeout`, `socket_timeout`"
             )
-        warn_future(
-            "`socket_timeout` has been deprecated in favor of `redis_socket_timeout`"
-        )
     if connection_pool is not None:
+        warn_future(
+            "`connection_pool` has been deprecated in favor of `redis_connection_pool`"
+        )
         if redis_connection_pool:
             raise ValueError(
                 "Submit only one of `redis_connection_pool`, `connection_pool`"
             )
-        warn_future(
-            "`connection_pool` has been deprecated in favor of `redis_connection_pool`"
-        )
     if charset is not None:
+        warn_future("`charset` has been deprecated in favor of `redis_encoding`")
+        warn_future(
+            "Redis removed the `charset` kwarg in release 4.0.0, in favor of "
+            "the `encoding` kwarg. If needed, this library will attempt to "
+            "invoke Redis with the specified `charset` as the `encoding` "
+            "value, but this support is deprecated by this library as well. "
+            "Please update your code to use `redis_encoding` instead of "
+            "`charset`, which will passed to Redis as the `encoding` kwarg."
+        )
         if redis_encoding:
             raise ValueError("Submit only one of `redis_encoding`, `charset`")
-        warn_future("`charset` has been deprecated in favor of `redis_encoding`")
     if errors is not None:
+        warn_future("`errors` has been deprecated in favor of `redis_encoding_errors`")
+        warn_future(
+            "Redis removed the `errors` kwarg in release 4.0.0, in favor of "
+            "the `encoding_errors` kwarg. If needed, this library will attempt "
+            "to invoke Redis with the specified `errors` as the "
+            "`encoding_errors` value, but this support is deprecated by this "
+            "library as well. Please update your code to use "
+            "`redis_encoding_errors` instead of `errors`, which will passed to "
+            "Redis as the `encoding_errors` kwarg."
+        )
         if redis_encoding_errors:
             raise ValueError("Submit only one of `redis_encoding_errors`, `errors`")
-        warn_future("`errors` has been deprecated in favor of `redis_encoding_errors`")
     if unix_socket_path is not None:
+        warn_future(
+            "`unix_socket_path` has been deprecated in favor of `redis_unix_socket_path`"
+        )
         if redis_unix_socket_path:
             raise ValueError(
                 "Submit only one of `redis_unix_socket_path`, `unix_socket_path`"
             )
-        warn_future(
-            "`unix_socket_path` has been deprecated in favor of `redis_unix_socket_path`"
-        )
 
     # favor the new terms to the old.
     # black formats this horribly within the dict, so calculate here for legibility
@@ -493,15 +511,28 @@ def RedisSessionFactory(
         unix_socket_path=redis_unix_socket_path,
     )
 
-    # accept newer encoding and encoding_errors args while retaining backwards compatibility
+    # accept newer encoding and encoding_errors args while
+    # retaining backwards compatibility
     if redis_encoding is not None:
         redis_options["encoding"] = redis_encoding
     else:
-        redis_options["charset"] = "utf-8" if charset is None else charset
+        if redis_version[0] < 4:
+            # legacy kwarg still supported; will trigger Redis warnings/errors
+            redis_options["charset"] = "utf-8" if charset is None else charset
+        else:
+            # modern deprecation
+            if charset is not None:
+                redis_options["encoding"] = charset
     if redis_encoding_errors is not None:
         redis_options["encoding_errors"] = redis_encoding_errors
     else:
-        redis_options["errors"] = "strict" if errors is None else errors
+        if redis_version[0] < 4:
+            # legacy kwarg still supported; will trigger Redis warnings/errors
+            redis_options["errors"] = "strict" if errors is None else errors
+        else:
+            # modern deprecation
+            if errors is not None:
+                redis_options["encoding_errors"] = errors
 
     # good for all factory() requests
     new_payload_func = functools.partial(

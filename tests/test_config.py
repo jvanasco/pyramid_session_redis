@@ -9,10 +9,8 @@ from pyramid.threadlocal import get_current_request
 from pyramid.exceptions import ConfigurationError
 
 # local
-from pyramid_session_redis.exceptions import (
-    InvalidSession,
-    InvalidSession_DeserializationError,
-)
+from pyramid_session_redis.exceptions import InvalidSession
+from pyramid_session_redis.exceptions import InvalidSession_DeserializationError
 
 
 # ==============================================================================

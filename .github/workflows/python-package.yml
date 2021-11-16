@@ -15,14 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8, 3.9]
+        python-version: [2.7, 3.6, 3.7, 3.8, 3.9]
         pyramid-version: ["<2", ">=2"]
+        redis-version: ["<4", ">=4.0.0"]
         exclude:
           # Pyramid 2 doesn't support Python 2.7 or 3.5
           - python-version: 2.7
             pyramid-version: ">=2"
-          - python-version: 3.5
-            pyramid-version: ">=2"
+          # Redis 4.0 require python3.6 or higher
+          - python-version: 2.7
+            redis-version: ">=4.0.0"
 
     # Service containers to run with `container-job`
     services:
@@ -47,6 +49,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install ".[testing]" "pyramid${{ matrix.pyramid-version }}"
+        pip install ".[testing]" "redis${{ matrix.redis-version }}"
         pip freeze
     - name: Test with pytest
       run: |

@@ -4,8 +4,10 @@
 Compatability module for various pythons and environments.
 """
 from six.moves import cPickle as pickle
-from six import ensure_binary, ensure_str
-from six import PY2, PY3
+from six import ensure_binary
+from six import ensure_str
+from six import PY2
+from six import PY3
 
 # !!!: MIGRATION. these move in webob 2.0
 try:

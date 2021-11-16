@@ -10,32 +10,26 @@ from pyramid.interfaces import ISession
 from zope.interface import implementer
 
 # local
-from .compat import (
-    pickle,
-    token_hex,
-    to_unicode,
-)
-from .exceptions import (
-    InvalidSession,
-    InvalidSession_DeserializationError,
-    InvalidSession_Lazycreate,
-    InvalidSession_PayloadLegacy,
-    InvalidSession_NotInBackend,
-    InvalidSession_PayloadTimeout,
-    RawDeserializationError,
-)
-from .util import (
-    empty_session_payload,
-    int_time,
-    LAZYCREATE_SESSION,
-    NotSpecified,
-    persist,
-    recookie,
-    refresh,
-    SESSION_API_VERSION,
-)
-from .util import encode_session_payload as encode_session_payload_func
+from .compat import pickle
+from .compat import to_unicode
+from .compat import token_hex
+from .exceptions import InvalidSession
+from .exceptions import InvalidSession_DeserializationError
+from .exceptions import InvalidSession_Lazycreate
+from .exceptions import InvalidSession_NotInBackend
+from .exceptions import InvalidSession_PayloadLegacy
+from .exceptions import InvalidSession_PayloadTimeout
+from .exceptions import RawDeserializationError
+from .util import LAZYCREATE_SESSION
+from .util import NotSpecified
+from .util import SESSION_API_VERSION
 from .util import decode_session_payload as decode_session_payload_func
+from .util import empty_session_payload
+from .util import encode_session_payload as encode_session_payload_func
+from .util import int_time
+from .util import persist
+from .util import recookie
+from .util import refresh
 
 
 # ==============================================================================

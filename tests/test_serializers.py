@@ -8,9 +8,9 @@ import unittest
 from webob.cookies import SignedSerializer
 
 # local
-from pyramid_session_redis.util import _NullSerializer
-from pyramid_session_redis.legacy import LegacyCookieSerializer
 from pyramid_session_redis.legacy import GracefulCookieSerializer
+from pyramid_session_redis.legacy import LegacyCookieSerializer
+from pyramid_session_redis.util import _NullSerializer
 
 
 # ==============================================================================
