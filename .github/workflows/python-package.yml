@@ -20,9 +20,10 @@ jobs:
         redis-version: ["<4", ">=4.0.0"]
         exclude:
           # Pyramid 2 doesn't support Python 2.7 or 3.5
-          # Redis 4.0 require python3.6 or higher
           - python-version: 2.7
             pyramid-version: ">=2"
+          # Redis 4.0 require python3.6 or higher
+          - python-version: 2.7
             redis-version: ">=4.0.0"
 
     # Service containers to run with `container-job`
