@@ -10,6 +10,7 @@ Changelog
 	* drop testing/support for python3.5
 	* minimum six requirement. thank you, @Wim-De-Clercq 
 	* cleanup changelog
+	* matrix testing
 
 * 2021.08.10
 	* version 1.6.2
