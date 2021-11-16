@@ -3,6 +3,11 @@ Changelog
 
 - unreleased
 
+-2021.11.16
+	* version 1.6.3
+	* detect Redis version to better handle deprecated kwargs
+	* drop testing/support for python3.5
+
 -2021.08.10
 	* version 1.6.2
 	* support newer redis arguments and a `redis_` namespace. thank you, @natej:

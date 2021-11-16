@@ -10,17 +10,13 @@ import unittest
 
 # local
 from pyramid_session_redis.compat import pickle
-from pyramid_session_redis.exceptions import (
-    InvalidSession,
-    InvalidSession_PayloadTimeout,
-    InvalidSession_PayloadLegacy,
-)
+from pyramid_session_redis.exceptions import InvalidSession
+from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
+from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
 from pyramid_session_redis.session import RedisSession
-from pyramid_session_redis.util import (
-    encode_session_payload,
-    int_time,
-    LAZYCREATE_SESSION,
-)
+from pyramid_session_redis.util import LAZYCREATE_SESSION
+from pyramid_session_redis.util import encode_session_payload
+from pyramid_session_redis.util import int_time
 
 # local test suite
 from . import DummyRedis

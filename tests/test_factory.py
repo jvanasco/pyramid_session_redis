@@ -18,26 +18,22 @@ from zope.interface.verify import verifyObject
 
 # local
 from pyramid_session_redis import RedisSessionFactory
-from pyramid_session_redis.compat import pickle
-from pyramid_session_redis.exceptions import (
-    InvalidSession,
-    InvalidSession_NoSessionCookie,
-    InvalidSession_NotInBackend,
-    InvalidSession_DeserializationError,
-    InvalidSession_PayloadTimeout,
-    InvalidSession_PayloadLegacy,
-    RawDeserializationError,
-)
-from pyramid_session_redis.session import RedisSession
-from pyramid_session_redis.util import _NullSerializer
-from pyramid_session_redis.util import (
-    encode_session_payload,
-    int_time,
-    LAZYCREATE_SESSION,
-)
-from pyramid_session_redis.util import create_unique_session_id
-from pyramid_session_redis import session_factory_from_settings
 from pyramid_session_redis import check_response_allow_cookies
+from pyramid_session_redis import session_factory_from_settings
+from pyramid_session_redis.compat import pickle
+from pyramid_session_redis.exceptions import InvalidSession
+from pyramid_session_redis.exceptions import InvalidSession_DeserializationError
+from pyramid_session_redis.exceptions import InvalidSession_NoSessionCookie
+from pyramid_session_redis.exceptions import InvalidSession_NotInBackend
+from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
+from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
+from pyramid_session_redis.exceptions import RawDeserializationError
+from pyramid_session_redis.session import RedisSession
+from pyramid_session_redis.util import LAZYCREATE_SESSION
+from pyramid_session_redis.util import _NullSerializer
+from pyramid_session_redis.util import create_unique_session_id
+from pyramid_session_redis.util import encode_session_payload
+from pyramid_session_redis.util import int_time
 
 # local test suite
 from . import DummyRedis
