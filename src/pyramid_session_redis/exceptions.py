@@ -20,7 +20,8 @@ class InvalidSession_Lazycreate(InvalidSession):
     """
     The session is expected to lazycreate.
     This SHOULD NOT be accessed outside of the package.
-    If you encounter this, please file a bug report with details of the situation.
+    If you encounter this, please file a bug report with details of
+    the situation.
     """
 
     pass
@@ -38,7 +39,8 @@ class InvalidSession_NotInBackend(InvalidSession):
 class InvalidSession_DeserializationError(InvalidSession):
     """
     The session did not deserialize correctly.
-    This is only raised/caught/silently handled if `deserialized_fails_new` is True
+    This is only raised/caught/silently handled if `deserialized_fails_new`
+    is True
     This is supported by the func_invalid_logger factory callable
     """
 

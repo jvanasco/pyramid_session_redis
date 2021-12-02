@@ -3,22 +3,17 @@ from __future__ import print_function
 
 # stdlib
 import itertools
-import pdb
-import pprint
 import time
 import unittest
 
 # local
 from pyramid_session_redis.compat import pickle
-from pyramid_session_redis.exceptions import InvalidSession
 from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
 from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
 from pyramid_session_redis.session import RedisSession
-from pyramid_session_redis.util import LAZYCREATE_SESSION
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
-
-# local test suite
+from pyramid_session_redis.util import LAZYCREATE_SESSION
 from . import DummyRedis
 
 
@@ -981,7 +976,7 @@ class TestRedisSessionNew(unittest.TestCase, _TestRedisSessionNew_CORE):
         set_redis_ttl = False
         session_version = -1
         with self.assertRaises(InvalidSession_PayloadLegacy):
-            session = self._set_up_session_in_Redis_and_makeOne(
+            session = self._set_up_session_in_Redis_and_makeOne(  # noqa: F841
                 session_id=self.session_id,
                 new=new,
                 timeout=timeout,
@@ -999,7 +994,7 @@ class TestRedisSessionNew(unittest.TestCase, _TestRedisSessionNew_CORE):
         set_redis_ttl = False
         expires = int_time() - timeout - 1
         with self.assertRaises(InvalidSession_PayloadTimeout):
-            session = self._set_up_session_in_Redis_and_makeOne(
+            session = self._set_up_session_in_Redis_and_makeOne(  # noqa: F841
                 session_id=self.session_id,
                 new=new,
                 timeout=timeout,
@@ -1039,7 +1034,7 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
         timeout_1 = serialized_1["t"]
         self.assertEqual(timeout_1, self.timeout)
         timestamp_created = serialized_1["c"]
-        timestamp_expiry_initial = serialized_1["x"]
+        timestamp_expiry_initial = serialized_1["x"]  # noqa: F841
         if not variant:
             session.adjust_session_timeout(self.adjusted_timeout)
         else:
@@ -1100,7 +1095,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         timeout_1 = serialized_1["t"]
         self.assertEqual(timeout_1, self.timeout)
         timestamp_created = serialized_1["c"]
-        timestamp_expiry_initial = serialized_1["x"]
+        timestamp_expiry_initial = serialized_1["x"]  # noqa: F841
         if not variant:
             session.adjust_session_timeout(self.adjusted_timeout)
         else:
@@ -1157,7 +1152,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         time.sleep(sleeptime)
 
         with self.assertRaises(InvalidSession_PayloadTimeout):
-            session3 = self._makeOne(
+            session3 = self._makeOne(  # noqa: F841
                 session.redis,
                 self.session_id,
                 True,  # new

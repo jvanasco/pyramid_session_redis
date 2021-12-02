@@ -5,12 +5,14 @@ import unittest
 
 # pypi
 from pyramid import testing
-from pyramid.threadlocal import get_current_request
 from pyramid.exceptions import ConfigurationError
+from pyramid.threadlocal import get_current_request
 
 # local
 from pyramid_session_redis.exceptions import InvalidSession
-from pyramid_session_redis.exceptions import InvalidSession_DeserializationError
+from pyramid_session_redis.exceptions import (
+    InvalidSession_DeserializationError,
+)  # noqa: E501
 
 
 # ==============================================================================
@@ -71,14 +73,14 @@ class Test_includeme_simple(unittest.TestCase):
         testing.tearDown()
 
     def test_includeme_serialize_deserialize(self):
-        request = get_current_request()
+        request = get_current_request()  # noqa: F841
         serialize = self.settings["redis.sessions.serialize"]
         deserialize = self.settings["redis.sessions.deserialize"]
         result = deserialize(serialize("test"))
         self.assertEqual(result, "test")
 
     def test_includeme_id_generator(self):
-        request = get_current_request()
+        request = get_current_request()  # noqa: F841
         generator = self.settings["redis.sessions.id_generator"]
         self.assertEqual(generator(), 42)
 
@@ -88,7 +90,7 @@ class Test_includeme_simple(unittest.TestCase):
         self.assertEqual(get_client(request), "client")
 
     def test_includeme_invalid_logger(self):
-        request = get_current_request()
+        request = get_current_request()  # noqa: F841
         logging_func = self.settings["redis.sessions.func_invalid_logger"]
         raised_error = InvalidSession_DeserializationError("foo")
         # check to ensure this is an InvalidSession instance
@@ -113,7 +115,8 @@ class Test_includeme_advanced(unittest.TestCase):
             self.config.include("pyramid_session_redis")
         self.assertEqual(
             cm.exception.args[0],
-            "One, and only one, of `redis.sessions.secret` and `redis.sessions.cookie_signer` must be provided.",
+            "One, and only one, of `redis.sessions.secret` and "
+            "`redis.sessions.cookie_signer` must be provided.",
         )
 
     def test_fails__cookiesigner__secret(self):
@@ -133,7 +136,8 @@ class Test_includeme_advanced(unittest.TestCase):
             self.config.include("pyramid_session_redis")
         self.assertEqual(
             cm.exception.args[0],
-            "One, and only one, of `redis.sessions.secret` and `redis.sessions.cookie_signer` must be provided.",
+            "One, and only one, of `redis.sessions.secret` and "
+            "`redis.sessions.cookie_signer` must be provided.",
         )
 
     def test__cookiesigner__custom(self):

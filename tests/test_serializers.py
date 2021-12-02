@@ -33,7 +33,10 @@ class TestNullSerializer(unittest.TestCase):
 class TestCookieSerialization(unittest.TestCase):
     def _makeOne_default(self, secret):
         cookie_signer = SignedSerializer(
-            secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
+            secret,
+            "pyramid_session_redis.",
+            "sha512",
+            serializer=_NullSerializer(),
         )
         return cookie_signer
 
@@ -42,7 +45,10 @@ class TestCookieSerialization(unittest.TestCase):
         return cookie_signer
 
     def _makeOne_graceful(self, secret, logging_hook=None):
-        cookie_signer = GracefulCookieSerializer(secret, logging_hook=logging_hook)
+        cookie_signer = GracefulCookieSerializer(
+            secret,
+            logging_hook=logging_hook,
+        )
         return cookie_signer
 
     def test_roundtrip_default(self):
@@ -67,8 +73,12 @@ class TestCookieSerialization(unittest.TestCase):
         _serialized_current = cookie_signer_current.dumps(session_id)
         _serialized_legacy = cookie_signer_legacy.dumps(session_id)
         self.assertNotEqual(_serialized_current, _serialized_legacy)
-        self.assertRaises(ValueError, cookie_signer_legacy.loads, _serialized_current)
-        self.assertRaises(ValueError, cookie_signer_current.loads, _serialized_legacy)
+        self.assertRaises(
+            ValueError, cookie_signer_legacy.loads, _serialized_current
+        )  # noqa: E501
+        self.assertRaises(
+            ValueError, cookie_signer_current.loads, _serialized_legacy
+        )  # noqa: E501
 
     def test_graceful(self):
         secret = "foo"
@@ -84,9 +94,15 @@ class TestCookieSerialization(unittest.TestCase):
         self.assertEqual(_serialized_current, _serialized_graceful)
         self.assertNotEqual(_serialized_legacy, _serialized_graceful)
 
-        self.assertEqual(session_id, cookie_signer_graceful.loads(_serialized_current))
-        self.assertEqual(session_id, cookie_signer_graceful.loads(_serialized_graceful))
-        self.assertEqual(session_id, cookie_signer_graceful.loads(_serialized_legacy))
+        self.assertEqual(
+            session_id, cookie_signer_graceful.loads(_serialized_current)
+        )  # noqa: E501
+        self.assertEqual(
+            session_id, cookie_signer_graceful.loads(_serialized_graceful)
+        )  # noqa: E501
+        self.assertEqual(
+            session_id, cookie_signer_graceful.loads(_serialized_legacy)
+        )  # noqa: E501
 
     def test_graceful_hooks(self):
         secret = "foo"

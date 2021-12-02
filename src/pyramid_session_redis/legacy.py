@@ -13,7 +13,8 @@ The functions in this namespace are provided for migrating sessions only.
 
 The legacy system has security issues.
 
-The following functions are taken from Pyramid and appear under their licensing.
+The following functions are taken from Pyramid and appear
+under their licensing.
 
 * `pyramid.session.signed_serialize`
 * `pyramid.sessionsigned_deserialize`
@@ -30,13 +31,11 @@ import hmac
 from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
-
 # local
 from .compat import bytes_
 from .compat import native_
 from .compat import pickle
 from .util import _NullSerializer
-
 
 # ==============================================================================
 
@@ -134,16 +133,19 @@ class GracefulCookieSerializer(object):
     failures due to a change in how cookies are signed/checked.
 
     This class will:
-        * attempt to deserialize with new format, and fallback to the legacy if that fails
-        * serialize into the new format
+      * attempt to deserialize with new format, and fallback to the legacy
+        if that fails
+      * serialize into the new format
 
-    By providing a `logging_hook` (see tests for example usage), a developer can profile
-    their app to understand how the migration of users is progressing.
+    By providing a `logging_hook` (see tests for example usage), a developer
+    can profile their app to understand how the migration of users is
+    progressing.
 
     !!!!! IMPORTANT !!!!!
 
-    Using this or any pickle-based serializer is not recommended, as it can lead to
-    a code exploit during deserialization. This is only provided as a temporary migration tool.
+    Using this or any pickle-based serializer is not recommended, as it can
+    lead to a code exploit during deserialization. This is only provided as
+    a temporary migration tool.
     """
 
     secret = None
@@ -167,7 +169,10 @@ class GracefulCookieSerializer(object):
         """
         self.secret = secret
         self.serializer_current = SignedSerializer(
-            secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
+            secret,
+            "pyramid_session_redis.",
+            "sha512",
+            serializer=_NullSerializer(),
         )
         self.serializer_legacy = LegacyCookieSerializer(secret)
         self.logging_hook = logging_hook
@@ -184,7 +189,7 @@ class GracefulCookieSerializer(object):
                 val = self.serializer_current.loads(data)
                 _hook.success("current")
                 return val
-            except:
+            except Exception as exc:  # noqa: F841
                 _hook.attempt("legacy")
                 val = self.serializer_legacy.loads(data)
                 _hook.success("legacy")
@@ -193,7 +198,7 @@ class GracefulCookieSerializer(object):
         # no hooks configured
         try:
             return self.serializer_current.loads(data)
-        except:
+        except Exception as exc:  # noqa: F841
             return self.serializer_legacy.loads(data)
 
     def dumps(self, data):

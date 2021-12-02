@@ -8,8 +8,6 @@ from pyramid import testing
 
 # local
 from pyramid_session_redis.connection import get_default_connection
-
-# local test suite
 from . import DummyRedis
 
 
@@ -26,13 +24,17 @@ class TestConnection(unittest.TestCase):
 
     def test_get_default_connection(self):
         options = dict(host="localhost", port=999)
-        inst = get_default_connection(self.request, redis_client=DummyRedis, **options)
+        inst = get_default_connection(
+            self.request, redis_client=DummyRedis, **options
+        )  # noqa: E501
         self.assertEqual(inst.host, "localhost")
         self.assertEqual(inst.port, 999)
 
     def test_get_default_connection_with_url(self):
         url = "redis://username:password@localhost:6379/0"
-        inst = get_default_connection(self.request, url=url, redis_client=DummyRedis)
+        inst = get_default_connection(
+            self.request, url=url, redis_client=DummyRedis
+        )  # noqa: E501
         self.assertEqual(inst.url, url)
 
     def test_get_default_connection_url_removes_duplicates(self):

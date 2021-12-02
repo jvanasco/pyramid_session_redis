@@ -2,11 +2,9 @@
 
 # stdlib
 import itertools
-import time
 import unittest
 
 # local
-from pyramid_session_redis.compat import pickle
 from pyramid_session_redis.util import _generate_session_id
 from pyramid_session_redis.util import _insert_session_id_if_unique
 from pyramid_session_redis.util import _parse_settings
@@ -15,9 +13,8 @@ from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import persist
 from pyramid_session_redis.util import prefixed_id
 from pyramid_session_redis.util import refresh
-
-# local test suite
-from . import DummyRedis, DummySession
+from . import DummyRedis
+from . import DummySession
 
 
 # ==============================================================================
@@ -127,7 +124,12 @@ class Test_create_unique_session_id(unittest.TestCase):
         serialize = lambda x: x
         ids = itertools.count(start=1, step=1)
         generator = lambda: next(ids)
-        return create_unique_session_id(redis, timeout, serialize, generator=generator)
+        return create_unique_session_id(
+            redis,
+            timeout,
+            serialize,
+            generator=generator,
+        )
 
     def test_id_is_unique(self):
         result = self._makeOne()
