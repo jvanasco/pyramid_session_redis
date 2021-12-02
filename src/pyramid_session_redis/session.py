@@ -5,7 +5,6 @@ import hashlib
 
 # pypi
 from pyramid.decorator import reify
-from pyramid.exceptions import ConfigurationError
 from pyramid.interfaces import ISession
 from zope.interface import implementer
 
@@ -13,23 +12,22 @@ from zope.interface import implementer
 from .compat import pickle
 from .compat import to_unicode
 from .compat import token_hex
-from .exceptions import InvalidSession
 from .exceptions import InvalidSession_DeserializationError
 from .exceptions import InvalidSession_Lazycreate
 from .exceptions import InvalidSession_NotInBackend
 from .exceptions import InvalidSession_PayloadLegacy
 from .exceptions import InvalidSession_PayloadTimeout
 from .exceptions import RawDeserializationError
-from .util import LAZYCREATE_SESSION
-from .util import NotSpecified
-from .util import SESSION_API_VERSION
 from .util import decode_session_payload as decode_session_payload_func
 from .util import empty_session_payload
 from .util import encode_session_payload as encode_session_payload_func
 from .util import int_time
+from .util import LAZYCREATE_SESSION
+from .util import NotSpecified
 from .util import persist
 from .util import recookie
 from .util import refresh
+from .util import SESSION_API_VERSION
 
 
 # ==============================================================================
@@ -147,8 +145,8 @@ class RedisSession(object):
 
     ``new_session_payload``
     UNDER DEVELOPMENT
-    A function that takes no arguments.  It is used to to generate a new session
-    payload without creating the id (as new_session might)
+    A function that takes no arguments.  It is used to to generate a new
+    session payload without creating the id (as new_session might)
 
     ``serialize``
     A function to serialize pickleable Python objects. Default:
@@ -244,7 +242,10 @@ class RedisSession(object):
         self._timeout_trigger = timeout_trigger
         self._python_expires = python_expires
         self._new = new
-        self._session_state = self._make_session_state(session_id=session_id, new=new)
+        self._session_state = self._make_session_state(
+            session_id=session_id,
+            new=new,
+        )
         if _set_redis_ttl_onexit:
             self._session_state.please_refresh = True
 
@@ -290,13 +291,16 @@ class RedisSession(object):
     @reify
     def _session_state(self):
         """this should only be executed after an `invalidate()`
-        The `invalidate()` will "del self._session_state", which will remove the
-        '_session_state' entry from the object dict (as created by __init__ or by
-        this function which reify's the return value). Removing that function
-        allows this method to execute, and `reify` puts the new result in the
-        object's dict.
+        The `invalidate()` will "del self._session_state", which will remove
+        the '_session_state' entry from the object dict (as created by __init__
+        or by this function which reify's the return value). Removing that
+        function allows this method to execute, and `reify` puts the new result
+        in the object's dict.
         """
-        return self._make_session_state(session_id=LAZYCREATE_SESSION, new=True)
+        return self._make_session_state(
+            session_id=LAZYCREATE_SESSION,
+            new=True,
+        )
 
     @reify
     def timestamp(self):
@@ -315,9 +319,9 @@ class RedisSession(object):
             persisted_hash = None
             persisted = self.new_payload()
         else:
-            # self.from_redis needs to take a session_id here, because otherwise it
-            # would look up self.session_id, which is not ready yet as
-            # session_state has not been created yet.
+            # self.from_redis needs to take a session_id here, because
+            # otherwise it would look up self.session_id, which is not ready
+            # yet as session_state has not been created yet.
             (persisted, persisted_hash) = self.from_redis(
                 session_id=session_id,
                 persisted_hash=(True if self._detect_changes else False),
@@ -398,14 +402,19 @@ class RedisSession(object):
         """
         _session_id = session_id or self.session_id
         if _session_id == LAZYCREATE_SESSION:
-            raise InvalidSession_Lazycreate("`session_id` is LAZYCREATE_SESSION")
+            raise InvalidSession_Lazycreate(  # noaq: E501
+                "`session_id` is LAZYCREATE_SESSION"
+            )
 
         # optimize a `TTL refresh` under certain conditions
         persisted = None
         if self._set_redis_ttl_readheavy:
             with self.redis.pipeline() as pipe:
                 persisted = pipe.get(_session_id)
-                _updated = pipe.expire(_session_id, self._timeout)
+                _updated = pipe.expire(  # noqa: F841
+                    _session_id,
+                    self._timeout,
+                )
             # mark that we shouldn't refresh
             self._session_state.dont_refresh = True
         else:
@@ -420,7 +429,8 @@ class RedisSession(object):
         except Exception as e:
             if self._deserialized_fails_new:
                 raise InvalidSession_DeserializationError(
-                    "`session_id` (%s) did not deserialize correctly" % _session_id
+                    "`session_id` (%s) did not deserialize correctly"
+                    % _session_id  # noaq: E501
                 )
             raise RawDeserializationError(e)
         if persisted_hash is True:
@@ -457,7 +467,8 @@ class RedisSession(object):
     def do_persist(self, serialized_session=None):
         """
         Actually and immediately persist to Redis backend
-        Only set a timeout in Redis timeout if we have timeouts AND are not in LRU mode
+        Only set a timeout in Redis timeout if we have timeouts AND are not
+        in LRU mode.
         Note: this package uses StrictRedis(`key, timeout, value`)
               not Redis(`key, value, timeout`)
         """
@@ -465,7 +476,9 @@ class RedisSession(object):
         if serialized_session is None:
             serialized_session = self.to_redis()
         serverside_timeout = (
-            True if ((self.timeout is not None) and (self._set_redis_ttl)) else False
+            True
+            if ((self.timeout is not None) and (self._set_redis_ttl))
+            else False  # noaq: E501
         )
         if serverside_timeout:
             self.redis.setex(self.session_id, self.timeout, serialized_session)
@@ -556,7 +569,7 @@ class RedisSession(object):
     def itervalues(self):
         try:
             values = self.managed_dict.itervalues()
-        except AttributeError:  # pragma: no cover
+        except AttributeError:
             values = self.managed_dict.values()
         return values
 
@@ -564,7 +577,7 @@ class RedisSession(object):
     def iteritems(self):
         try:
             items = self.managed_dict.iteritems()
-        except AttributeError:  # pragma: no cover
+        except AttributeError:
             items = self.managed_dict.items()
         return items
 
@@ -572,7 +585,7 @@ class RedisSession(object):
     def iterkeys(self):
         try:
             keys = self.managed_dict.iterkeys()
-        except AttributeError:  # pragma: no cover
+        except AttributeError:
             keys = self.managed_dict.keys()
         return keys
 
@@ -622,7 +635,8 @@ class RedisSession(object):
         This method ONLY affects the SetCookie Headers.
         This method does not affect the session logic or any values.
 
-        A datetime.timedelta object representing an amount of time, datetime.datetime or None.
+        A datetime.timedelta object representing an amount of time,
+        datetime.datetime or None.
 
         Expires and Max-Age have a somewhat convoluted relationship;
         Max-Age always takes precedence. You should be using Max-Age instead
@@ -638,7 +652,8 @@ class RedisSession(object):
         This method ONLY affects the SetCookie Headers.
         This method does not affect the session logic or any values.
 
-        An integer representing a number of seconds, datetime.timedelta, or None.
+        An integer representing a number of seconds, datetime.timedelta,
+        or None.
 
         Expires and Max-Age have a somewhat convoluted relationship;
         Max-Age always takes precedence. You should be using Max-Age.
@@ -655,9 +670,10 @@ class RedisSession(object):
     @persist
     def adjust_session_timeout(self, timeout_seconds):
         """
-        Permanently adjusts the `timeout` for this Session to ``timeout_seconds``
-        for as long as this Session is active. Useful in situations where you
-        want to change the expiry time for a Session dynamically.
+        Permanently adjusts the `timeout` for this Session to
+        ``timeout_seconds`` for as long as this Session is active.
+        Useful in situations where you want to change the expiry time for
+        a Session dynamically.
         """
         self._session_state.timeout = timeout_seconds
 
@@ -681,13 +697,14 @@ class RedisSession(object):
         invkoe this.
         """
         if "_session_state" not in self.__dict__:
-            # _session_state is a reified property, which is saved into the dict
-            # if we call `session.invalidate()` the session is immediately deleted
-            # however, accessing it here will trigger a new _session_state creation
-            # and insert a placeholder for the session_id into Redis.  this would be
-            # ok in certain situations, however since we don't access any actual
-            # data in the session, it won't have the cookie callback triggered --
-            # which means the cookie will never get sent to the user, and a phantom
+            # _session_state is a reified property, which is saved into the
+            # dict if we call `session.invalidate()` the session is immediately
+            # deleted however, accessing it here will trigger a new
+            # _session_state creation and insert a placeholder for the
+            # session_id into Redis.  this would be ok in certain situations,
+            # however since we don't access any actual data in the session,
+            # it won't have the cookie callback triggered -- which means the
+            # cookie will never get sent to the user, and a phantom
             # session_id+placeholder will be in Redis until it times out.
             return
         if not self._session_state.dont_persist:

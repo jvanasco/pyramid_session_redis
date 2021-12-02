@@ -1,33 +1,30 @@
 # -*- coding: utf-8 -*-
 # stdlib
 import functools
-import time
 
 # pypi
-from pyramid.exceptions import ConfigurationError
-
 from redis import VERSION as redis_version  # since at least the 2.x branch
-
 from webob.cookies import SignedSerializer
 
 # local
 from .compat import pickle
 from .connection import get_default_connection
-from .exceptions import InvalidSession, InvalidSession_NoSessionCookie
+from .exceptions import InvalidSession
+from .exceptions import InvalidSession_NoSessionCookie
 from .session import RedisSession
-from .util import LAZYCREATE_SESSION
-from .util import NotSpecified
-from .util import _NullSerializer
 from .util import _generate_session_id
+from .util import _NullSerializer
 from .util import _parse_settings
-from .util import configs_bool  # not used here, but included for legacy
+from .util import configs_bool  # noqa: F401 ; included for legacy
 from .util import configs_dotable
 from .util import create_unique_session_id
 from .util import empty_session_payload
+from .util import LAZYCREATE_SESSION
+from .util import NotSpecified
 from .util import warn_future
 
 
-__VERSION__ = "1.6.3"
+__VERSION__ = "1.6.4"  # unreleased
 
 
 # ==============================================================================
@@ -142,8 +139,8 @@ def RedisSessionFactory(
     Parameters:
 
     ``secret``
-    A string which is used to sign the cookie.  As an alternate, you can set this
-    to ``None`` and provide a ``cookie_signer`` argument.
+    A string which is used to sign the cookie.  As an alternate, you can set
+    this to ``None`` and provide a ``cookie_signer`` argument.
 
     ``timeout``
     A number of seconds of inactivity before a session times out.
@@ -261,10 +258,11 @@ def RedisSessionFactory(
     ``set_redis_ttl_readheavy``
      Boolean value; Default: ``None``.
      If ``True``, sets TTL data in Redis within
-     a PIPELINE via GET+EXPIRE and supresses automatic TTL refresh during the deferred
-     cleanup phase. If not ``True``, an EXPIRE is sent as a separate action during
-     the deferred cleanup phase.  The optimized behavior improves performance on
-     read-heavy operations, but may degrade performance on write-heavy operations.
+     a PIPELINE via GET+EXPIRE and supresses automatic TTL refresh during the
+     deferred cleanup phase. If not ``True``, an EXPIRE is sent as a separate
+     action during the deferred cleanup phase.  The optimized behavior improves
+     performance on read-heavy operations, but may degrade performance on
+     write-heavy operations.
      This requires a ``timeout`` and ``set_redis_ttl`` to be True; it is not
      compatible with ``timeout_trigger`` or ``python_expires``.
 
@@ -393,8 +391,8 @@ def RedisSessionFactory(
 
     Users are encouraged to use the modern `redis_` namespace and not the
     deprecated legacy kwargs. Warnings will be emitted when deprecated kwargs
-    are used. Submitting two equivalent kwargs will result in a ValueError being
-    raised.
+    are used. Submitting two equivalent kwargs will result in a ValueError
+    being raised.
     """
     if timeout == 0:
         timeout = None
@@ -410,9 +408,10 @@ def RedisSessionFactory(
             )
         if timeout_trigger or python_expires:
             raise ValueError(
-                "`set_redis_ttl_readheavy` is not compatible with `timeout_trigger` and `python_expires`"
+                "`set_redis_ttl_readheavy` is not compatible with"
+                "`timeout_trigger` and `python_expires`"
             )
-    optimize_redis_ttl = False
+    # optimize_redis_ttl = False
 
     _set_redis_ttl_onexit = False
     if (timeout and set_redis_ttl) and (
@@ -446,7 +445,8 @@ def RedisSessionFactory(
             )
     if connection_pool is not None:
         warn_future(
-            "`connection_pool` has been deprecated in favor of `redis_connection_pool`"
+            "`connection_pool` has been deprecated in favor of"
+            "`redis_connection_pool`"
         )
         if redis_connection_pool:
             raise ValueError(
@@ -479,7 +479,8 @@ def RedisSessionFactory(
             raise ValueError("Submit only one of `redis_encoding_errors`, `errors`")
     if unix_socket_path is not None:
         warn_future(
-            "`unix_socket_path` has been deprecated in favor of `redis_unix_socket_path`"
+            "`unix_socket_path` has been deprecated in favor of"
+            "`redis_unix_socket_path`"
         )
         if redis_unix_socket_path:
             raise ValueError(

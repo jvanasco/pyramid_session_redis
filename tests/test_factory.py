@@ -3,9 +3,6 @@ from __future__ import print_function
 
 # stdlib
 import datetime
-import itertools
-import pdb
-import pprint
 import re
 import unittest
 
@@ -17,8 +14,8 @@ from webob.cookies import SignedSerializer
 from zope.interface.verify import verifyObject
 
 # local
-from pyramid_session_redis import RedisSessionFactory
 from pyramid_session_redis import check_response_allow_cookies
+from pyramid_session_redis import RedisSessionFactory
 from pyramid_session_redis import session_factory_from_settings
 from pyramid_session_redis.compat import pickle
 from pyramid_session_redis.exceptions import InvalidSession
@@ -29,13 +26,11 @@ from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
 from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
 from pyramid_session_redis.exceptions import RawDeserializationError
 from pyramid_session_redis.session import RedisSession
-from pyramid_session_redis.util import LAZYCREATE_SESSION
 from pyramid_session_redis.util import _NullSerializer
 from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
-
-# local test suite
+from pyramid_session_redis.util import LAZYCREATE_SESSION
 from . import DummyRedis
 from .test_config import dummy_id_generator
 
@@ -729,7 +724,9 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
                     "redis.sessions.%s" % _set[0]: _set[2],
                     "redis.sessions.%s" % _set[1]: _set[2],
                 }
-                session_using_old = session_factory_from_settings(_settings)
+                session_using_old = session_factory_from_settings(  # noqa: F841
+                    _settings
+                )
             exception_wrapper = cm_expected_exception.exception
             wrapped_exception = exception_wrapper.args[0]
             assert wrapped_exception == "Submit only one of `%s`, `%s`" % (
@@ -954,7 +951,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
             this requires a `request` but will only use a DummySession
             """
             request = self._make_request()
-            session_existing = self._set_up_session_in_Redis_and_makeOne(
+            session_existing = self._set_up_session_in_Redis_and_makeOne(  # noqa: F841
                 request, session_id, session_dict={"visited": True}, **session_args
             )
             return request
@@ -2176,7 +2173,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
-        v = request.session.get("foo", None)
+        v = request.session.get("foo", None)  # noqa: F841
         response = webob.Response()
         request._process_response_callbacks(response)
         request._process_finished_callbacks()
@@ -2189,7 +2186,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         request = self._make_request()
         request.session = self._makeOne(request, **session_args)
-        session_id = request.session.session_id
+        session_id = request.session.session_id  # noqa: F841
         response = webob.Response()
         request._process_response_callbacks(response)
         request._process_finished_callbacks()
@@ -2295,8 +2292,8 @@ class TestRedisSessionFactory_loggedExceptions(
         factory = self._new_loggerFactory(func_invalid_logger=func_invalid_logger)
 
         request = self._make_request()
-        redis = request.registry._redis_sessions
-        session = factory(request)
+        redis = request.registry._redis_sessions  # noqa: F841
+        session = factory(request)  # noqa: F841
         # validate
         self.validate_loggerData(
             func_invalid_logger_counts,
@@ -2320,10 +2317,10 @@ class TestRedisSessionFactory_loggedExceptions(
 
         # this session isn't tied to our factory.
         request = self._make_request()
-        redis = request.registry._redis_sessions
+        redis = request.registry._redis_sessions  # noqa: F841
 
         self._set_session_cookie(request=request, session_id="no_backend")
-        session = factory(request)
+        session = factory(request)  # noqa: F841
         # validate
         self.validate_loggerData(
             func_invalid_logger_counts, InvalidSession=1, InvalidSession_NotInBackend=1
@@ -2354,7 +2351,7 @@ class TestRedisSessionFactory_loggedExceptions(
         redis.store["existing_session"] = redis.store["existing_session"][:-5]
 
         # new request
-        session = factory(request)
+        session = factory(request)  # noqa: F841
         # validate
         self.validate_loggerData(
             func_invalid_logger_counts,
@@ -2392,7 +2389,7 @@ class TestRedisSessionFactory_loggedExceptions(
         redis.store["existing_session"] = reserialized
 
         # new request, which should trigger a timeout
-        session = factory(request)
+        session = factory(request)  # noqa: F841
 
         # validate
         self.validate_loggerData(
@@ -2431,7 +2428,7 @@ class TestRedisSessionFactory_loggedExceptions(
         redis.store["existing_session"] = reserialized
 
         # new request, which should trigger a legacy format issue
-        session = factory(request)
+        session = factory(request)  # noqa: F841
 
         # validate
         self.validate_loggerData(
@@ -2439,7 +2436,7 @@ class TestRedisSessionFactory_loggedExceptions(
         )
 
     def test_deserialized_error_raw(self):
-        func_invalid_logger_counts = self._new_loggerData()
+        func_invalid_logger_counts = self._new_loggerData()  # noqa: F841
 
         def func_invalid_logger(request, raised):
             raise ValueError("this should not be run")
@@ -2460,7 +2457,7 @@ class TestRedisSessionFactory_loggedExceptions(
             factory(request)
 
         exception_wrapper = cm_expected_exception.exception
-        wrapped_exception = exception_wrapper.args[0]
+        wrapped_exception = exception_wrapper.args[0]  # noqa: F841
 
         # we are using picke, so it should be:
         self.assertEqual(request.session.deserialize, pickle.loads)
@@ -2474,7 +2471,7 @@ class TestRedisSessionFactory_loggedExceptions(
 class TestRedisSessionFactory_Invalid(unittest.TestCase):
     def test_fails__no_cookiesigner__no_secret(self):
         with self.assertRaises(ValueError) as cm:
-            factory = RedisSessionFactory(secret=None)
+            factory = RedisSessionFactory(secret=None)  # noqa: F841
         self.assertEqual(
             cm.exception.args[0],
             "One, and only one, of `secret` and `cookie_signer` must be provided.",
@@ -2482,7 +2479,7 @@ class TestRedisSessionFactory_Invalid(unittest.TestCase):
 
     def test_fails__cookiesigner__secret(self):
         with self.assertRaises(ValueError) as cm:
-            factory = RedisSessionFactory(
+            factory = RedisSessionFactory(  # noqa: F841
                 secret="secret", cookie_signer=CustomCookieSigner()
             )
         self.assertEqual(

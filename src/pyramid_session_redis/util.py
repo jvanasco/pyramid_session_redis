@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # stdlib
-import warnings
 from functools import partial
 from math import ceil
 from time import time as time_time
+import warnings
 
 # pypi
 from pyramid.exceptions import ConfigurationError
@@ -47,15 +47,15 @@ def warn_future(message):
     warnings.warn(message, FutureWarning, stacklevel=2)
 
 
-def to_binary(value, enc="UTF-8"):  # pragma: no cover
+def to_binary(value, enc="UTF-8"):
     if PY3 and isinstance(value, str):
         value = value.encode(enc)
     return value
 
 
-def to_unicode(value):  # pragma: no cover
+def to_unicode(value):
     if PY2:
-        value = unicode(value)
+        value = unicode(value)  # noqa: F821
     return value
 
 
@@ -77,8 +77,8 @@ def _generate_session_id():
     This uses 48 bytes instead of 32 to maintain backwards
     compatibility to pyramid_redis_sessions.  The earlier packaged used
     a 64character digest; however 48bits using the new method will
-    encode to a 64 character url-safe string, while 32 bits will only be encoded
-    to a 40 character string.
+    encode to a 64 character url-safe string, while 32 bits will only be
+    encoded to a 40 character string.
     """
     return token_urlsafe(48)
 
@@ -154,7 +154,12 @@ def empty_session_payload(timeout=0, python_expires=None):
 
 
 def encode_session_payload(
-    managed_dict, created, timeout, expires, timeout_trigger=None, python_expires=None
+    managed_dict,
+    created,
+    timeout,
+    expires,
+    timeout_trigger=None,
+    python_expires=None,
 ):
     """
     called by a session to recode for storage;
@@ -235,7 +240,10 @@ def _insert_session_id_if_unique(
         if new_payload_func is not None:
             data_payload = new_payload_func()
         else:
-            data_payload = empty_session_payload(timeout, python_expires=python_expires)
+            data_payload = empty_session_payload(
+                timeout,
+                python_expires=python_expires,
+            )
     _payload = serialize(data_payload)
     with redis.pipeline() as pipe:
         try:

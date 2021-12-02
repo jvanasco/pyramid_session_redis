@@ -16,7 +16,13 @@ class DummySessionState(object):
 
 
 class DummySession(object):
-    def __init__(self, session_id, redis, timeout=300, serialize=pickle.dumps):
+    def __init__(
+        self,
+        session_id,
+        redis,
+        timeout=300,
+        serialize=pickle.dumps,
+    ):
         self.session_id = session_id
         self.redis = redis
         self.timeout = timeout
@@ -40,7 +46,9 @@ class DummyRedis(object):
         self.store = {}
         self.__dict__.update(kw)
         self._history = []
-        self.pipeline = lambda: DummyPipeline(self.store, self, raise_watcherror)
+        self.pipeline = lambda: DummyPipeline(
+            self.store, self, raise_watcherror
+        )  # noqa: E501
 
     def _history_reset(self):
         # test method. fake. used for tests against the actual redis operations
@@ -120,7 +128,9 @@ class DummyPipeline(object):
     def setex(self, key, timeout, value, debug=None):
         self.store[key] = value
         self._history.append(("setex", key, timeout, debug))
-        self._redis_con._history.append(("pipeline.setex", key, timeout, value, debug))
+        self._redis_con._history.append(
+            ("pipeline.setex", key, timeout, value, debug)
+        )  # noqa: E501
 
     def watch(self, key):
         if self.raise_watcherror:

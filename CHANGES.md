@@ -2,7 +2,7 @@ Changelog
 =========
 
 * unreleased
-	* None
+	* code style changes
 
 * 2021.11.16
 	* version 1.6.3
