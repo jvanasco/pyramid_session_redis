@@ -8,7 +8,7 @@ Overview
 Sessions plugin for the Pyramid web framework.
 
 Originally, this library was a fork of
-[`pyramid_redis_sessions`](`/ericrasmussen/pyramid_redis_sessions`), focused on
+[`pyramid_redis_sessions`](https://github.com/ericrasmussen/pyramid_redis_sessions), focused on
 improvements and API changes designed for high performance (particularly with
 servers under load), and a slightly different API designed for developer
 convenience.
