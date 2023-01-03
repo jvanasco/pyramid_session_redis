@@ -341,7 +341,7 @@ or modify your settings in code:
 
     def main(global_config, **settings):
         config = Configurator(settings=settings)
-        session_factory = pyramid_session_redis(settings)
+        session_factory = session_factory_from_settings(settings)
         config.set_session_factory(session_factory)
 
 
