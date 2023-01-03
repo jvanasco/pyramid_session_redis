@@ -1,21 +1,36 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python package
+name: Python Current
 
 on:
   push:
-    branches: [ main ]
+    branches: 
+      - main
+      # branches used to test the workflow
+      - "workflow_test_*"
   pull_request:
     branches: [ main ]
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    name: core-tests--py-${{ matrix.python-version }}--${{ matrix.os }}--redis-${{ matrix.redis-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [2.7, 3.6, 3.7, 3.8, 3.9]
+        os:
+          - "ubuntu-latest"
+        python-version: 
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+        include:
+          # ubuntu-latest does not have: py27, py36
+          - os: "ubuntu-20.04"
+            python-version: "2.7"
+          - os: "ubuntu-20.04"
+            python-version: "3.6"
         pyramid-version: ["<2", ">=2"]
         redis-version: ["<4", ">=4.0.0"]
         exclude:
@@ -45,13 +60,16 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install --upgrade tox setuptools flake8 pytest
         pip install ".[testing]" "pyramid${{ matrix.pyramid-version }}"
         pip install ".[testing]" "redis${{ matrix.redis-version }}"
         pip freeze
-    - name: Test with pytest
+
+    - name: Test with tox/pytest
+      # tox is used to run pytest
       run: |
-        # Python 3.5 needs PYTHONHASHSEED to succeed.
-        PYTHONHASHSEED='3963681585' pytest
+        tox -e py -- ${{ matrix.pytest-args }}
