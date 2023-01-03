@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    name: core-tests--py-${{ matrix.python-version }}--${{ matrix.os }}--redis-${ matrix.redis-version}
+    name: core-tests--py-${{ matrix.python-version }}--${{ matrix.os }}--redis-${{ matrix.redis-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
