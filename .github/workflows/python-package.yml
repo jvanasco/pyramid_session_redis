@@ -32,10 +32,6 @@ jobs:
             python-version: "3.6"
         pyramid-version: ["<2", ">=2"]
         redis-version: ["<4", ">=4.0.0"]
-        exclude:
-          # Redis 4.0 require python3.6 or higher
-          - python-version: 2.7
-            redis-version: ">=4.0.0"
 
     # Service containers to run with `container-job`
     services:
