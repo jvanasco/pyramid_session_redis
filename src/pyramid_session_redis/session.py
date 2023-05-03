@@ -8,6 +8,7 @@ from typing import Any
 from typing import Callable
 from typing import Iterator
 from typing import Optional
+from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import Union
 
@@ -427,7 +428,7 @@ class RedisSession(object):
         self,
         session_id: Optional[TYPING_SESSION_ID] = None,
         persisted_hash: Optional[bool] = None,
-    ) -> Union[dict, tuple[dict, Union[str, None]]]:
+    ) -> Union[dict, Tuple[dict, Union[str, None]]]:
         """
         Get and deserialize the persisted data for this session from Redis.
         If ``persisted_hash`` is ``None`` (default), returns a single
