@@ -30,6 +30,7 @@ install_requires = [
     "zope.interface",  # in Pyramid
 ]
 testing_requires = [
+    "mypy",
     "nose",
     "pytest",
     "typing_extensions",  # for 3.8 `Literal`
