@@ -43,16 +43,27 @@ This option is available so that developers can define their own Redis
 instances as needed, but most users should not need to customize how they
 connect.
 """
+# stdlib
+from typing import Optional
+from typing import Type
+from typing import TYPE_CHECKING
 
+# pypi
 from redis import StrictRedis
 
+# typing
+if TYPE_CHECKING:
+    from pyrarmid.request import Request
 
 # ==============================================================================
 
 
 def get_default_connection(
-    request, url=None, redis_client=StrictRedis, **redis_options
-):
+    request: "Request",
+    url: Optional[str] = None,
+    client_class: Type[StrictRedis] = StrictRedis,
+    **redis_options
+) -> StrictRedis:
     """
     Default Redis connection handler. Once a connection is established it is
     saved in `request.registry`.
@@ -66,11 +77,11 @@ def get_default_connection(
     :returns: An instance of `StrictRedis`
     """
     # attempt to get an existing connection from the registry
-    redis = getattr(request.registry, "_redis_sessions", None)
+    client = getattr(request.registry, "_redis_sessions", None)
 
     # if we found an active connection, return it
-    if redis is not None:
-        return redis
+    if client is not None:
+        return client
 
     # otherwise create a new connection
     if url is not None:
@@ -87,9 +98,9 @@ def get_default_connection(
         # connection pools are also no longer a valid option for
         # loading via URL
         redis_options.pop("connection_pool", None)
-        redis = redis_client.from_url(url, **redis_options)
+        redis = client_class.from_url(url, **redis_options)
     else:
-        redis = redis_client(**redis_options)
+        redis = client_class(**redis_options)
 
     # save the new connection in the registry
     setattr(request.registry, "_redis_sessions", redis)

@@ -3,17 +3,17 @@ from __future__ import print_function
 
 # stdlib
 import itertools
+import pickle
 import time
 import unittest
 
 # local
-from pyramid_session_redis.compat import pickle
 from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
 from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
 from pyramid_session_redis.session import RedisSession
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
-from pyramid_session_redis.util import LAZYCREATE_SESSION
+from pyramid_session_redis.util import LazyCreateSession
 from . import DummyRedis
 
 
@@ -399,7 +399,7 @@ class TestRedisSession(unittest.TestCase):
 
         # 1.4.x+| session_id defaults to a LAZYCREATE
         self.assertIs(inst.session_id_safecheck, None)
-        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        self.assertIs(inst.session_id, LazyCreateSession)
 
         second_session_id = inst.session_id
         self.assertNotEqual(second_session_id, first_session_id)
@@ -414,7 +414,7 @@ class TestRedisSession(unittest.TestCase):
         # 1.4.x+| session_id defaults to a LAZYCREATE
         # 1.4.x+| session_id is only created via ensure_id()
         self.assertIs(inst.session_id_safecheck, None)
-        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        self.assertIs(inst.session_id, LazyCreateSession)
         inst.ensure_id()
 
         # ORIGINALLY
@@ -438,7 +438,7 @@ class TestRedisSession(unittest.TestCase):
         # 1.4.x+| session_id defaults to a LAZYCREATE
         # 1.4.x+| session_id is only created via ensure_id()
         self.assertIs(inst.session_id_safecheck, None)
-        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        self.assertIs(inst.session_id, LazyCreateSession)
         inst.ensure_id()
 
         # ORIGINALLY
@@ -462,7 +462,7 @@ class TestRedisSession(unittest.TestCase):
         # 1.4.x+| session_id defaults to a LAZYCREATE
         # 1.4.x+| session_id is only created via ensure_id()
         self.assertIs(inst.session_id_safecheck, None)
-        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        self.assertIs(inst.session_id, LazyCreateSession)
         inst.ensure_id()
 
         # ORIGINALLY:
@@ -486,7 +486,7 @@ class TestRedisSession(unittest.TestCase):
         # 1.4.x+| session_id defaults to a LAZYCREATE
         # 1.4.x+| session_id is only created via ensure_id()
         self.assertIs(inst.session_id_safecheck, None)
-        self.assertIs(inst.session_id, LAZYCREATE_SESSION)
+        self.assertIs(inst.session_id, LazyCreateSession)
         inst.ensure_id()
 
         # ORIGINALLY

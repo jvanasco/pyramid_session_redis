@@ -27,12 +27,12 @@ with open(os.path.join(HERE, "README.md")) as f:
 install_requires = [
     "redis>=2.4.11, != 2.9.1",
     "pyramid>=1.3",
-    "six>=1.12.0",
     "zope.interface",  # in Pyramid
 ]
 testing_requires = [
     "nose",
     "pytest",
+    "typing_extensions",  # for 3.8 `Literal`
     "webob",  # in Pyramid
 ]
 testing_extras = install_requires + testing_requires + ["coverage"]
@@ -50,13 +50,13 @@ setup(
         "Intended Audience :: Developers",
         "Framework :: Pyramid",
         "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     keywords="pyramid session redis",
     author="Jonathan Vanasco",
@@ -68,6 +68,7 @@ setup(
         where="src",
     ),
     package_dir={"": "src"},
+    package_data={"pyramid_session_redis": ["py.typed"]},
     include_package_data=True,
     zip_safe=False,
     entry_points="",

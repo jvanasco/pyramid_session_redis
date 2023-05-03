@@ -3,6 +3,7 @@ from __future__ import print_function
 
 # stdlib
 import datetime
+import pickle
 import re
 import unittest
 
@@ -17,7 +18,6 @@ from zope.interface.verify import verifyObject
 from pyramid_session_redis import check_response_allow_cookies
 from pyramid_session_redis import RedisSessionFactory
 from pyramid_session_redis import session_factory_from_settings
-from pyramid_session_redis.compat import pickle
 from pyramid_session_redis.exceptions import InvalidSession
 from pyramid_session_redis.exceptions import InvalidSession_DeserializationError
 from pyramid_session_redis.exceptions import InvalidSession_NoSessionCookie
@@ -30,7 +30,7 @@ from pyramid_session_redis.util import _NullSerializer
 from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
-from pyramid_session_redis.util import LAZYCREATE_SESSION
+from pyramid_session_redis.util import LazyCreateSession
 from . import DummyRedis
 from .test_config import dummy_id_generator
 
@@ -2202,17 +2202,17 @@ class TestRedisSessionFactory_expiries_v1_4_x(
 
         # session_id is non-existant on create
         session_id = request.session.session_id
-        self.assertIs(session_id, LAZYCREATE_SESSION)
+        self.assertIs(session_id, LazyCreateSession)
         request.session["a"] = 1
 
         # session_id is non-existant until necessary
         session_id = request.session.session_id
-        self.assertIs(session_id, LAZYCREATE_SESSION)
+        self.assertIs(session_id, LazyCreateSession)
 
         # insist this is necessary
         request.session.ensure_id()
         session_id = request.session.session_id
-        self.assertIsNot(session_id, LAZYCREATE_SESSION)
+        self.assertIsNot(session_id, LazyCreateSession)
 
         response = webob.Response()
         request._process_response_callbacks(response)
@@ -2229,12 +2229,12 @@ class TestRedisSessionFactory_expiries_v1_4_x(
 
         # session_id is non-existant on create
         session_id = request.session.session_id
-        self.assertIs(session_id, LAZYCREATE_SESSION)
+        self.assertIs(session_id, LazyCreateSession)
         request.session["a"] = 1
 
         # session_id is non-existant until necessary
         session_id = request.session.session_id
-        self.assertIs(session_id, LAZYCREATE_SESSION)
+        self.assertIs(session_id, LazyCreateSession)
 
         response = webob.Response()
         request._process_response_callbacks(response)
@@ -2242,7 +2242,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
 
         # session_id should have created after callbacks
         session_id = request.session.session_id
-        self.assertIsNot(session_id, LAZYCREATE_SESSION)
+        self.assertIsNot(session_id, LazyCreateSession)
 
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)

@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
+# stdlib
+import pickle
 
 # pypi
 from redis.exceptions import WatchError
-
-# local
-from pyramid_session_redis.compat import pickle
 
 
 # ==============================================================================

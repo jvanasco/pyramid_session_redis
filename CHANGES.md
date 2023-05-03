@@ -3,6 +3,8 @@ Changelog
 
 * unreleased
 	* code style changes
+	* dropping PY2
+	* initial typing support
 
 * 2021.11.16
 	* version 1.6.3

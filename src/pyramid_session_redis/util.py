@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
 
 # stdlib
+import datetime
+from enum import Enum
 from functools import partial
 from math import ceil
+from secrets import token_urlsafe
 from time import time as time_time
+import typing
+from typing import Callable
+from typing import Optional
+from typing import Type
+from typing import TYPE_CHECKING
+from typing import Union
 import warnings
 
 # pypi
@@ -12,54 +21,65 @@ from pyramid.settings import asbool
 from redis.exceptions import WatchError
 
 # local
-from .compat import PY2
-from .compat import PY3
-from .compat import token_urlsafe
 from .compat import webob_bytes_
 from .compat import webob_text_
 
+if TYPE_CHECKING:
+    from .session import RedisSession
 
 # ==============================================================================
 
 
+# we use an Enum for typing support
+
 # create a custom class+object instance for handling lazycreated ids
 # (this is what dogpile cache's NO_VALUE does)
-class LazyCreateSession(object):
+class LazyCreateSession(Enum):
     pass
 
 
-LAZYCREATE_SESSION = LazyCreateSession()
-
-
 # used to differentiate from `None`
-class NotSpecified(object):
+class NotSpecified(Enum):
     pass
 
 
 # this stored in the sessions. it is used to detect api version mismatches
-SESSION_API_VERSION = 1
+SESSION_API_VERSION: int = 1
+
+
+TYPING_COOKIE_EXPIRES = Union[datetime.timedelta, datetime.datetime, None, NotSpecified]
+TYPING_KEY = Union[str, int]
+TYPING_SESSION_ID = Union[str, Type[LazyCreateSession]]
+
+# for ASSIGNMENT we need a `Type[NotSpecified]`
+TYPING_COOKIE_EXPIRES__A = Union[
+    datetime.timedelta, datetime.datetime, None, Type[NotSpecified]
+]
+TYPING_COOKIE_MAX_AGE__A = Union[int, None, Type[NotSpecified]]
 
 
 # ------------------------------------------------------------------------------
 
 
-def warn_future(message):
+def warn_future(message: str) -> None:
     warnings.warn(message, FutureWarning, stacklevel=2)
 
 
-def to_binary(value, enc="UTF-8"):
-    if PY3 and isinstance(value, str):
-        value = value.encode(enc)
+def is_integer(n: typing.Any) -> bool:
+    try:
+        r = float(n)
+        return r.is_integer()
+    except ValueError:
+        return False
+
+
+def to_binary(value: typing.AnyStr, enc: str = "UTF-8") -> bytes:
+    if isinstance(value, str):
+        return value.encode(enc)
     return value
 
 
-def to_unicode(value):
-    if PY2:
-        value = unicode(value)  # noqa: F821
-    return value
-
-
-def _generate_session_id():
+def _generate_session_id() -> str:
     """
     Produces a base64 encoded, urlsafe random string with 48-byte
     cryptographically strong randomness as the session id. See
@@ -118,7 +138,7 @@ configs_int_none = ("timeout", "timeout_trigger")
 # ---------------------
 
 
-def prefixed_id(prefix="session:"):
+def prefixed_id(prefix: str = "session:") -> str:
     """
     :param prefix: string. the prefix
     Adds a prefix to the unique session id, for cases where you want to
@@ -129,11 +149,14 @@ def prefixed_id(prefix="session:"):
     return prefixed_id
 
 
-def int_time():
+def int_time() -> int:
     return int(ceil(time_time()))
 
 
-def empty_session_payload(timeout=0, python_expires=None):
+def empty_session_payload(
+    timeout: int = 0,
+    python_expires: Optional[bool] = None,
+) -> dict:
     """
     creates an empty session payload
 
@@ -154,13 +177,13 @@ def empty_session_payload(timeout=0, python_expires=None):
 
 
 def encode_session_payload(
-    managed_dict,
-    created,
-    timeout,
-    expires,
-    timeout_trigger=None,
-    python_expires=None,
-):
+    managed_dict: dict,
+    created: int,
+    timeout: int,
+    expires: int,
+    timeout_trigger: Optional[int] = None,
+    python_expires: Optional[bool] = None,
+) -> dict:
     """
     called by a session to recode for storage;
     inverse of ``decode_session_payload``
@@ -188,7 +211,7 @@ def encode_session_payload(
     return data
 
 
-def decode_session_payload(payload):
+def decode_session_payload(payload: dict) -> dict:
     """
     decode a serialized session payload to kwargs
     inverse of ``encode_session_payload``
@@ -207,14 +230,14 @@ def decode_session_payload(payload):
 
 def _insert_session_id_if_unique(
     redis,
-    timeout,
-    session_id,
-    serialize,
-    set_redis_ttl,
-    data_payload=None,
-    new_payload_func=None,
-    python_expires=None,
-):
+    timeout: int,
+    session_id: str,
+    serialize: Callable,
+    set_redis_ttl: bool,
+    data_payload: Optional[dict] = None,
+    new_payload_func: Optional[Callable] = None,
+    python_expires: Optional[bool] = None,
+) -> Optional[str]:
     """
     Attempt to insert a given ``session_id`` and return the successful id
     or ``None``.  ``timeout`` could be 0/None, in that case do-not track
@@ -269,14 +292,14 @@ def _insert_session_id_if_unique(
 
 def create_unique_session_id(
     redis,
-    timeout,
-    serialize,
-    generator=_generate_session_id,
-    set_redis_ttl=True,
-    data_payload=None,
-    new_payload_func=None,
-    python_expires=None,
-):
+    timeout: int,
+    serialize: Callable,
+    generator: Callable = _generate_session_id,
+    set_redis_ttl: bool = True,
+    data_payload: Optional[dict] = None,
+    new_payload_func: Optional[Callable] = None,
+    python_expires: Optional[bool] = None,
+) -> str:
     """
     Returns a unique session id after inserting it successfully in Redis.
 
@@ -292,6 +315,7 @@ def create_unique_session_id(
     """
     while 1:
         session_id = generator()
+        # attempt will be the session_id
         attempt = _insert_session_id_if_unique(
             redis,
             timeout,
@@ -306,7 +330,7 @@ def create_unique_session_id(
             return attempt
 
 
-def _parse_settings(settings):
+def _parse_settings(settings: dict) -> dict:
     """
     Convenience function to collect settings prefixed by 'redis.sessions' and
     coerce settings to ``int``, ``float``, and ``bool`` as needed.
@@ -365,7 +389,7 @@ def _parse_settings(settings):
     return options
 
 
-def persist(wrapped):
+def persist(wrapped: Callable) -> Callable:
     """
     Decorator to persist in Redis all the data that needs to be persisted for
     this session and reset the expire time.
@@ -377,7 +401,7 @@ def persist(wrapped):
     :returns wrapped_refresh: a wrapped function.
     """
 
-    def wrapped_persist(session, *arg, **kw):
+    def wrapped_persist(session: "RedisSession", *arg, **kw):
         result = wrapped(session, *arg, **kw)
         session._session_state.please_persist = True
         return result
@@ -385,7 +409,7 @@ def persist(wrapped):
     return wrapped_persist
 
 
-def recookie(wrapped):
+def recookie(wrapped: Callable) -> Callable:
     """
     Decorator to mark a session as needing to recookie.
     This is necessary when setting a new max-age/etc
@@ -394,7 +418,7 @@ def recookie(wrapped):
     :returns wrapped_recookie: a wrapped function.
     """
 
-    def wrapped_recookie(session, *arg, **kw):
+    def wrapped_recookie(session: "RedisSession", *arg, **kw):
         result = wrapped(session, *arg, **kw)
         session._session_state.please_recookie = True
         return result
@@ -402,7 +426,7 @@ def recookie(wrapped):
     return wrapped_recookie
 
 
-def refresh(wrapped):
+def refresh(wrapped: Callable) -> Callable:
     """
     Decorator to reset the expire time for this session's key in Redis.
     This will mark the `_session_state.please_refresh` as True, to be
@@ -413,7 +437,7 @@ def refresh(wrapped):
     :returns wrapped_refresh: a wrapped function.
     """
 
-    def wrapped_refresh(session, *arg, **kw):
+    def wrapped_refresh(session: "RedisSession", *arg, **kw):
         result = wrapped(session, *arg, **kw)
         session._session_state.please_refresh = True
         return result
@@ -427,8 +451,8 @@ class _NullSerializer(object):
     Our usage is only signing the session_id, which is a string.
     """
 
-    def dumps(self, appstruct):
+    def dumps(self, appstruct) -> bytes:
         return webob_bytes_(appstruct, encoding="utf-8")
 
-    def loads(self, bstruct):
+    def loads(self, bstruct) -> str:
         return webob_text_(bstruct, encoding="utf-8")
