@@ -26,6 +26,12 @@ import base64
 import binascii
 import hashlib
 import hmac
+import pickle
+from types import ModuleType
+from typing import Any
+from typing import AnyStr
+from typing import Optional
+from typing import Type
 
 # pypi
 from pyramid.util import strings_differ
@@ -34,13 +40,25 @@ from webob.cookies import SignedSerializer
 # local
 from .compat import bytes_
 from .compat import native_
-from .compat import pickle
 from .util import _NullSerializer
 
 # ==============================================================================
 
 
-def signed_serialize(data, secret):
+def _fallback_conversion(secret: AnyStr) -> bytes:
+    _secret: bytes
+    if isinstance(secret, str):
+        try:
+            # bw-compat with pyramid <= 1.5b1 where latin1 is the default
+            _secret = bytes_(secret)
+        except UnicodeEncodeError:
+            _secret = bytes_(secret, "utf-8")
+    else:
+        _secret = secret
+    return _secret
+
+
+def signed_serialize(data: Any, secret: AnyStr) -> str:
     """Serialize any pickleable structure (``data``) and sign it
     using the ``secret`` (must be a string).  Return the
     serialization, which includes the signature as its first 40 bytes.
@@ -54,16 +72,12 @@ def signed_serialize(data, secret):
     :returns signature: a signed string, compatible with `signed_deserialize`
     """
     pickled = pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
-    try:
-        # bw-compat with pyramid <= 1.5b1 where latin1 is the default
-        secret = bytes_(secret)
-    except UnicodeEncodeError:
-        secret = bytes_(secret, "utf-8")
-    sig = hmac.new(secret, pickled, hashlib.sha1).hexdigest()
+    _secret: bytes = _fallback_conversion(secret)
+    sig = hmac.new(_secret, pickled, hashlib.sha1).hexdigest()
     return sig + native_(base64.b64encode(pickled))
 
 
-def signed_deserialize(serialized, secret, hmac=hmac):
+def signed_deserialize(serialized: str, secret: AnyStr, hmac: ModuleType = hmac):
     """Deserialize the value returned from ``signed_serialize``.  If
     the value cannot be deserialized for any reason, a
     :exc:`ValueError` exception will be raised.
@@ -85,13 +99,8 @@ def signed_deserialize(serialized, secret, hmac=hmac):
     except (binascii.Error, TypeError) as e:
         # Badly formed data can make base64 die
         raise ValueError("Badly formed base64 data: %s" % e)
-
-    try:
-        # bw-compat with pyramid <= 1.5b1 where latin1 is the default
-        secret = bytes_(secret)
-    except UnicodeEncodeError:
-        secret = bytes_(secret, "utf-8")
-    sig = bytes_(hmac.new(secret, pickled, hashlib.sha1).hexdigest())
+    _secret: bytes = _fallback_conversion(secret)
+    sig = bytes_(hmac.new(_secret, pickled, hashlib.sha1).hexdigest())
 
     # Avoid timing attacks (see
     # http://seb.dbzteam.org/crypto/python-oauth-timing-hmac.pdf)
@@ -105,21 +114,22 @@ def signed_deserialize(serialized, secret, hmac=hmac):
 
 
 class LegacyCookieSerializer(object):
-    secret = None
+    secret: bytes
 
-    def __init__(self, secret):
+    def __init__(self, secret: AnyStr):
         """
         :param secret: The secret for this serializer
         """
-        self.secret = secret
+        _secret: bytes = _fallback_conversion(secret)
+        self.secret = _secret
 
-    def loads(self, data):
+    def loads(self, data: str) -> Any:
         """
         :param data: data to be deserialized
         """
         return signed_deserialize(data, self.secret)
 
-    def dumps(self, data):
+    def dumps(self, data: Any) -> str:
         """
         :param data: data to be serialized
         """
@@ -148,12 +158,16 @@ class GracefulCookieSerializer(object):
     a temporary migration tool.
     """
 
-    secret = None
-    serializer_current = None
-    serializer_legacy = None
-    logging_hook = None
+    secret: bytes
+    serializer_current: SignedSerializer  # has .dumps/.loads
+    serializer_legacy: LegacyCookieSerializer  # has .dumps/.loads
+    logging_hook: Optional[Type]  # has .attempt, .success
 
-    def __init__(self, secret, logging_hook=None):
+    def __init__(
+        self,
+        secret: AnyStr,
+        logging_hook: Optional[Type] = None,
+    ):
         """
         :param secret: string. the secret
         :param logging_hook: callable; default None.
@@ -167,21 +181,22 @@ class GracefulCookieSerializer(object):
             "current" - attempt/success for the current serializer
             "legacy" - attempt/success for the legacy serializer
         """
-        self.secret = secret
+        _secret: bytes = _fallback_conversion(secret)
+        self.secret = _secret
         self.serializer_current = SignedSerializer(
             secret,
             "pyramid_session_redis.",
             "sha512",
             serializer=_NullSerializer(),
         )
-        self.serializer_legacy = LegacyCookieSerializer(secret)
+        self.serializer_legacy = LegacyCookieSerializer(_secret)
         self.logging_hook = logging_hook
 
-    def loads(self, data):
+    def loads(self, data: str) -> Any:
         """
         :param data: data to be deserialized
         """
-        if self.logging_hook:
+        if self.logging_hook is not None:
             _hook = self.logging_hook
             _hook.attempt("global")
             try:
@@ -201,7 +216,7 @@ class GracefulCookieSerializer(object):
         except Exception as exc:  # noqa: F841
             return self.serializer_legacy.loads(data)
 
-    def dumps(self, data):
+    def dumps(self, data: Any) -> str:
         """
         :param data: data to be serialized
         """

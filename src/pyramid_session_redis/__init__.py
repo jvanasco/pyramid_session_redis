@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 # stdlib
 import functools
+import pickle
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Type
+from typing import TYPE_CHECKING
+
 
 # pypi
-from redis import VERSION as redis_version  # since at least the 2.x branch
-from webob.cookies import SignedSerializer
+from redis import VERSION as _redis_version  # since at least the 2.x branch
+from webob.cookies import SignedSerializer  # type: ignore[import]
 
 # local
-from .compat import pickle
 from .connection import get_default_connection
 from .exceptions import InvalidSession
 from .exceptions import InvalidSession_NoSessionCookie
@@ -19,18 +26,35 @@ from .util import configs_bool  # noqa: F401 ; included for legacy
 from .util import configs_dotable
 from .util import create_unique_session_id
 from .util import empty_session_payload
-from .util import LAZYCREATE_SESSION
+from .util import LazyCreateSession
 from .util import NotSpecified
+from .util import TYPING_COOKIE_EXPIRES
 from .util import warn_future
 
 
-__VERSION__ = "1.6.4"  # unreleased
+__VERSION__ = "1.7.0dev"  # unreleased
 
+
+# typing
+if TYPE_CHECKING:
+    from pyramid.config import Configurator
+    from pyramid.request import Request
+    from pyramid.response import Response
+    from redis.connection import ConnectionPool
+
+# try to pull out the redis version
+# the official type can have a str, so we need to cast
+# we only ever use the major
+REDIS_VERSION_MAIN: int = 0
+try:
+    REDIS_VERSION_MAIN = int(_redis_version[0])
+except Exception:
+    pass
 
 # ==============================================================================
 
 
-def check_response_allow_cookies(response):
+def check_response_allow_cookies(response: "Response") -> bool:
     """
     reference implementation for ``func_check_response_allow_cookies``
     If view has set any of these response headers, do not add a session
@@ -48,7 +72,7 @@ def check_response_allow_cookies(response):
     return True
 
 
-def includeme(config):
+def includeme(config: "Configurator") -> None:
     """
     This function is detected by Pyramid so that you can easily include
     `pyramid_session_redis` in your `main` method like so::
@@ -71,7 +95,7 @@ def includeme(config):
     config.set_session_factory(session_factory)
 
 
-def session_factory_from_settings(settings):
+def session_factory_from_settings(settings: dict) -> Callable:
     """
     Convenience method to construct a ``RedisSessionFactory`` from Paste config
     settings. Only settings prefixed with "redis.sessions" will be inspected
@@ -88,47 +112,47 @@ def session_factory_from_settings(settings):
 
 
 def RedisSessionFactory(
-    secret,
-    timeout=1200,
-    cookie_name="session",
-    cookie_max_age=None,
-    cookie_path="/",
-    cookie_domain=None,
-    cookie_secure=False,
-    cookie_httponly=True,
-    cookie_expires=None,
-    cookie_comment=None,
-    cookie_samesite=None,
-    cookie_on_exception=True,
-    url=None,
-    host="localhost",
-    port=6379,
-    db=0,
-    password=None,
-    client_callable=None,
-    serialize=pickle.dumps,
-    deserialize=pickle.loads,
-    id_generator=_generate_session_id,
-    set_redis_ttl=True,
-    set_redis_ttl_readheavy=None,
-    detect_changes=True,
-    deserialized_fails_new=None,
-    func_check_response_allow_cookies=None,
-    func_invalid_logger=None,
-    timeout_trigger=None,
-    python_expires=True,
-    cookie_signer=None,
-    socket_timeout=None,  # redis, deprecated
-    connection_pool=None,  # redis, deprecated
-    charset=None,  # redis, deprecated
-    errors=None,  # redis, deprecated
-    unix_socket_path=None,  # redis, deprecated
-    redis_socket_timeout=None,
-    redis_connection_pool=None,
-    redis_encoding=None,
-    redis_encoding_errors=None,
-    redis_unix_socket_path=None,
-):
+    secret: str,
+    timeout: Optional[int] = 1200,
+    cookie_name: str = "session",
+    cookie_max_age: Optional[int] = None,
+    cookie_path: str = "/",
+    cookie_domain: Optional[str] = None,
+    cookie_secure: bool = False,
+    cookie_httponly: bool = True,
+    cookie_expires: Optional[TYPING_COOKIE_EXPIRES] = None,
+    cookie_comment: Optional[str] = None,
+    cookie_samesite: Optional[str] = None,
+    cookie_on_exception: bool = True,
+    url: Optional[str] = None,
+    host: str = "localhost",
+    port: int = 6379,
+    db: int = 0,
+    password: Optional[str] = None,
+    client_callable: Optional[Callable] = None,
+    serialize: Callable = pickle.dumps,
+    deserialize: Callable = pickle.loads,
+    id_generator: Callable = _generate_session_id,
+    set_redis_ttl: bool = True,
+    set_redis_ttl_readheavy: Optional[bool] = None,
+    detect_changes: bool = True,
+    deserialized_fails_new: Optional[bool] = None,
+    func_check_response_allow_cookies: Optional[Callable] = None,
+    func_invalid_logger: Optional[Callable] = None,
+    timeout_trigger: Optional[int] = None,
+    python_expires: bool = True,
+    cookie_signer: Optional[Type] = None,
+    socket_timeout: Optional[int] = None,  # redis, deprecated
+    connection_pool: Optional["ConnectionPool"] = None,  # redis, deprecated
+    charset: Optional[str] = None,  # redis, deprecated
+    errors: Optional[str] = None,  # redis, deprecated
+    unix_socket_path: Optional[str] = None,  # redis, deprecated
+    redis_socket_timeout: Optional[int] = None,
+    redis_connection_pool: Optional["ConnectionPool"] = None,
+    redis_encoding: Optional[str] = None,
+    redis_encoding_errors: Optional[str] = None,
+    redis_unix_socket_path: Optional[str] = None,
+) -> Callable:
     """
     Constructs and returns a session factory that will provide session data
     from a Redis server. The returned factory can be supplied as the
@@ -182,6 +206,7 @@ def RedisSessionFactory(
     ``cookie_expires``
     Default: ``None``.
     Passed to `WebOb.response.Response.set_cookie` as ``expires``.
+    This is a ``datetime.datetime``, ``datetime.timedelta``, or ``None``.
     BEWARE: WebOb may be removing this in 1.9.
 
     ``cookie_comment``
@@ -197,7 +222,7 @@ def RedisSessionFactory(
     This is paseed on to the underlying ``WebOb.response.Response.set_cookie``
     framework as ``samesite`` and **requires WebOb 1.8.0 or higher**.
     If set to ``None`` or not specified, it will not be passed on.
-    Should only be ``"Strict"`` or ``"Lax"``.
+    Should only be ``"strict"``, ``"lax"`` or ``"none"``.
 
     ``cookie_on_exception``
     Boolean value; Default: ``True``.
@@ -232,11 +257,11 @@ def RedisSessionFactory(
     and returns a Redis client such as redis-py's `StrictRedis`.
 
     ``serialize``
-    Default: ``pickle.dumps``. PY2=cPickle
+    Default: ``pickle.dumps``
     A function to serialize the session dict for storage in Redis.
 
     ``deserialize``
-    Default: ``pickle.loads``. PY2=cPickle
+    Default: ``pickle.loads``.
     A function to deserialize the stored session data in Redis.
 
     ``id_generator``
@@ -420,7 +445,7 @@ def RedisSessionFactory(
         _set_redis_ttl_onexit = True
 
     # good for all factory() requests
-    set_cookie_kwargs = {
+    set_cookie_kwargs: Dict[str, Any] = {
         "max_age": cookie_max_age,
         "path": cookie_path,
         "domain": cookie_domain,
@@ -517,7 +542,7 @@ def RedisSessionFactory(
     if redis_encoding is not None:
         redis_options["encoding"] = redis_encoding
     else:
-        if redis_version[0] < 4:
+        if REDIS_VERSION_MAIN < 4:
             # legacy kwarg still supported; will trigger Redis warnings/errors
             redis_options["charset"] = "utf-8" if charset is None else charset
         else:
@@ -527,7 +552,7 @@ def RedisSessionFactory(
     if redis_encoding_errors is not None:
         redis_options["encoding_errors"] = redis_encoding_errors
     else:
-        if redis_version[0] < 4:
+        if REDIS_VERSION_MAIN < 4:
             # legacy kwarg still supported; will trigger Redis warnings/errors
             redis_options["errors"] = "strict" if errors is None else errors
         else:
@@ -537,7 +562,9 @@ def RedisSessionFactory(
 
     # good for all factory() requests
     new_payload_func = functools.partial(
-        empty_session_payload, timeout=timeout, python_expires=python_expires
+        empty_session_payload,
+        timeout=timeout,
+        python_expires=python_expires,
     )
 
     # good for all factory() requests
@@ -549,23 +576,33 @@ def RedisSessionFactory(
     )
 
     _secret_cookiesigner = (secret, cookie_signer)
+    _cookie_signer: Type
     if all(_secret_cookiesigner) or not any(_secret_cookiesigner):
         raise ValueError(
             "One, and only one, of `secret` and `cookie_signer` must be provided."
         )
     if secret is not None:
-        # the second argument is the salt. customizing this would needlessly complicate integration
-        cookie_signer = SignedSerializer(
-            secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
+        # the second argument is the salt.
+        # customizing this would needlessly complicate integration
+        _cookie_signer = SignedSerializer(
+            secret,
+            "pyramid_session_redis.",
+            "sha512",
+            serializer=_NullSerializer(),
         )
+    else:
+        _cookie_signer = cookie_signer
 
-    def factory(request, new_session_id_func=create_unique_session_id):
+    def factory(
+        request: "Request",
+        new_session_id_func: Callable = create_unique_session_id,
+    ):
 
         # an explicit client callable gets priority over the default
         redis_conn = (
             client_callable(request, **redis_options)
             if client_callable is not None
-            else get_default_connection(request, url=url, **redis_options)
+            else get_default_connection(request, url=url, **redis_options)  # type: ignore[arg-type]
         )
 
         new_session_func = functools.partial(
@@ -584,7 +621,9 @@ def RedisSessionFactory(
         try:
             # attempt to retrieve a session_id from the cookie
             session_id = _get_session_id_from_cookie(
-                request=request, cookie_name=cookie_name, cookie_signer=cookie_signer
+                request=request,
+                cookie_name=cookie_name,
+                cookie_signer=_cookie_signer,
             )
             if not session_id:
                 raise InvalidSession_NoSessionCookie("No `session_id` in cookie.")
@@ -610,7 +649,7 @@ def RedisSessionFactory(
             if func_invalid_logger is not None:
                 # send the instance for logging
                 func_invalid_logger(request, e)
-            session_id = LAZYCREATE_SESSION
+            session_id = LazyCreateSession
             session_cookie_was_valid = False
             session = RedisSession(
                 redis=redis_conn,
@@ -632,7 +671,7 @@ def RedisSessionFactory(
         set_cookie_func = functools.partial(
             _set_cookie,
             session,
-            cookie_signer=cookie_signer,
+            cookie_signer=_cookie_signer,
             cookie_name=cookie_name,
             **set_cookie_kwargs
         )
@@ -652,7 +691,11 @@ def RedisSessionFactory(
     return factory
 
 
-def _get_session_id_from_cookie(request, cookie_name, cookie_signer):
+def _get_session_id_from_cookie(
+    request: "Request",
+    cookie_name: str,
+    cookie_signer: Type,  # has `.loads`, `.dumps`
+):
     """
     Attempts to retrieve and return a session ID from a session cookie in the
     current request. Returns None if the cookie isn't found or the value cannot
@@ -669,7 +712,14 @@ def _get_session_id_from_cookie(request, cookie_name, cookie_signer):
     return None
 
 
-def _set_cookie(session, request, response, cookie_signer, cookie_name, **kwargs):
+def _set_cookie(
+    session,
+    request: "Request",
+    response: "Response",
+    cookie_signer: Type,  # has `.loads`, `.dumps`
+    cookie_name: str,
+    **kwargs
+):
     """
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
@@ -678,19 +728,24 @@ def _set_cookie(session, request, response, cookie_signer, cookie_name, **kwargs
     response.set_cookie(cookie_name, cookieval, **kwargs)
 
 
-def _delete_cookie(response, cookie_name, cookie_path, cookie_domain):
+def _delete_cookie(
+    response: "Response",
+    cookie_name: str,
+    cookie_path: str,
+    cookie_domain: str,
+):
     response.delete_cookie(cookie_name, path=cookie_path, domain=cookie_domain)
 
 
 def _cookie_callback(
     session,
-    request,
-    response,
+    request: "Request",
+    response: "Response",
     session_cookie_was_valid,
     cookie_on_exception,
-    set_cookie_func,
-    delete_cookie_func,
-    func_check_response_allow_cookies,
+    set_cookie_func: Callable,
+    delete_cookie_func: Callable,
+    func_check_response_allow_cookies: Optional[Callable],
 ):
     """
     Response callback to set the appropriate Set-Cookie header.
