@@ -7,7 +7,6 @@ from secrets import token_hex
 from typing import Any
 from typing import Callable
 from typing import Iterator
-from typing import Literal
 from typing import Optional
 from typing import TYPE_CHECKING
 from typing import TypeAlias
@@ -41,6 +40,10 @@ from .util import TYPING_KEY
 
 
 # typing
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 if TYPE_CHECKING:
     from pyramid.request import Request
 

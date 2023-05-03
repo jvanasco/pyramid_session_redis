@@ -32,6 +32,7 @@ install_requires = [
 testing_requires = [
     "nose",
     "pytest",
+    "typing_extensions",  # for 3.8 `Literal`
     "webob",  # in Pyramid
 ]
 testing_extras = install_requires + testing_requires + ["coverage"]
