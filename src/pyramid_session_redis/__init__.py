@@ -120,7 +120,7 @@ def RedisSessionFactory(
     cookie_domain: Optional[str] = None,
     cookie_secure: bool = False,
     cookie_httponly: bool = True,
-    cookie_expires: Optional[TYPING_COOKIE_EXPIRES] = None,
+    cookie_expires: TYPING_COOKIE_EXPIRES = None,  # TYPING_COOKIE_EXPIRES includes None
     cookie_comment: Optional[str] = None,
     cookie_samesite: Optional[str] = None,
     cookie_on_exception: bool = True,

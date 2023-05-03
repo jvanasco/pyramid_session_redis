@@ -10,8 +10,8 @@ from time import time as time_time
 import typing
 from typing import Callable
 from typing import Optional
+from typing import Type
 from typing import TYPE_CHECKING
-from typing import TypeAlias
 from typing import Union
 import warnings
 
@@ -30,29 +30,32 @@ if TYPE_CHECKING:
 # ==============================================================================
 
 
-TYPING_COOKIE_EXPIRES = Union[
-    datetime.timedelta, datetime.datetime, None, TypeAlias["NotSpecified"]
-]
-TYPING_COOKIE_MAX_AGE = Union[int, TypeAlias["NotSpecified"]]
-TYPING_KEY = Union[str, int]
-
-
 # we use an Enum for typing support
-class _Singletons(Enum):
-    LazyCreateSession = 0
-    NotSpecified = 1
-
 
 # create a custom class+object instance for handling lazycreated ids
 # (this is what dogpile cache's NO_VALUE does)
-LazyCreateSession = _Singletons.LazyCreateSession
+class LazyCreateSession(Enum):
+    pass
+
 
 # used to differentiate from `None`
-NotSpecified = _Singletons.NotSpecified
+class NotSpecified(Enum):
+    pass
 
 
 # this stored in the sessions. it is used to detect api version mismatches
 SESSION_API_VERSION: int = 1
+
+
+TYPING_COOKIE_EXPIRES = Union[datetime.timedelta, datetime.datetime, None, NotSpecified]
+TYPING_KEY = Union[str, int]
+TYPING_SESSION_ID = Union[str, Type[LazyCreateSession]]
+
+# for ASSIGNMENT we need a `Type[NotSpecified]`
+TYPING_COOKIE_EXPIRES__A = Union[
+    datetime.timedelta, datetime.datetime, None, Type[NotSpecified]
+]
+TYPING_COOKIE_MAX_AGE__A = Union[int, None, Type[NotSpecified]]
 
 
 # ------------------------------------------------------------------------------

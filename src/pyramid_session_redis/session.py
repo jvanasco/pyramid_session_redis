@@ -9,7 +9,6 @@ from typing import Callable
 from typing import Iterator
 from typing import Optional
 from typing import TYPE_CHECKING
-from typing import TypeAlias
 from typing import Union
 
 # pypi
@@ -35,15 +34,17 @@ from .util import recookie
 from .util import refresh
 from .util import SESSION_API_VERSION
 from .util import TYPING_COOKIE_EXPIRES
-from .util import TYPING_COOKIE_MAX_AGE
+from .util import TYPING_COOKIE_EXPIRES__A
+from .util import TYPING_COOKIE_MAX_AGE__A
 from .util import TYPING_KEY
+from .util import TYPING_SESSION_ID
 
 
 # typing
 try:
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal
+    from typing_extensions import Literal  # type: ignore[assignment]
 if TYPE_CHECKING:
     from pyramid.request import Request
 
@@ -72,12 +73,16 @@ class _SessionState(object):
     dont_refresh: Optional[bool] = None
 
     # optional attributes, not set by default
-    cookie_expires: Optional[TYPING_COOKIE_EXPIRES] = NotSpecified
-    cookie_max_age: Optional[TYPING_COOKIE_MAX_AGE] = NotSpecified
+    cookie_expires: TYPING_COOKIE_EXPIRES__A = (
+        NotSpecified  # TYPING_COOKIE_EXPIRES__A includes None
+    )
+    cookie_max_age: TYPING_COOKIE_MAX_AGE__A = (
+        NotSpecified  # TYPING_COOKIE_MAX_AGE__A includes None
+    )
 
     def __init__(
         self,
-        session_id: Union[str, TypeAlias[LazyCreateSession]],
+        session_id: TYPING_SESSION_ID,
         managed_dict: dict,
         created: int,
         timeout: int,
@@ -225,7 +230,7 @@ class RedisSession(object):
     def __init__(
         self,
         redis,
-        session_id: Union[TypeAlias[LazyCreateSession], str],
+        session_id: TYPING_SESSION_ID,
         new: bool,
         new_session: Callable,
         new_payload_func: Optional[Callable] = None,
@@ -329,7 +334,7 @@ class RedisSession(object):
 
     def _make_session_state(
         self,
-        session_id: Union[str, TypeAlias[LazyCreateSession]],
+        session_id: TYPING_SESSION_ID,
         new: bool,
     ) -> _SessionState:
         """
@@ -340,7 +345,7 @@ class RedisSession(object):
         :param new:
         :returns `_SessionState``:
         """
-        if session_id == LazyCreateSession:
+        if session_id is LazyCreateSession:
             persisted_hash = None
             persisted = self.new_payload()
         else:
@@ -420,7 +425,7 @@ class RedisSession(object):
 
     def from_redis(
         self,
-        session_id: Optional[Union[str, TypeAlias[LazyCreateSession]]] = None,
+        session_id: Optional[TYPING_SESSION_ID] = None,
         persisted_hash: Optional[bool] = None,
     ) -> Union[dict, tuple[dict, Union[str, None]]]:
         """
@@ -430,7 +435,7 @@ class RedisSession(object):
         If set to ``True`` or ``False``, returns a tuple.
         """
         _session_id = session_id or self.session_id
-        if _session_id == LazyCreateSession:
+        if _session_id is LazyCreateSession:
             raise InvalidSession_Lazycreate(  # noaq: E501
                 "`session_id` is LazyCreateSession"
             )
@@ -486,7 +491,7 @@ class RedisSession(object):
 
     def ensure_id(self) -> str:
         # this ensures we have a session_id
-        if self._session_state.session_id == LazyCreateSession:
+        if self._session_state.session_id is LazyCreateSession:
             self._session_state.session_id = self.new_session()
         return self._session_state.session_id
 
