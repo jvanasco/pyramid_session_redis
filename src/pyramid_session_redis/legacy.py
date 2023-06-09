@@ -38,27 +38,61 @@ from pyramid.util import strings_differ
 from webob.cookies import SignedSerializer
 
 # local
-from .compat import bytes_
-from .compat import native_
 from .util import _NullSerializer
 
 # ==============================================================================
 
 
-def _fallback_conversion(secret: AnyStr) -> bytes:
+# originally in _compat
+def bytes_(
+    s: str,
+    encoding: str = "latin-1",
+    errors: str = "strict",
+) -> bytes:
+    return _ensure_binary(s, encoding, errors)
+
+
+# lifted from six
+def _ensure_binary(
+    s: str,
+    encoding: str = "utf-8",
+    errors: str = "strict",
+) -> bytes:
+    """Coerce **s** to six.binary_type.
+
+    For Python 2:
+      - `unicode` -> encoded to `str`
+      - `str` -> `str`
+
+    For Python 3:
+      - `str` -> encoded to `bytes`
+      - `bytes` -> `bytes`
+    """
+    if isinstance(s, bytes):
+        return s
+    if isinstance(s, str):
+        return s.encode(encoding, errors)
+    raise TypeError("not expecting type '%s'" % type(s))
+
+
+# - - -
+
+
+def _fallback_conversion(
+    secret: AnyStr,
+) -> bytes:
     _secret: bytes
     if isinstance(secret, str):
-        try:
-            # bw-compat with pyramid <= 1.5b1 where latin1 is the default
-            _secret = bytes_(secret)
-        except UnicodeEncodeError:
-            _secret = bytes_(secret, "utf-8")
+        _secret = bytes_(secret, "utf-8")
     else:
         _secret = secret
     return _secret
 
 
-def signed_serialize(data: Any, secret: AnyStr) -> str:
+def signed_serialize(
+    data: Any,
+    secret: AnyStr,
+) -> str:
     """Serialize any pickleable structure (``data``) and sign it
     using the ``secret`` (must be a string).  Return the
     serialization, which includes the signature as its first 40 bytes.
@@ -71,13 +105,17 @@ def signed_serialize(data: Any, secret: AnyStr) -> str:
     :param secret: secret for signing
     :returns signature: a signed string, compatible with `signed_deserialize`
     """
-    pickled = pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
+    _pickled: bytes = pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
     _secret: bytes = _fallback_conversion(secret)
-    sig = hmac.new(_secret, pickled, hashlib.sha1).hexdigest()
-    return sig + native_(base64.b64encode(pickled))
+    sig: str = hmac.new(_secret, _pickled, hashlib.sha1).hexdigest()
+    return sig + base64.b64encode(_pickled).decode()
 
 
-def signed_deserialize(serialized: str, secret: AnyStr, hmac: ModuleType = hmac):
+def signed_deserialize(
+    serialized: str,
+    secret: AnyStr,
+    hmac: ModuleType = hmac,
+) -> Any:
     """Deserialize the value returned from ``signed_serialize``.  If
     the value cannot be deserialized for any reason, a
     :exc:`ValueError` exception will be raised.
@@ -92,15 +130,13 @@ def signed_deserialize(serialized: str, secret: AnyStr, hmac: ModuleType = hmac)
     """
     # hmac parameterized only for unit tests
     try:
-        input_sig, pickled = (
-            bytes_(serialized[:40]),
-            base64.b64decode(bytes_(serialized[40:])),
-        )
+        input_sig: bytes = bytes_(serialized[:40])
+        pickled: bytes = base64.b64decode(bytes_(serialized[40:]))
     except (binascii.Error, TypeError) as e:
         # Badly formed data can make base64 die
         raise ValueError("Badly formed base64 data: %s" % e)
     _secret: bytes = _fallback_conversion(secret)
-    sig = bytes_(hmac.new(_secret, pickled, hashlib.sha1).hexdigest())
+    sig: bytes = bytes_(hmac.new(_secret, pickled, hashlib.sha1).hexdigest())
 
     # Avoid timing attacks (see
     # http://seb.dbzteam.org/crypto/python-oauth-timing-hmac.pdf)

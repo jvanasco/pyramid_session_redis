@@ -32,7 +32,7 @@ from .util import TYPING_COOKIE_EXPIRES
 from .util import warn_future
 
 
-__VERSION__ = "1.7.0dev"  # unreleased
+__VERSION__ = "1.7.0"
 
 
 # typing
@@ -597,7 +597,6 @@ def RedisSessionFactory(
         request: "Request",
         new_session_id_func: Callable = create_unique_session_id,
     ):
-
         # an explicit client callable gets priority over the default
         redis_conn = (
             client_callable(request, **redis_options)
@@ -673,7 +672,7 @@ def RedisSessionFactory(
             session,
             cookie_signer=_cookie_signer,
             cookie_name=cookie_name,
-            **set_cookie_kwargs
+            **set_cookie_kwargs,
         )
         cookie_callback = functools.partial(
             _cookie_callback,
@@ -718,7 +717,7 @@ def _set_cookie(
     response: "Response",
     cookie_signer: Type,  # has `.loads`, `.dumps`
     cookie_name: str,
-    **kwargs
+    **kwargs,
 ):
     """
     `session` is via functools.partial

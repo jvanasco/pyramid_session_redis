@@ -55,7 +55,6 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         return session
 
     def _makeOneSession(self, redis, session_id, **kw):
-
         _set_redis_ttl_onexit = False
         if (kw.get("timeout") and kw.get("set_redis_ttl")) and (
             not kw.get("timeout_trigger")
@@ -98,7 +97,6 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         request.cookies[cookie_name] = cookieval
 
     def _make_request(self, request_old=None):
-
         if request_old:
             # grab the registry data to persist, otherwise it gets discarded
             # and transfer it to a new request
@@ -990,7 +988,6 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
 class TestRedisSessionFactory_expiries_v1_4_x(
     _TestRedisSessionFactoryCore, _TestRedisSessionFactoryCore_UtilsNew
 ):
-
     # args are used 2x: for NEW and EXISTING session tests
 
     _args_timeout_trigger_pythonExpires_setRedisTtl = {
@@ -2280,7 +2277,6 @@ class TestRedisSessionFactory_loggedExceptions(
     # -----
 
     def test_logger_InvalidSession_NoSessionCookie(self):
-
         func_invalid_logger_counts = self._new_loggerData()
 
         def func_invalid_logger(request, raised):
@@ -2304,7 +2300,6 @@ class TestRedisSessionFactory_loggedExceptions(
     # -----
 
     def test_logger_InvalidSession_NotInBackend(self):
-
         func_invalid_logger_counts = self._new_loggerData()
 
         def func_invalid_logger(request, raised):

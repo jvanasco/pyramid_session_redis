@@ -1,7 +1,7 @@
 Changelog
 =========
 
-* unreleased
+* 2023.06.08
 	* code style changes
 	* dropping PY2
 	* initial typing support

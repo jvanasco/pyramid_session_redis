@@ -47,8 +47,8 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"pyramid_session_redis"
-copyright = u"2016-2019, Jonathan Vanasco"
+project = "pyramid_session_redis"
+copyright = "2016-2019, Jonathan Vanasco"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -191,8 +191,8 @@ latex_documents = [
     (
         "index",
         "pyramid_session_redis.tex",
-        u"pyramid\\_session\\_redis Documentation",
-        u"Jonathan Vanasco",
+        "pyramid\\_session\\_redis Documentation",
+        "Jonathan Vanasco",
         "manual",
     )
 ]
@@ -226,8 +226,8 @@ man_pages = [
     (
         "index",
         "pyramid_session_redis",
-        u"pyramid_session_redis Documentation",
-        [u"Jonathan Vanasco"],
+        "pyramid_session_redis Documentation",
+        ["Jonathan Vanasco"],
         1,
     )
 ]
@@ -245,11 +245,11 @@ texinfo_documents = [
     (
         "index",
         "pyramid_session_redis",
-        u"pyramid_session_redis Documentation",
-        u"Jonathan Vanasco",
+        "pyramid_session_redis Documentation",
+        "Jonathan Vanasco",
         "pyramid_session_redis",
-        u"Fast pyramid sessions with redis.",
-        u"Miscellaneous",
+        "Fast pyramid sessions with redis.",
+        "Miscellaneous",
     )
 ]
 
