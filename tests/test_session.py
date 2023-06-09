@@ -633,7 +633,6 @@ class _TestRedisSessionNew_CORE(object):
         python_expires=True,
         set_redis_ttl_readheavy=None,
     ):
-
         _set_redis_ttl_onexit = False
         if (timeout and set_redis_ttl) and (
             not timeout_trigger and not python_expires and not set_redis_ttl_readheavy

@@ -13,10 +13,16 @@ improvements and API changes designed for high performance (particularly with
 servers under load), and a slightly different API designed for developer
 convenience.
 
-This package was planning to follow a multi-version release process, however
-that plan was abandoned in favor of ensuring backards compatibility.
+Compatibility
+-------------
 
-The `main` and `1.6` branches are designed to support both:
+`main` and `1.7` branches require:
+
+* Python 3.6+
+* Pyramid 2.0
+
+
+The `1.6` branch is designed to support both:
 
 * Python 2
 * Python 3
@@ -30,8 +36,10 @@ and
 Prior Branches
 --------------
 
-The 1.5.x branch is in maintenance mode. No updates are expected, as 1.6 is
-backwards compatible.
+The 1.6.x branch is in maintenance mode. This is the last branch to support
+Python2 and Pyramid1.
+
+The 1.5.x branch is EOL. No updates are expected, as 1.6 is backwards compatible.
 
 The 1.4.x branch is EOL. It led to the stable 1.5.0 API release.
 

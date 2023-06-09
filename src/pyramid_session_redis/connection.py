@@ -62,7 +62,7 @@ def get_default_connection(
     request: "Request",
     url: Optional[str] = None,
     client_class: Type[StrictRedis] = StrictRedis,
-    **redis_options
+    **redis_options,
 ) -> StrictRedis:
     """
     Default Redis connection handler. Once a connection is established it is

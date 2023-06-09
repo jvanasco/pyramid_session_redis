@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 # we use an Enum for typing support
 
+
 # create a custom class+object instance for handling lazycreated ids
 # (this is what dogpile cache's NO_VALUE does)
 class LazyCreateSession(Enum):
@@ -451,8 +452,8 @@ class _NullSerializer(object):
     Our usage is only signing the session_id, which is a string.
     """
 
-    def dumps(self, appstruct) -> bytes:
+    def dumps(self, appstruct: str) -> bytes:
         return webob_bytes_(appstruct, encoding="utf-8")
 
-    def loads(self, bstruct) -> str:
+    def loads(self, bstruct: bytes) -> str:
         return webob_text_(bstruct, encoding="utf-8")
