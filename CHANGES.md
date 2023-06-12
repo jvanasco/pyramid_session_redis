@@ -32,7 +32,6 @@ Changelog
 			Add tests for old and new encoding args for RedisSessionFactory()
 	* add tests for incompatible kwargs (test_session_factory_incompatible_kwargs)
 
-
 * 2021.04.01
 	* version 1.6.1
 	* fix invalid `expires` default. thank you, @olemoign

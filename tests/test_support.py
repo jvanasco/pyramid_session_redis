@@ -229,7 +229,7 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         else:
             _cookie_value = cookie_signer.dumps(cookie_value)
         res = _FakeResponse()
-        res.cookies[cookie_name] = _cookie_value
+        res.set_cookie(cookie_name, _cookie_value)
         if GENERATE_COOKIE_DATA:
             print("--------")
             print("%s.%s" % (self.__class__.__name__, self._testMethodName))
@@ -272,3 +272,77 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         value_expected = 1
         value_signed = b"5aK2BseK-h0dYZa18Pxv8PVdLrKJwlmYNyh2Ck_-febyiABrjgFx1bNrwf128CL0I7Ulpw3f9FpOwlU7sMe5xDE"
         self._test_setup(cookie_name, cookie_value, value_expected, value_signed)
+
+
+class Test_CookieSigner_Invalids(unittest.TestCase):
+    """
+    let's make sure we can handle completely invalid data correctly
+
+    to generate the data for theses tests, just grab a signed value from elsewhere and change a character.
+    below, we change the last character of a valid payload from 'i' to 'J'
+    """
+
+    def test_webob_default(self):
+        cookie_name = "test_string"
+        # mess up a value from something else
+        value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmcJ"
+
+        # now, let's try to read it...
+        cookie_signer = SignedSerializer(
+            "secret",
+            "pyramid_session_redis.",
+            "sha512",
+        )
+        with self.assertRaises(ValueError) as ctx:
+            _cookie_value = cookie_signer.loads(value_signed)
+        self.assertEqual(ctx.exception.args[0], "Invalid signature")
+
+    def test_our_default(self):
+        cookie_name = "test_string"
+        # mess up a value from something else
+        value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmcJ"
+
+        # now, let's try to read it...
+        cookie_signer = SignedSerializer(
+            "secret",
+            "pyramid_session_redis.",
+            "sha512",
+            serializer=_NullSerializer(),
+        )
+        with self.assertRaises(ValueError) as ctx:
+            _cookie_value = cookie_signer.loads(value_signed)
+        self.assertEqual(ctx.exception.args[0], "Invalid signature")
+
+    def test_crafted_malicious_1(self):
+        """
+        WRITE w/json;
+        READ w/str
+        """
+        cookie_name = "test_int"
+        cookie_value = {"a": False, "b": {"c": 1, "d": "e"}}
+
+        # by default this will use a JSON serialization
+        cookie_signer_write = SignedSerializer(
+            "secret",
+            "pyramid_session_redis.",
+            "sha512",
+        )
+        _cookie_value = cookie_signer_write.dumps(cookie_value)
+
+        # decoding with the same signer should create an int
+        decoded_native = cookie_signer_write.loads(_cookie_value)
+        self.assertIsInstance(decoded_native, dict)
+
+        self.assertEqual(cookie_value, decoded_native)
+
+        # but this only handles strings...
+        cookie_signer_read = SignedSerializer(
+            "secret",
+            "pyramid_session_redis.",
+            "sha512",
+            serializer=_NullSerializer(),
+        )
+
+        # decoding with the alternate signer should force this as a string
+        decoded_trans = cookie_signer_read.loads(_cookie_value)
+        self.assertIsInstance(decoded_trans, str)
