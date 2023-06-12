@@ -9,12 +9,12 @@ from typing import Optional
 from typing import Type
 from typing import TYPE_CHECKING
 
-
 # pypi
 from redis import VERSION as _redis_version  # since at least the 2.x branch
 from webob.cookies import SignedSerializer  # type: ignore[import]
 
 # local
+from . import compat  # noqa: F401 ; trigger compat routines
 from .connection import get_default_connection
 from .exceptions import InvalidSession
 from .exceptions import InvalidSession_NoSessionCookie
@@ -29,10 +29,11 @@ from .util import empty_session_payload
 from .util import LazyCreateSession
 from .util import NotSpecified
 from .util import TYPING_COOKIE_EXPIRES
+from .util import TYPING_SESSION_ID
 from .util import warn_future
 
 
-__VERSION__ = "1.7.0"
+__VERSION__ = "1.7.0dev"
 
 
 # typing
@@ -269,6 +270,7 @@ def RedisSessionFactory(
     to create a 40 character unique ID.
     A function to create a unique ID to be used as the session key when a
     session is first created.
+    As of `v1.7`, ``id_generator`` MUST return a str.
 
     ``set_redis_ttl``
     Boolean value;  Default `True`.
@@ -329,7 +331,7 @@ def RedisSessionFactory(
 
     ``cookie_signer``
     Default: ``None``
-    If specified,  ``secret`` must be ``None``.
+    If specified,  ``secret`` MUST be ``None``.
     An object with two methods, ``loads`` and ``dumps``.
     The ``loads`` method should accept bytes and return a Python object.
     The ``dumps`` method should accept a Python object and return bytes.
@@ -588,7 +590,7 @@ def RedisSessionFactory(
             secret,
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),
+            serializer=_NullSerializer(),  # convert to a string
         )
     else:
         _cookie_signer = cookie_signer
@@ -617,6 +619,7 @@ def RedisSessionFactory(
             python_expires=python_expires,
         )
 
+        session_id: TYPING_SESSION_ID
         try:
             # attempt to retrieve a session_id from the cookie
             session_id = _get_session_id_from_cookie(
@@ -693,7 +696,7 @@ def RedisSessionFactory(
 def _get_session_id_from_cookie(
     request: "Request",
     cookie_name: str,
-    cookie_signer: Type,  # has `.loads`, `.dumps`
+    cookie_signer: Type,  # has `.loads`, `.dumps`; MUST return a str
 ):
     """
     Attempts to retrieve and return a session ID from a session cookie in the
@@ -715,7 +718,7 @@ def _set_cookie(
     session,
     request: "Request",
     response: "Response",
-    cookie_signer: Type,  # has `.loads`, `.dumps`
+    cookie_signer: Type,  # has `.loads`, `.dumps`; MUST return a str
     cookie_name: str,
     **kwargs,
 ):

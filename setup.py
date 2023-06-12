@@ -13,7 +13,7 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 # store version in the init.py
 with open(os.path.join(HERE, "src", "pyramid_session_redis", "__init__.py")) as v_file:
     package_version = (
-        re.compile(r'.*__VERSION__ = "(.*?)"', re.S).match(v_file.read()).group(1)
+        re.compile(r'.*__VERSION__ = "(.*?)"', re.S).match(v_file.read()).group(1)  # type: ignore[union-attr]
     )
 
 long_description = (

@@ -8,6 +8,7 @@ import unittest
 from webob.cookies import SignedSerializer
 
 # local
+from pyramid_session_redis.exceptions import InvalidSessionId_Serialization
 from pyramid_session_redis.legacy import GracefulCookieSerializer
 from pyramid_session_redis.legacy import LegacyCookieSerializer
 from pyramid_session_redis.util import _NullSerializer
@@ -17,17 +18,25 @@ from pyramid_session_redis.util import _NullSerializer
 
 
 class TestNullSerializer(unittest.TestCase):
-    def test_roundtrip_string(self):
+    def test_string(self):
+        "this should be a roundtrip"
         serializer = _NullSerializer()
-        data = "foo"
-        _serialized = serializer.dumps(data)
-        self.assertEqual(data, serializer.loads(_serialized))
+        data_in = "foo"
+        data_out = data_in
+        _serialized = serializer.dumps(data_in)
+        self.assertEqual(data_out, serializer.loads(_serialized))
 
-    def test_roundtrip_int(self):
+    def test_int(self):
+        "this should fail; _NullSerializer requires a str"
         serializer = _NullSerializer()
-        data = 100
-        _serialized = serializer.dumps(data)
-        self.assertEqual(data, serializer.loads(_serialized))
+        data_in = 100
+        self.assertRaises(InvalidSessionId_Serialization, serializer.dumps, data_in)
+
+    def test_bytes(self):
+        "this should fail; _NullSerializer requires a str"
+        serializer = _NullSerializer()
+        data_in = b"foo"
+        self.assertRaises(InvalidSessionId_Serialization, serializer.dumps, data_in)
 
 
 class TestCookieSerialization(unittest.TestCase):
@@ -53,21 +62,21 @@ class TestCookieSerialization(unittest.TestCase):
 
     def test_roundtrip_default(self):
         secret = "foo"
-        session_id = "123"
+        session_id = "session_id:123"
         cookie_signer = self._makeOne_default(secret)
         _serialized = cookie_signer.dumps(session_id)
         self.assertEqual(session_id, cookie_signer.loads(_serialized))
 
     def test_roundtrip_legacy(self):
         secret = "foo"
-        session_id = "123"
+        session_id = "session_id:123"
         cookie_signer = self._makeOne_legacy(secret)
         _serialized = cookie_signer.dumps(session_id)
         self.assertEqual(session_id, cookie_signer.loads(_serialized))
 
     def test_incompatible(self):
         secret = "foo"
-        session_id = "123"
+        session_id = "session_id:123"
         cookie_signer_current = self._makeOne_default(secret)
         cookie_signer_legacy = self._makeOne_legacy(secret)
         _serialized_current = cookie_signer_current.dumps(session_id)
@@ -82,7 +91,7 @@ class TestCookieSerialization(unittest.TestCase):
 
     def test_graceful(self):
         secret = "foo"
-        session_id = "123"
+        session_id = "session_id:123"
         cookie_signer_current = self._makeOne_default(secret)
         cookie_signer_legacy = self._makeOne_legacy(secret)
         cookie_signer_graceful = self._makeOne_graceful(secret)
@@ -106,7 +115,7 @@ class TestCookieSerialization(unittest.TestCase):
 
     def test_graceful_hooks(self):
         secret = "foo"
-        session_id = "123"
+        session_id = "session_id:123"
 
         class LoggingHook(object):
             def __init__(self):

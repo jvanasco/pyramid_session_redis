@@ -5,6 +5,7 @@ from __future__ import print_function
 import itertools
 import pickle
 import time
+from typing import Optional
 import unittest
 
 # local
@@ -755,13 +756,13 @@ class _TestRedisSessionNew_CORE(object):
 
 
 class _TestRedisSessionNew__MIXIN_A(object):
-    PYTHON_EXPIRES = None
-    set_redis_ttl = None
-    set_redis_ttl_readheavy = None
-    session_id = "session_id"
-    timeout = 3
-    timeout_trigger = 6
-    adjusted_timeout = 6
+    PYTHON_EXPIRES: Optional[bool] = None
+    set_redis_ttl: Optional[bool] = None
+    set_redis_ttl_readheavy: Optional[bool] = None
+    session_id: str = "session_id"
+    timeout: Optional[int] = 3
+    timeout_trigger: Optional[int] = 6
+    adjusted_timeout: Optional[int] = 6
 
     def _session_new(self):
         session = self._set_up_session_in_Redis_and_makeOne(

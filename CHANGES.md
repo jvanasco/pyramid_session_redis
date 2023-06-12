@@ -1,10 +1,15 @@
 Changelog
 =========
 
-* 2023.06.08
+* 2023.06.??
+    * version 1.7.0dev
+    * Breaking Changes:
+      * The `session_id` will now always be serialized into a string.
+      * If a customer `id_generator` is used, it MUST return a string.
 	* code style changes
 	* dropping PY2
 	* initial typing support
+	* remove some webob dependencies
 
 * 2021.11.16
 	* version 1.6.3
@@ -26,7 +31,6 @@ Changelog
 		* add tests for old and new encoding kwargs
 			Add tests for old and new encoding args for RedisSessionFactory()
 	* add tests for incompatible kwargs (test_session_factory_incompatible_kwargs)
-
 
 * 2021.04.01
 	* version 1.6.1
