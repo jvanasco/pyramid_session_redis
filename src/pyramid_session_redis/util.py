@@ -21,8 +21,8 @@ from pyramid.settings import asbool
 from redis.exceptions import WatchError
 
 # local
-from .compat import webob_bytes_
-from .compat import webob_text_
+from .exceptions import InvalidSessionId_Deserialization
+from .exceptions import InvalidSessionId_Serialization
 
 if TYPE_CHECKING:
     from .session import RedisSession
@@ -145,8 +145,8 @@ def prefixed_id(prefix: str = "session:") -> str:
     Adds a prefix to the unique session id, for cases where you want to
     visually distinguish keys in redis.
     """
-    session_id = _generate_session_id()
-    prefixed_id = prefix + session_id
+    session_id: str = _generate_session_id()
+    prefixed_id: str = prefix + session_id
     return prefixed_id
 
 
@@ -246,6 +246,9 @@ def _insert_session_id_if_unique(
 
     This will create an empty/null session and redis entry for the id.
 
+    The return value will be the input `session_id` upon success, or `None` upon
+    a failure.
+
     ``data_payload`` = payload to use
     ``new_payload_func`` = specify a fallback function to generate a payload
     if both are ``None``, then `empty_session_payload`
@@ -315,7 +318,7 @@ def create_unique_session_id(
     :returns:
     """
     while 1:
-        session_id = generator()
+        session_id: str = generator()
         # attempt will be the session_id
         attempt = _insert_session_id_if_unique(
             redis,
@@ -448,12 +451,31 @@ def refresh(wrapped: Callable) -> Callable:
 
 class _NullSerializer(object):
     """
-    A fake serializer for compatibility with ``webob.cookies.SignedSerializer``.
-    Our usage is only signing the session_id, which is a string.
+    A cheap serializer for compatibility with ``webob.cookies.SignedSerializer``.
+    Our usage is only for encoding a signed session_id.
+
+    By default, webob uses json loads/dumps.  As this library only uses strings
+    for session, id, we can have a quick savings here.
+
+    The webob interface dictates:
+
+        https://github.com/Pylons/webob/blob/main/src/webob/cookies.py#L663
+
+        An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        should accept bytes and return a Python object.  The ``dumps`` method
+        should accept a Python object and return bytes.  A ``ValueError`` should
+        be raised for malformed inputs.  Default: ``None`, which will use a
+        derivation of :func:`json.dumps` and ``json.loads``.
     """
 
-    def dumps(self, appstruct: str) -> bytes:
-        return webob_bytes_(appstruct, encoding="utf-8")
+    def dumps(self, s: str) -> bytes:
+        try:
+            return s.encode("utf-8", "strict")
+        except Exception as exc:
+            raise InvalidSessionId_Serialization(exc)
 
-    def loads(self, bstruct: bytes) -> str:
-        return webob_text_(bstruct, encoding="utf-8")
+    def loads(self, s: bytes) -> str:
+        try:
+            return str(s, "utf-8", "strict")
+        except Exception as exc:
+            raise InvalidSessionId_Deserialization(exc)

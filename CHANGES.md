@@ -1,10 +1,15 @@
 Changelog
 =========
 
-* 2023.06.08
+* 2023.06.??
+    * version 1.7.0dev
+    * Breaking Changes:
+      * The `session_id` will now always be serialized into a string.
+      * If a customer `id_generator` is used, it MUST return a string.
 	* code style changes
 	* dropping PY2
 	* initial typing support
+	* remove some webob dependencies
 
 * 2021.11.16
 	* version 1.6.3

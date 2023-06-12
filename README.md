@@ -33,6 +33,12 @@ and
 * Pyramid 2.0
 
 
+Breaking Changes
+----------------
+
+Starting in `1.7`, the NullSerializer will ensure data is serialized into a string.
+
+
 Prior Branches
 --------------
 

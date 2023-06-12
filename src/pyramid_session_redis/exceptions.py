@@ -74,3 +74,15 @@ class RawDeserializationError(Exception):
     """
 
     pass
+
+
+class InvalidSessionId_Deserialization(Exception):
+    """Base class for Serialization Issues"""
+
+    pass
+
+
+class InvalidSessionId_Serialization(Exception):
+    """Base class for Serialization Issues"""
+
+    pass
