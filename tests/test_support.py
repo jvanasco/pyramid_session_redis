@@ -2,6 +2,7 @@
 
 # stdlib
 import os
+from typing import Dict
 from typing import Optional
 import unittest
 
@@ -38,7 +39,7 @@ class _FakeRequest(object):
 
 class _FakeResponse(object):
     req: Optional[_FakeRequest] = None
-    cookies: Optional[dict[str, bytes]] = None
+    cookies: Optional[Dict[str, bytes]] = None
 
     def __init__(self, req: Optional[_FakeRequest] = None):
         self.cookies = {}
