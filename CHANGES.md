@@ -1,8 +1,8 @@
 Changelog
 =========
 
-* 2023.06.??
-    * version 1.7.0dev
+* 2023.06.13
+    * version 1.7.0rc1
     * Breaking Changes:
       * The `session_id` will now always be serialized into a string.
         * If a custom `id_generator` is used, it MUST return a string.
