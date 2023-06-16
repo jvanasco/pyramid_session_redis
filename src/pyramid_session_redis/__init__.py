@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 # pypi
 from redis import VERSION as _redis_version  # since at least the 2.x branch
-from webob.cookies import SignedSerializer  # type: ignore[import]
+from webob.cookies import SignedSerializer
 
 # local
 from . import compat  # noqa: F401 ; trigger compat routines
