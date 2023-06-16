@@ -53,7 +53,7 @@ from redis import StrictRedis
 
 # typing
 if TYPE_CHECKING:
-    from pyrarmid.request import Request
+    from pyramid.request import Request
 
 # ==============================================================================
 
