@@ -6,7 +6,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
-from typing import Type
 from typing import TYPE_CHECKING
 
 # pypi
@@ -28,6 +27,7 @@ from .util import create_unique_session_id
 from .util import empty_session_payload
 from .util import LazyCreateSession
 from .util import NotSpecified
+from .util import SerializerInterface
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
 from .util import warn_future
@@ -142,7 +142,7 @@ def RedisSessionFactory(
     func_invalid_logger: Optional[Callable] = None,
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
-    cookie_signer: Optional[Type] = None,
+    cookie_signer: Optional[SerializerInterface] = None,
     socket_timeout: Optional[int] = None,  # redis, deprecated
     connection_pool: Optional["ConnectionPool"] = None,  # redis, deprecated
     charset: Optional[str] = None,  # redis, deprecated
@@ -578,7 +578,7 @@ def RedisSessionFactory(
     )
 
     _secret_cookiesigner = (secret, cookie_signer)
-    _cookie_signer: Type
+    _cookie_signer: SerializerInterface
     if all(_secret_cookiesigner) or not any(_secret_cookiesigner):
         raise ValueError(
             "One, and only one, of `secret` and `cookie_signer` must be provided."
@@ -696,7 +696,7 @@ def RedisSessionFactory(
 def _get_session_id_from_cookie(
     request: "Request",
     cookie_name: str,
-    cookie_signer: Type,  # has `.loads`, `.dumps`; MUST return a str
+    cookie_signer: SerializerInterface,  # has `.loads`, `.dumps`; MUST return a str
 ):
     """
     Attempts to retrieve and return a session ID from a session cookie in the
@@ -718,7 +718,7 @@ def _set_cookie(
     session,
     request: "Request",
     response: "Response",
-    cookie_signer: Type,  # has `.loads`, `.dumps`; MUST return a str
+    cookie_signer: SerializerInterface,  # has `.loads`, `.dumps`; MUST return a str
     cookie_name: str,
     **kwargs,
 ):

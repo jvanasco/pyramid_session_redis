@@ -7,6 +7,7 @@ from secrets import token_hex
 from typing import Any
 from typing import Callable
 from typing import Iterator
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TYPE_CHECKING
@@ -608,36 +609,20 @@ class RedisSession(object):
         return key in self.managed_dict
 
     @refresh
-    def values(self):
-        # TODO: typing
-        return self.managed_dict.values()
+    def values(self) -> List:
+        return list(self.managed_dict.values())
 
     @refresh
-    def itervalues(self):
-        # TODO: typing
-        try:
-            values = self.managed_dict.itervalues()
-        except AttributeError:
-            values = self.managed_dict.values()
-        return values
+    def itervalues(self) -> List:
+        return list(self.managed_dict.values())
 
     @refresh
-    def iteritems(self):
-        # TODO: typing
-        try:
-            items = self.managed_dict.iteritems()
-        except AttributeError:
-            items = self.managed_dict.items()
-        return items
+    def iteritems(self) -> List:
+        return list(self.managed_dict.items())
 
     @refresh
-    def iterkeys(self):
-        # TODO: typing
-        try:
-            keys = self.managed_dict.iterkeys()
-        except AttributeError:
-            keys = self.managed_dict.keys()
-        return keys
+    def iterkeys(self) -> List:
+        return list(self.managed_dict.keys())
 
     @persist
     def changed(self) -> None:

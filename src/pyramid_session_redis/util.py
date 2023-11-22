@@ -19,6 +19,8 @@ import warnings
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
+from typing_extensions import Protocol
+
 
 # local
 from .exceptions import InvalidSessionId_Deserialization
@@ -447,6 +449,14 @@ def refresh(wrapped: Callable) -> Callable:
         return result
 
     return wrapped_refresh
+
+
+class SerializerInterface(Protocol):
+    def dumps(self, s: str) -> bytes:
+        ...
+
+    def loads(self, s: bytes) -> str:
+        ...
 
 
 class _NullSerializer(object):
