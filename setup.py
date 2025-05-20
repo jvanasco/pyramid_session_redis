@@ -35,6 +35,8 @@ testing_requires = [
     "nose",
     "pytest",
     "webob",  # in Pyramid
+    "webtest",
+    "waitress",
 ]
 testing_extras = install_requires + testing_requires + ["coverage"]
 docs_extras = [
