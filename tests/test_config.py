@@ -6,6 +6,7 @@ import unittest
 # pypi
 from pyramid import testing
 from pyramid.exceptions import ConfigurationError
+from pyramid.request import Request
 from pyramid.threadlocal import get_current_request
 
 # local
@@ -13,6 +14,7 @@ from pyramid_session_redis.exceptions import InvalidSession
 from pyramid_session_redis.exceptions import (
     InvalidSession_DeserializationError,
 )  # noqa: E501
+from pyramid_session_redis.util import SerializerInterface
 
 
 # ==============================================================================
@@ -23,31 +25,44 @@ _id_path = "tests.test_config.dummy_id_generator"
 _client_path = "tests.test_config.dummy_client_callable"
 _invalid_logger = "tests.test_config.dummy_invalid_logger"
 
+TEST_PSR_CONFIG = {
+    "redis.sessions.secret": "supersecret",
+    "redis.sessions.db": 9,
+    "redis.sessions.serialize": "pickle.dumps",
+    "redis.sessions.deserialize": "pickle.loads",
+    "redis.sessions.id_generator": _id_path,
+    "redis.sessions.client_callable": _client_path,
+    "redis.sessions.func_invalid_logger": _invalid_logger,
+}
+
+LIVE_PSR_CONFIG = TEST_PSR_CONFIG.copy()
+del LIVE_PSR_CONFIG["redis.sessions.id_generator"]
+del LIVE_PSR_CONFIG["redis.sessions.client_callable"]
 
 # ------------------------------------------------------------------------------
 
 
 # used to ensure includeme can resolve a dotted path to an id generator
-def dummy_id_generator():
-    return 42
+def dummy_id_generator() -> str:
+    return "42"
 
 
 # used to ensure includeme can resolve a dotted path to a redis client callable
-def dummy_client_callable(request, **opts):
+def dummy_client_callable(request: Request, **opts):
     return "client"
 
 
-def dummy_invalid_logger(raised):
+def dummy_invalid_logger(request: Request, raised: Exception):
     assert isinstance(raised, InvalidSession)
     return True
 
 
-class CustomCookieSigner(object):
-    def loads(self, s):
-        return s
+class CustomCookieSigner(SerializerInterface):
+    def loads(self, s: bytes) -> str:
+        return s.decode()
 
-    def dumps(self, s):
-        return s
+    def dumps(self, s: str) -> bytes:
+        return s.encode()
 
 
 # ------------------------------------------------------------------------------
