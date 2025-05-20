@@ -255,7 +255,7 @@ class RedisSession(object):
 
     def __init__(
         self,
-        redis: RedisClient,
+        redis: "RedisClient",
         session_id: TYPING_SESSION_ID,
         new: bool,
         new_session: Callable,

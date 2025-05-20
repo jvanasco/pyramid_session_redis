@@ -16,9 +16,9 @@ with open(os.path.join(HERE, "src", "pyramid_session_redis", "__init__.py")) as 
         re.compile(r'.*__VERSION__ = "(.*?)"', re.S).match(v_file.read()).group(1)  # type: ignore[union-attr]
     )
 
-long_description = (
-    description
-) = "High performance and actively maintained server-side session framework for Pyramid and Redis."
+long_description = description = (
+    "High performance and actively maintained server-side session framework for Pyramid and Redis."
+)
 with open(os.path.join(HERE, "README.md")) as f:
     long_description = f.read()
 
@@ -52,12 +52,13 @@ setup(
         "Framework :: Pyramid",
         "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     keywords="pyramid session redis",
     author="Jonathan Vanasco",

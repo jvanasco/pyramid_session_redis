@@ -28,10 +28,6 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
-        include:
-          # ubuntu-latest[22.04] does not have: py27, py36
-          - os: "ubuntu-20.04"
-            python-version: "3.6"
         pyramid-version: [">=2"]
         redis-version: ["<4", ">=4.0.0"]
 
