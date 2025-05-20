@@ -49,11 +49,11 @@ class DummyRedis(object):
     def __init__(self, raise_watcherror=False, **kw):
         self.url = None
         self.timeouts = {}
-        self.store = {}
+        self._store = {}
         self.__dict__.update(kw)
         self._history = []
         self.pipeline = lambda: DummyPipeline(
-            self.store, self, raise_watcherror
+            self._store, self, raise_watcherror
         )  # noqa: E501
 
     def _history_reset(self):
@@ -69,26 +69,26 @@ class DummyRedis(object):
 
     def get(self, key):
         self._history.append(("get", key))
-        return self.store.get(key)
+        return self._store.get(key)
 
     def set(self, key, value, debug=None):
-        self.store[key] = value
+        self._store[key] = value
         self._history.append(("set", key, value, debug))
 
     def setex(self, key, timeout, value, debug=None):
         # Redis is `key, value, timeout`
         # StrictRedis is `key, timeout, value`
         # this package uses StrictRedis
-        self.store[key] = value
+        self._store[key] = value
         self.timeouts[key] = timeout
         self._history.append(("setex", key, timeout, value, debug))
 
     def delete(self, *keys):
         for key in keys:
-            del self.store[key]
+            del self._store[key]
 
     def exists(self, key):
-        return key in self.store
+        return key in self._store
 
     def expire(self, key, timeout):
         self.timeouts[key] = timeout
@@ -98,12 +98,12 @@ class DummyRedis(object):
         return self.timeouts.get(key)
 
     def keys(self):
-        return self.store.keys()
+        return self._store.keys()
 
 
 class DummyPipeline(object):
     def __init__(self, store, redis_con, raise_watcherror=False):
-        self.store = store
+        self._store = store
         self.raise_watcherror = raise_watcherror
         self._redis_con = redis_con
         self._history = []
@@ -118,21 +118,21 @@ class DummyPipeline(object):
         pass
 
     def set(self, key, value, debug=None):
-        self.store[key] = value
+        self._store[key] = value
         self._history.append(("set", key, debug))
         self._redis_con._history.append(("pipeline.set", key, value, debug))
 
     def get(self, key):
         self._history.append(("get", key))
         self._redis_con._history.append(("pipeline.get", key))
-        return self.store.get(key)
+        return self._store.get(key)
 
     def expire(self, key, timeout):
         self._history.append(("expire", key, timeout))
         self._redis_con._history.append(("pipeline.expire", key, timeout))
 
     def setex(self, key, timeout, value, debug=None):
-        self.store[key] = value
+        self._store[key] = value
         self._history.append(("setex", key, timeout, debug))
         self._redis_con._history.append(
             ("pipeline.setex", key, timeout, value, debug)

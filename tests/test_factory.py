@@ -167,7 +167,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session_id_in_cookie = self._get_session_id(request)
         self._set_session_cookie(request=request, session_id=session_id_in_cookie)
         redis = request.registry._redis_sessions
-        redis.store = {}  # clears keys in DummyRedis
+        redis._store = {}  # clears keys in DummyRedis
         session = self._makeOne(request)
         self.assertNotEqual(session.session_id, session_id_in_cookie)
         self.assertIs(session.new, True)
@@ -848,7 +848,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         _session_id = session.session_id
         # "Redis" has no attribute "store"
         # "DummyRedis" uses an internal storage though
-        _session_data = session.redis.store[_session_id]  # type: ignore[attr-defined]
+        _session_data = session.redis._store[_session_id]  # type: ignore[attr-defined]
         _session_deserialized = deserialize(_session_data)
         return _session_deserialized
 
@@ -1010,7 +1010,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
 
         # reserialize the session and store it in the backend
         _session_serialized = serialize(_session_deserialized)
-        request.session.redis.store[_session_id] = _session_serialized
+        request.session.redis._store[_session_id] = _session_serialized
         request.session._resync()
 
 
@@ -2373,10 +2373,10 @@ class TestRedisSessionFactory_loggedExceptions(
         )
         request = self._prep_existing_session(session_args)
         redis = request.registry._redis_sessions
-        assert "existing_session" in redis.store
+        assert "existing_session" in redis._store
 
         # take of off the last 5 chars
-        redis.store["existing_session"] = redis.store["existing_session"][:-5]
+        redis._store["existing_session"] = redis._store["existing_session"][:-5]
 
         # new request
         session = factory(request)  # noqa: F841
@@ -2406,15 +2406,15 @@ class TestRedisSessionFactory_loggedExceptions(
         )
         request = self._prep_existing_session(session_args)
         redis = request.registry._redis_sessions
-        assert "existing_session" in redis.store
+        assert "existing_session" in redis._store
 
         # use the actual session's deserialize on the backend data
-        deserialized = request.session.deserialize(redis.store["existing_session"])
+        deserialized = request.session.deserialize(redis._store["existing_session"])
         # make it 10 seconds earlier
         deserialized["x"] = deserialized["x"] - 10
         deserialized["c"] = deserialized["c"] - 10
         reserialized = request.session.serialize(deserialized)
-        redis.store["existing_session"] = reserialized
+        redis._store["existing_session"] = reserialized
 
         # new request, which should trigger a timeout
         session = factory(request)  # noqa: F841
@@ -2445,15 +2445,15 @@ class TestRedisSessionFactory_loggedExceptions(
         )
         request = self._prep_existing_session(session_args)
         redis = request.registry._redis_sessions
-        assert "existing_session" in redis.store
+        assert "existing_session" in redis._store
 
         # use the actual session's deserialize on the backend data
-        deserialized = request.session.deserialize(redis.store["existing_session"])
+        deserialized = request.session.deserialize(redis._store["existing_session"])
 
         # make it 1 version earlier
         deserialized["v"] = deserialized["v"] - 1
         reserialized = request.session.serialize(deserialized)
-        redis.store["existing_session"] = reserialized
+        redis._store["existing_session"] = reserialized
 
         # new request, which should trigger a legacy format issue
         session = factory(request)  # noqa: F841
@@ -2475,10 +2475,10 @@ class TestRedisSessionFactory_loggedExceptions(
         )
         request = self._prep_existing_session({})
         redis = request.registry._redis_sessions
-        assert "existing_session" in redis.store
+        assert "existing_session" in redis._store
 
         # take of off the last 5 chars
-        redis.store["existing_session"] = redis.store["existing_session"][:-5]
+        redis._store["existing_session"] = redis._store["existing_session"][:-5]
 
         # new request should raise a raw RawDeserializationError
         with self.assertRaises(RawDeserializationError) as cm_expected_exception:

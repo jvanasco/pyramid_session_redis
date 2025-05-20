@@ -4,7 +4,10 @@
 import itertools
 import pickle
 import time
+from typing import Callable
 from typing import Optional
+from typing import TYPE_CHECKING
+from typing import Union
 import unittest
 
 # local
@@ -16,6 +19,9 @@ from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
 from . import DummyRedis
 
+if TYPE_CHECKING:
+    from redis.client import Redis as RedisClient
+
 
 # ==============================================================================
 
@@ -23,10 +29,10 @@ from . import DummyRedis
 class TestRedisSession(unittest.TestCase):
     def _makeOne(
         self,
-        redis,
-        session_id,
-        new,
-        func_new_session,
+        redis: DummyRedis,
+        session_id: str,
+        new: bool,
+        func_new_session: Callable,
         serialize=pickle.dumps,
         deserialize=pickle.loads,
         detect_changes=True,
@@ -36,7 +42,7 @@ class TestRedisSession(unittest.TestCase):
         timeout=1200,
         python_expires=True,
         set_redis_ttl_readheavy=None,
-    ):
+    ) -> RedisSession:
         _set_redis_ttl_onexit = False
         if (timeout and set_redis_ttl) and (
             not timeout_trigger and not python_expires and not set_redis_ttl_readheavy
@@ -60,8 +66,13 @@ class TestRedisSession(unittest.TestCase):
         )
 
     def _set_up_session_in_redis(
-        self, redis, session_id, timeout, session_dict=None, serialize=pickle.dumps
-    ):
+        self,
+        redis: "DummyRedis",
+        session_id: str,
+        timeout: int = 0,
+        session_dict: Optional[dict] = None,
+        serialize=pickle.dumps,
+    ) -> str:
         """
         Note: this will call `encode_session_payload` with the initial session
         data. On a typical test this will mean an extra initial call to
@@ -70,23 +81,23 @@ class TestRedisSession(unittest.TestCase):
         if session_dict is None:
             session_dict = {}
         time_now = int_time()
-        expires = time_now + timeout if timeout else None
+        expires = time_now + timeout if timeout else 0
         payload = encode_session_payload(session_dict, time_now, timeout, expires)
         redis.set(session_id, serialize(payload))
         return session_id
 
-    def _make_id_generator(self):
+    def _make_id_generator(self) -> Callable:
         ids = itertools.count(start=0, step=1)
         return lambda: str(next(ids))
 
     def _set_up_session_in_Redis_and_makeOne(
         self,
-        session_id=None,
-        session_dict=None,
+        session_id: Optional[str] = None,
+        session_dict: Optional[dict] = None,
         new=True,
         timeout=300,
         detect_changes=True,
-    ):
+    ) -> RedisSession:
         redis = DummyRedis()
         id_generator = self._make_id_generator()
         if session_id is None:
@@ -324,7 +335,7 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         first_session_id = inst.session_id
         inst.invalidate()
-        self.assertNotIn(first_session_id, inst.redis.store)
+        self.assertNotIn(first_session_id, inst.redis._store)
         self.assertIs(inst._invalidated, True)
 
     def test_dict_multilevel(self):
@@ -385,7 +396,7 @@ class TestRedisSession(unittest.TestCase):
         inst.invalidate()
         inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         second_session_id = inst.session_id
-        self.assertSetEqual(set(inst.redis.store.keys()), {second_session_id})
+        self.assertSetEqual(set(inst.redis._store.keys()), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
         self.assertIs(bool(second_session_id), True)
         self.assertDictEqual(dict(inst), {})
@@ -423,7 +434,7 @@ class TestRedisSession(unittest.TestCase):
         # a new session was created after .managed_dict access. Here we note
         # down the session_ids in Redis right after .managed_dict access for an
         # additional check.
-        session_ids_in_redis = inst.redis.store.keys()
+        session_ids_in_redis = inst.redis._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -447,7 +458,7 @@ class TestRedisSession(unittest.TestCase):
         # a new session was created after .created access. Here we noted down
         # the session_ids in Redis right after .created access for an
         # additional check.
-        session_ids_in_redis = inst.redis.store.keys()
+        session_ids_in_redis = inst.redis._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -471,7 +482,7 @@ class TestRedisSession(unittest.TestCase):
         # a new session was created after .timeout access. Here we note down
         # the session_ids in Redis right after .timeout access for an
         # additional check.
-        session_ids_in_redis = inst.redis.store.keys()
+        session_ids_in_redis = inst.redis._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -494,7 +505,7 @@ class TestRedisSession(unittest.TestCase):
         # invalidate, so just asserting .session_id is not enough to prove that
         # a new session was created after .created access. Here we note down
         # session_ids in Redis right after .new access for an additional check.
-        session_ids_in_redis = inst.redis.store.keys()
+        session_ids_in_redis = inst.redis._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -505,7 +516,7 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.invalidate()
-        self.assertNotIn(first_session_id, inst.redis.store)
+        self.assertNotIn(first_session_id, inst.redis._store)
         self.assertIs(inst._invalidated, True)
         second_session_id = inst.session_id
         self.assertNotEqual(second_session_id, first_session_id)
@@ -516,7 +527,7 @@ class TestRedisSession(unittest.TestCase):
         inst.invalidate()
         second_session_id = inst.session_id
         inst.invalidate()
-        session_ids_in_redis = inst.redis.store.keys()
+        session_ids_in_redis = inst.redis._store.keys()
         self.assertNotIn(second_session_id, session_ids_in_redis)
         self.assertIs(inst._invalidated, True)
 
@@ -532,7 +543,7 @@ class TestRedisSession(unittest.TestCase):
         inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         third_session_id = inst.session_id
 
-        session_ids_in_redis = inst.redis.store.keys()
+        session_ids_in_redis = inst.redis._store.keys()
         self.assertSetEqual(set(session_ids_in_redis), {third_session_id})
         self.assertNotEqual(third_session_id, second_session_id)
         self.assertIs(bool(third_session_id), True)
@@ -591,7 +602,7 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         verifyObject(ISession, inst)
 
-    def _test_adjust_session_timeout(self, variant=None):
+    def _test_adjust_session_timeout(self, variant: Optional[str] = None):
         inst = self._set_up_session_in_Redis_and_makeOne(timeout=100)
         adjusted_timeout = 200
         if not variant:
@@ -619,20 +630,20 @@ class _TestRedisSessionNew_CORE(object):
 
     def _makeOne(
         self,
-        redis,
-        session_id,
-        new,
-        func_new_session,
+        redis: Union[DummyRedis, "RedisClient"],
+        session_id: str,
+        new: bool,
+        func_new_session: Callable,
         serialize=pickle.dumps,
         deserialize=pickle.loads,
         detect_changes=True,
         set_redis_ttl=True,
-        deserialized_fails_new=None,
-        timeout_trigger=None,
+        deserialized_fails_new: Optional[bool] = None,
+        timeout_trigger: Optional[int] = None,
         timeout=1200,
         python_expires=True,
-        set_redis_ttl_readheavy=None,
-    ):
+        set_redis_ttl_readheavy: Optional[bool] = None,
+    ) -> RedisSession:
         _set_redis_ttl_onexit = False
         if (timeout and set_redis_ttl) and (
             not timeout_trigger and not python_expires and not set_redis_ttl_readheavy
@@ -658,16 +669,16 @@ class _TestRedisSessionNew_CORE(object):
 
     def _set_up_session_in_redis(
         self,
-        redis,
-        session_id,
-        timeout,
-        session_dict=None,
+        redis: DummyRedis,
+        session_id: str,
+        timeout: int = 0,
+        session_dict: Optional[dict] = None,
         serialize=pickle.dumps,
-        session_version=None,
-        expires=None,
+        session_version: Optional[int] = None,
+        expires: int = 0,
         python_expires=True,
         reset_history=True,
-    ):
+    ) -> str:
         """
         Note: this will call `encode_session_payload` with the initial session
         data. On a typical test this will mean an extra initial call to
@@ -697,24 +708,24 @@ class _TestRedisSessionNew_CORE(object):
             redis._history_reset()
         return session_id
 
-    def _make_id_generator(self):
+    def _make_id_generator(self) -> Callable:
         ids = itertools.count(start=0, step=1)
         return lambda: str(next(ids))
 
     def _set_up_session_in_Redis_and_makeOne(
         self,
-        session_id=None,
-        session_dict=None,
-        new=True,
-        timeout=60,
-        timeout_trigger=30,
+        session_id: Optional[str] = None,
+        session_dict: Optional[dict] = None,
+        new: bool = True,
+        timeout: int = 60,
+        timeout_trigger: int = 30,
         detect_changes=True,
         set_redis_ttl=True,
-        session_version=None,
-        expires=None,
+        session_version: Optional[int] = None,
+        expires: int = 0,
         python_expires=True,
-        set_redis_ttl_readheavy=None,
-    ):
+        set_redis_ttl_readheavy: Optional[bool] = None,
+    ) -> RedisSession:
         redis = DummyRedis()
         id_generator = self._make_id_generator()
         if session_id is None:
@@ -747,11 +758,13 @@ class _TestRedisSessionNew_CORE(object):
             python_expires=python_expires,
         )
 
-    def _deserialize_session(self, session, deserialize=pickle.loads):
+    def _deserialize_session(
+        self, session: RedisSession, deserialize=pickle.loads
+    ) -> dict:
         _session_id = session.session_id
-        _session_data = session.redis.store[_session_id]
-        _session_serialized = deserialize(_session_data)
-        return _session_serialized
+        _session_data = session.redis._store[_session_id]
+        _session_deserialized = deserialize(_session_data)
+        return _session_deserialized
 
 
 class _TestRedisSessionNew__MIXIN_A(object):
@@ -763,7 +776,7 @@ class _TestRedisSessionNew__MIXIN_A(object):
     timeout_trigger: Optional[int] = 6
     adjusted_timeout: Optional[int] = 6
 
-    def _session_new(self):
+    def _session_new(self) -> RedisSession:
         session = self._set_up_session_in_Redis_and_makeOne(
             session_id=self.session_id,
             new=True,
@@ -778,7 +791,7 @@ class _TestRedisSessionNew__MIXIN_A(object):
         self.assertDictEqual(dict(session), {})
         return session
 
-    def _factory_new_session(self, session):
+    def _factory_new_session(self, session: RedisSession) -> Callable:
         id_generator = self._make_id_generator()
         func_new_session = lambda: self._set_up_session_in_redis(
             redis=session.redis,
@@ -791,7 +804,9 @@ class _TestRedisSessionNew__MIXIN_A(object):
         )
         return func_new_session
 
-    def _session_get(self, session, func_new_session):
+    def _session_get(
+        self, session: RedisSession, func_new_session: Callable
+    ) -> RedisSession:
         session2 = self._makeOne(
             session.redis,
             self.session_id,
@@ -805,7 +820,10 @@ class _TestRedisSessionNew__MIXIN_A(object):
         return session2
 
 
-class TestRedisSessionNew(unittest.TestCase, _TestRedisSessionNew_CORE):
+class TestRedisSessionNew(
+    unittest.TestCase,
+    _TestRedisSessionNew_CORE,
+):
     """these are 1.2x+ tests"""
 
     def test_init_new_session_notimeout(self):
@@ -1003,7 +1021,9 @@ class TestRedisSessionNew(unittest.TestCase, _TestRedisSessionNew_CORE):
 
 
 class TestRedisSessionNew_TimeoutAdjustments_A(
-    _TestRedisSessionNew__MIXIN_A, _TestRedisSessionNew_CORE, unittest.TestCase
+    _TestRedisSessionNew__MIXIN_A,
+    _TestRedisSessionNew_CORE,
+    unittest.TestCase,
 ):
     """these are 1.4x+ tests"""
 
@@ -1024,7 +1044,7 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
     def test_adjust_timeout__legacy(self):
         self._test_adjust_timeout(variant="adjust_timeout_for_session")
 
-    def _test_adjust_timeout(self, variant=None):
+    def _test_adjust_timeout(self, variant: Optional[str] = None):
         session = self._session_new()
         serialized_1 = (
             session.from_redis()
@@ -1063,7 +1083,9 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
 
 
 class TestRedisSessionNew_TimeoutAdjustments_B(
-    _TestRedisSessionNew__MIXIN_A, _TestRedisSessionNew_CORE, unittest.TestCase
+    _TestRedisSessionNew__MIXIN_A,
+    _TestRedisSessionNew_CORE,
+    unittest.TestCase,
 ):
     """these are 1.4x+ tests"""
 
@@ -1079,7 +1101,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
     def test_timeout_trigger__legacy(self):
         self._test_timeout_trigger(variant="adjust_timeout_for_session")
 
-    def _test_timeout_trigger(self, variant=None):
+    def _test_timeout_trigger(self, variant: Optional[str] = None):
         """
         python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew_TimeoutAdjustments_B.test_timeout_trigger
         """
@@ -1176,7 +1198,9 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
 
 
 class TestRedisSessionNew_RedisTTL_Classic(
-    _TestRedisSessionNew__MIXIN_A, _TestRedisSessionNew_CORE, unittest.TestCase
+    _TestRedisSessionNew__MIXIN_A,
+    _TestRedisSessionNew_CORE,
+    unittest.TestCase,
 ):
     """these are 1.4x+ tests"""
 
@@ -1244,7 +1268,9 @@ class TestRedisSessionNew_RedisTTL_Classic(
 
 
 class TestRedisSessionNew_RedisTTL_ReadHeavy(
-    _TestRedisSessionNew__MIXIN_A, _TestRedisSessionNew_CORE, unittest.TestCase
+    _TestRedisSessionNew__MIXIN_A,
+    _TestRedisSessionNew_CORE,
+    unittest.TestCase,
 ):
     """these are 1.4x+ tests"""
 
