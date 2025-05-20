@@ -1,6 +1,13 @@
 Changelog
 =========
 
+* 2025.05.20
+    * version 1.7.0rc2
+    * more typing
+    * testing on py313
+	* drop testing/support for python3.6 due to github removing ubuntu20.04
+	* update pre-commit to use flake8 and a CI version of black
+
 * 2023.06.13
     * version 1.7.0rc1
     * Breaking Changes:

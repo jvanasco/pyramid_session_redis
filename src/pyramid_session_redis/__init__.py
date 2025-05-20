@@ -6,7 +6,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
-from typing import Type
 from typing import TYPE_CHECKING
 
 # pypi
@@ -28,12 +27,13 @@ from .util import create_unique_session_id
 from .util import empty_session_payload
 from .util import LazyCreateSession
 from .util import NotSpecified
+from .util import SerializerInterface
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
 from .util import warn_future
 
 
-__VERSION__ = "1.7.0rc1"
+__VERSION__ = "1.7.0rc2"
 
 
 # typing
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from pyramid.request import Request
     from pyramid.response import Response
     from redis.connection import ConnectionPool
+    from redis.client import Redis as RedisClient
 
 # try to pull out the redis version
 # the official type can have a str, so we need to cast
@@ -142,7 +143,7 @@ def RedisSessionFactory(
     func_invalid_logger: Optional[Callable] = None,
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
-    cookie_signer: Optional[Type] = None,
+    cookie_signer: Optional[SerializerInterface] = None,
     socket_timeout: Optional[int] = None,  # redis, deprecated
     connection_pool: Optional["ConnectionPool"] = None,  # redis, deprecated
     charset: Optional[str] = None,  # redis, deprecated
@@ -565,7 +566,7 @@ def RedisSessionFactory(
     # good for all factory() requests
     new_payload_func = functools.partial(
         empty_session_payload,
-        timeout=timeout,
+        timeout=timeout or 0,
         python_expires=python_expires,
     )
 
@@ -578,7 +579,7 @@ def RedisSessionFactory(
     )
 
     _secret_cookiesigner = (secret, cookie_signer)
-    _cookie_signer: Type
+    _cookie_signer: SerializerInterface
     if all(_secret_cookiesigner) or not any(_secret_cookiesigner):
         raise ValueError(
             "One, and only one, of `secret` and `cookie_signer` must be provided."
@@ -598,9 +599,9 @@ def RedisSessionFactory(
     def factory(
         request: "Request",
         new_session_id_func: Callable = create_unique_session_id,
-    ):
+    ) -> RedisSession:
         # an explicit client callable gets priority over the default
-        redis_conn = (
+        redis_conn: "RedisClient" = (
             client_callable(request, **redis_options)
             if client_callable is not None
             else get_default_connection(request, url=url, **redis_options)  # type: ignore[arg-type]
@@ -619,7 +620,7 @@ def RedisSessionFactory(
             python_expires=python_expires,
         )
 
-        session_id: TYPING_SESSION_ID
+        session_id: Optional[TYPING_SESSION_ID]
         try:
             # attempt to retrieve a session_id from the cookie
             session_id = _get_session_id_from_cookie(
@@ -696,8 +697,8 @@ def RedisSessionFactory(
 def _get_session_id_from_cookie(
     request: "Request",
     cookie_name: str,
-    cookie_signer: Type,  # has `.loads`, `.dumps`; MUST return a str
-):
+    cookie_signer: SerializerInterface,  # has `.loads`, `.dumps`; MUST return a str
+) -> Optional[str]:
     """
     Attempts to retrieve and return a session ID from a session cookie in the
     current request. Returns None if the cookie isn't found or the value cannot
@@ -707,6 +708,9 @@ def _get_session_id_from_cookie(
     if cookieval is not None:
         try:
             session_id = cookie_signer.loads(cookieval)
+            if TYPE_CHECKING:
+                # because we load this, it can't be a `LazyCreateSession`
+                assert isinstance(session_id, str)
             return session_id
         except ValueError:
             pass
@@ -715,13 +719,13 @@ def _get_session_id_from_cookie(
 
 
 def _set_cookie(
-    session,
+    session: RedisSession,
     request: "Request",
     response: "Response",
-    cookie_signer: Type,  # has `.loads`, `.dumps`; MUST return a str
+    cookie_signer: SerializerInterface,  # has `.loads`, `.dumps`; MUST return a str
     cookie_name: str,
     **kwargs,
-):
+) -> None:
     """
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
@@ -734,21 +738,21 @@ def _delete_cookie(
     response: "Response",
     cookie_name: str,
     cookie_path: str,
-    cookie_domain: str,
-):
+    cookie_domain: Optional[str] = None,
+) -> None:
     response.delete_cookie(cookie_name, path=cookie_path, domain=cookie_domain)
 
 
 def _cookie_callback(
-    session,
+    session: RedisSession,
     request: "Request",
     response: "Response",
-    session_cookie_was_valid,
-    cookie_on_exception,
+    session_cookie_was_valid: bool,
+    cookie_on_exception: bool,
     set_cookie_func: Callable,
     delete_cookie_func: Callable,
     func_check_response_allow_cookies: Optional[Callable],
-):
+) -> None:
     """
     Response callback to set the appropriate Set-Cookie header.
     `session` is via functools.partial
@@ -778,7 +782,7 @@ def _cookie_callback(
         return
 
     # helper function for multiple contexts
-    def _set_cookie_and_response():
+    def _set_cookie_and_response() -> None:
         set_cookie_func(request=request, response=response, **_override_args)
 
         # If we set a cookie we need to make sure that downstream

@@ -19,6 +19,8 @@ import warnings
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
+from typing_extensions import Protocol
+
 
 # local
 from .exceptions import InvalidSessionId_Deserialization
@@ -26,6 +28,7 @@ from .exceptions import InvalidSessionId_Serialization
 
 if TYPE_CHECKING:
     from .session import RedisSession
+    from redis.client import Redis as RedisClient
 
 # ==============================================================================
 
@@ -230,7 +233,7 @@ def decode_session_payload(payload: dict) -> dict:
 
 
 def _insert_session_id_if_unique(
-    redis,
+    redis: "RedisClient",
     timeout: int,
     session_id: str,
     serialize: Callable,
@@ -295,7 +298,7 @@ def _insert_session_id_if_unique(
 
 
 def create_unique_session_id(
-    redis,
+    redis: "RedisClient",
     timeout: int,
     serialize: Callable,
     generator: Callable = _generate_session_id,
@@ -447,6 +450,14 @@ def refresh(wrapped: Callable) -> Callable:
         return result
 
     return wrapped_refresh
+
+
+class SerializerInterface(Protocol):
+    def dumps(self, s: str) -> bytes:
+        ...
+
+    def loads(self, s: bytes) -> str:
+        ...
 
 
 class _NullSerializer(object):
