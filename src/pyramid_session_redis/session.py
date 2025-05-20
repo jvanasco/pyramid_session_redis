@@ -5,6 +5,7 @@ import hashlib
 import pickle
 from secrets import token_hex
 from typing import Any
+from typing import Awaitable
 from typing import Callable
 from typing import Iterator
 from typing import List
@@ -47,8 +48,12 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal  # type: ignore[assignment]
+
 if TYPE_CHECKING:
+    from collections.abc import ItemsView
+    from collections.abc import KeysView
     from pyramid.request import Request
+    from redis.client import Redis as RedisClient
 
 # ==============================================================================
 
@@ -65,6 +70,15 @@ def hashed_value(serialized: bytes) -> str:
 
 
 class _SessionState(object):
+    session_id: TYPING_SESSION_ID
+    managed_dict: dict
+    created: int
+    timeout: Optional[int]
+    expires: Optional[int]  # see `util.empty_session_payload`
+    version: Optional[int]
+    new: bool
+    persisted_hash: Optional[str]
+
     # markers for update
     please_persist: Optional[bool] = None
     please_recookie: Optional[bool] = None
@@ -87,9 +101,9 @@ class _SessionState(object):
         session_id: TYPING_SESSION_ID,
         managed_dict: dict,
         created: int,
-        timeout: int,
-        expires: int,
-        version: int,
+        timeout: Optional[int],  # loaded off dict
+        expires: Optional[int],  # loaded off dict
+        version: Optional[int],  # loaded off dict
         new: bool,
         persisted_hash: Optional[str],
     ):
@@ -229,9 +243,19 @@ class RedisSession(object):
 
     """
 
+    redis: "RedisClient"
+    _set_redis_ttl: bool
+    _set_redis_ttl_readheavy: Optional[bool]
+    _detect_changes: bool
+    _deserialized_fails_new: Optional[bool]
+    _timeout: Optional[int]
+    _timeout_trigger: Optional[int]
+    _python_expires: Optional[bool]
+    _new: bool
+
     def __init__(
         self,
-        redis,
+        redis: RedisClient,
         session_id: TYPING_SESSION_ID,
         new: bool,
         new_session: Callable,
@@ -251,6 +275,9 @@ class RedisSession(object):
     ):
         if timeout_trigger and not python_expires:  # fix this
             python_expires = True
+        if not timeout:
+            if set_redis_ttl_readheavy:
+                raise ValueError("`set_redis_ttl_readheavy` requires `timeout`")
         self.redis = redis
         self.serialize = serialize  # type: ignore[method-assign]
         self.deserialize = deserialize  # type: ignore[method-assign]
@@ -276,17 +303,17 @@ class RedisSession(object):
         if _set_redis_ttl_onexit:
             self._session_state.please_refresh = True
 
-    def _resync(self):
+    def _resync(self) -> None:
         """resyncs the session. this is really only needed for testing."""
         self._session_state = self._make_session_state(
             session_id=self.session_id, new=self._new
         )
 
-    def new_session(self):
+    def new_session(self) -> TYPING_SESSION_ID:
         # this should be set via __init__
         raise NotImplementedError()
 
-    def new_payload(self):
+    def new_payload(self) -> dict:
         # this should be set via __init__
         return empty_session_payload()
 
@@ -441,12 +468,16 @@ class RedisSession(object):
             raise InvalidSession_Lazycreate(  # noaq: E501
                 "`session_id` is LazyCreateSession"
             )
+        if TYPE_CHECKING:
+            assert isinstance(_session_id, str)
 
         # optimize a `TTL refresh` under certain conditions
-        persisted = None
+        persisted: Union[Awaitable, bytes, None] = None
         if self._set_redis_ttl_readheavy:
+            if TYPE_CHECKING:
+                assert self._timeout is not None
             with self.redis.pipeline() as pipe:
-                persisted = pipe.get(_session_id)
+                persisted = pipe.get(_session_id)  # type: ignore[assignment]
                 _updated = pipe.expire(  # noqa: F841
                     _session_id,
                     self._timeout,
@@ -456,10 +487,17 @@ class RedisSession(object):
         else:
             persisted = self.redis.get(_session_id)
 
+        if TYPE_CHECKING:
+            assert not isinstance(persisted, Awaitable)
+
         if persisted is None:
             raise InvalidSession_NotInBackend(
                 "`session_id` (%s) not in Redis" % _session_id
             )
+
+        if TYPE_CHECKING:
+            assert isinstance(persisted, bytes)
+
         try:
             deserialized = self.deserialize(persisted)
         except Exception as e:
@@ -587,12 +625,12 @@ class RedisSession(object):
         return key in self.managed_dict
 
     @refresh
-    def keys(self):
+    def keys(self) -> "KeysView":
         # TODO: typing
         return self.managed_dict.keys()
 
     @refresh
-    def items(self):
+    def items(self) -> "ItemsView":
         # TODO: typing
         return self.managed_dict.items()
 
@@ -720,7 +758,7 @@ class RedisSession(object):
     adjust_timeout_for_session = adjust_session_timeout
 
     @property
-    def _invalidated(self):
+    def _invalidated(self) -> bool:
         """
         Boolean property indicating whether the session is in the state where
         it has been invalidated but a new session has not been created in its
@@ -728,7 +766,7 @@ class RedisSession(object):
         """
         return "_session_state" not in self.__dict__
 
-    def _deferred_callback(self, request: "Request"):
+    def _deferred_callback(self, request: "Request") -> None:
         """
         Finished callback to persist the data if needed.
         `request` is appended by pyramid's `add_finished_callback` which should

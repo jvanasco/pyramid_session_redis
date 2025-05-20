@@ -28,6 +28,7 @@ from .exceptions import InvalidSessionId_Serialization
 
 if TYPE_CHECKING:
     from .session import RedisSession
+    from redis.client import Redis as RedisClient
 
 # ==============================================================================
 
@@ -232,7 +233,7 @@ def decode_session_payload(payload: dict) -> dict:
 
 
 def _insert_session_id_if_unique(
-    redis,
+    redis: "RedisClient",
     timeout: int,
     session_id: str,
     serialize: Callable,
@@ -297,7 +298,7 @@ def _insert_session_id_if_unique(
 
 
 def create_unique_session_id(
-    redis,
+    redis: "RedisClient",
     timeout: int,
     serialize: Callable,
     generator: Callable = _generate_session_id,

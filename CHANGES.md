@@ -1,6 +1,11 @@
 Changelog
 =========
 
+* 2025.05.20
+    * version 1.7.0rc2
+    * more typing
+    * testing on py313
+
 * 2023.06.13
     * version 1.7.0rc1
     * Breaking Changes:
