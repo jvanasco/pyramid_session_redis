@@ -18,7 +18,7 @@ Compatibility
 
 `main` and `1.7` branches require:
 
-* Python 3.6+
+* Python 3.7+
 * Pyramid 2.0
 
 

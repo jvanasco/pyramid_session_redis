@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 
 # stdlib
 import datetime
 import pickle
 import re
+from typing import Callable
+from typing import Dict
+from typing import Optional
 import unittest
 
 # pypi
@@ -31,30 +33,34 @@ from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
-from . import DummyRedis
+from pyramid_session_redis.util import SerializerInterface
+from . import DummyRedis  # redis Client
 from .test_config import dummy_id_generator
 
 
 # ==============================================================================
 
 
-class CustomCookieSigner(object):
-    def loads(self, s):
-        return s
+class CustomCookieSigner(SerializerInterface):
+    def loads(self, s: bytes) -> str:
+        return s.decode()
 
-    def dumps(self, s):
-        return s
+    def dumps(self, s: str) -> bytes:
+        return s.encode()
 
 
 # ------------------------------------------------------------------------------
 
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
-    def _makeOne(self, request, secret="secret", **kw):
+
+    def _makeOne(
+        self, request: testing.DummyRequest, secret="secret", **kw
+    ) -> RedisSession:
         session = RedisSessionFactory(secret, **kw)(request)
         return session
 
-    def _makeOneSession(self, redis, session_id, **kw):
+    def _makeOneSession(self, redis: DummyRedis, session_id: str, **kw) -> RedisSession:
         _set_redis_ttl_onexit = False
         if (kw.get("timeout") and kw.get("set_redis_ttl")) and (
             not kw.get("timeout_trigger")
@@ -67,36 +73,45 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         session = RedisSession(redis=redis, session_id=session_id, **kw)
         return session
 
-    def _register_callback(self, request, session):
+    def _register_callback(
+        self, request: testing.DummyRequest, session: RedisSession
+    ) -> None:
         request.add_finished_callback(session._deferred_callback)
 
-    def _assert_is_a_header_to_set_cookie(self, header_value):
+    def _assert_is_a_header_to_set_cookie(self, header_value: str) -> None:
         # The negative assertion below is the least complicated option for
         # asserting that a Set-Cookie header sets a cookie rather than deletes
         # a cookie. This helper method is to help make that intention clearer
         # in the tests.
         self.assertNotIn("Max-Age=0", header_value)
 
-    def _get_session_id(self, request):
+    def _get_session_id(self, request: testing.DummyRequest) -> str:
         redis = request.registry._redis_sessions
         session_id = create_unique_session_id(
             redis, timeout=100, serialize=pickle.dumps
         )
         return session_id
 
-    def _serialize(self, session_id, secret="secret"):
+    def _serialize(self, session_id: str, secret: str = "secret") -> str:
         cookie_signer = SignedSerializer(
             secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
         )
         return cookie_signer.dumps(session_id)
 
     def _set_session_cookie(
-        self, request, session_id, cookie_name="session", secret="secret"
-    ):
+        self,
+        request: testing.DummyRequest,
+        session_id: str,
+        cookie_name="session",
+        secret="secret",
+    ) -> None:
         cookieval = self._serialize(session_id, secret=secret)
         request.cookies[cookie_name] = cookieval
 
-    def _make_request(self, request_old=None):
+    def _make_request(
+        self,
+        request_old: Optional[testing.DummyRequest] = None,
+    ) -> testing.DummyRequest:
         if request_old:
             # grab the registry data to persist, otherwise it gets discarded
             # and transfer it to a new request
@@ -644,7 +659,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         inst = self._makeOne(request)
         verifyObject(ISession, inst)
 
-    def _test_adjusted_session_timeout_persists(self, variant):
+    def _test_adjusted_session_timeout_persists(self, variant: str) -> None:
         request = self._make_request()
         inst = self._makeOne(request)
         getattr(inst, variant)(555)
@@ -734,7 +749,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
     def test_check_response(self):
         factory = RedisSessionFactory(
-            "secret", func_check_response_allow_cookies=check_response_allow_cookies
+            "secret",
+            func_check_response_allow_cookies=check_response_allow_cookies,
         )
 
         # first check we can create a cookie
@@ -785,7 +801,8 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             return True
 
         factory = RedisSessionFactory(
-            "secret", func_check_response_allow_cookies=check_response_allow_cookies
+            "secret",
+            func_check_response_allow_cookies=check_response_allow_cookies,
         )
 
         # first check we can create a cookie
@@ -824,17 +841,21 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
 
 class _TestRedisSessionFactoryCore_UtilsNew(object):
-    def _deserialize_session_stored(self, session, deserialize=pickle.loads):
+    def _deserialize_session_stored(
+        self, session: RedisSession, deserialize: Callable = pickle.loads
+    ) -> dict:
         """loads session from backend via id, deserializes"""
         _session_id = session.session_id
-        _session_data = session.redis.store[_session_id]
+        # "Redis" has no attribute "store"
+        # "DummyRedis" uses an internal storage though
+        _session_data = session.redis.store[_session_id]  # type: ignore[attr-defined]
         _session_deserialized = deserialize(_session_data)
         return _session_deserialized
 
     def _set_up_session_in_redis(
         self,
-        redis,
-        session_id,
+        redis: DummyRedis,
+        session_id: str,
         session_dict=None,
         timeout=None,
         timeout_trigger=None,
@@ -847,7 +868,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         if session_dict is None:
             session_dict = {}
         time_now = int_time()
-        expires = time_now + timeout if timeout else None
+        expires = time_now + timeout if timeout else 0
         payload = encode_session_payload(
             session_dict,
             time_now,
@@ -869,8 +890,8 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
 
     def _set_up_session_in_Redis_and_makeOne(
         self,
-        request,
-        session_id,
+        request: testing.DummyRequest,
+        session_id: str,
         session_dict=None,
         new=True,
         timeout=300,
@@ -911,7 +932,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
             set_redis_ttl_readheavy=set_redis_ttl_readheavy,
         )
 
-    def _prep_new_session(self, session_args):
+    def _prep_new_session(self, session_args: dict) -> testing.DummyRequest:
         request = self._make_request()
 
         request.session = self._makeOne(request, **session_args)
@@ -926,7 +947,10 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         return request
 
     def _load_cookie_session_in_new_request(
-        self, request_old, session_id="existing_session", **session_args
+        self,
+        request_old: testing.DummyRequest,
+        session_id="existing_session",
+        **session_args,
     ):
         # we need a request, but must persist the redis datastore
         request = self._make_request(request_old=request_old)
@@ -940,7 +964,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         # stored_session_data = self._deserialize_session_stored(request.session)
         return request
 
-    def _prep_existing_session(self, session_args):
+    def _prep_existing_session(self, session_args: dict):
         session_id = "existing_session"
 
         def _insert_new_session():
@@ -961,7 +985,12 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         )
         return request
 
-    def _adjust_request_session(self, request, serialize=pickle.dumps, **kwargs):
+    def _adjust_request_session(
+        self,
+        request: testing.DummyRequest,
+        serialize: Callable = pickle.dumps,
+        **kwargs,
+    ):
         """
         1. deserializes a session's backend datastore, manipulates it, stores it.
         2. generates/returns a new request that loads the modified session
@@ -2248,7 +2277,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
 class TestRedisSessionFactory_loggedExceptions(
     _TestRedisSessionFactoryCore, _TestRedisSessionFactoryCore_UtilsNew
 ):
-    def _new_loggerData(self):
+    def _new_loggerData(self) -> Dict:
         return {
             "InvalidSession": 0,  # tested
             "InvalidSession_NoSessionCookie": 0,  # tested
@@ -2266,7 +2295,11 @@ class TestRedisSessionFactory_loggedExceptions(
             else:
                 self.assertEqual(v, expected[k])
 
-    def _new_loggerFactory(self, func_invalid_logger=None, factory_args=None):
+    def _new_loggerFactory(
+        self,
+        func_invalid_logger: Optional[Callable] = None,
+        factory_args: Optional[dict] = None,
+    ):
         if factory_args is None:
             factory_args = {}
         factory = RedisSessionFactory(
@@ -2466,7 +2499,9 @@ class TestRedisSessionFactory_loggedExceptions(
 class TestRedisSessionFactory_Invalid(unittest.TestCase):
     def test_fails__no_cookiesigner__no_secret(self):
         with self.assertRaises(ValueError) as cm:
-            factory = RedisSessionFactory(secret=None)  # noqa: F841
+            factory = RedisSessionFactory(  # noqa: F841
+                secret=None,
+            )
         self.assertEqual(
             cm.exception.args[0],
             "One, and only one, of `secret` and `cookie_signer` must be provided.",
@@ -2475,7 +2510,8 @@ class TestRedisSessionFactory_Invalid(unittest.TestCase):
     def test_fails__cookiesigner__secret(self):
         with self.assertRaises(ValueError) as cm:
             factory = RedisSessionFactory(  # noqa: F841
-                secret="secret", cookie_signer=CustomCookieSigner()
+                secret="secret",
+                cookie_signer=CustomCookieSigner(),
             )
         self.assertEqual(
             cm.exception.args[0],
@@ -2486,15 +2522,21 @@ class TestRedisSessionFactory_Invalid(unittest.TestCase):
 class TestRedisSessionFactory_CustomCookie(
     _TestRedisSessionFactoryCore, unittest.TestCase
 ):
-    def _make_factory_custom(self):
-        factory = RedisSessionFactory(None, cookie_signer=CustomCookieSigner())
+    def _make_factory_custom(self) -> Callable:
+        factory = RedisSessionFactory(
+            None,
+            cookie_signer=CustomCookieSigner(),
+        )
         return factory
 
-    def _make_factory_default(self):
+    def _make_factory_default(self) -> Callable:
         factory = RedisSessionFactory("secret")
         return factory
 
-    def _make_request(self):
+    def _make_request(
+        self,
+        request_old: Optional[testing.DummyRequest] = None,  # not used
+    ) -> testing.DummyRequest:
         request = testing.DummyRequest()
         request.registry._redis_sessions = DummyRedis()
         request.exception = None
@@ -2520,6 +2562,7 @@ class TestRedisSessionFactory_CustomCookie(
 
         assert session.session_id in hdrs_sc[0]
         raw_sessionid_cookie = "session=%s; Path=/; HttpOnly" % session.session_id
+
         assert raw_sessionid_cookie in hdrs_sc
 
     def test_default_cookie_used(self):

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # stdlib
 import pickle
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 # pypi
 from redis.exceptions import WatchError
@@ -39,6 +42,10 @@ class DummySession(object):
 
 
 class DummyRedis(object):
+    url: Optional[str]
+    timeouts: Dict[str, int]
+    store: Dict[str, Any]
+
     def __init__(self, raise_watcherror=False, **kw):
         self.url = None
         self.timeouts = {}

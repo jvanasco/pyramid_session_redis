@@ -2,8 +2,12 @@
 
 # stdlib
 import os
+from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import Tuple
+from typing import TYPE_CHECKING
+from typing import Union
 import unittest
 
 # pypi
@@ -41,13 +45,13 @@ class _FakeResponse(object):
     req: Optional[_FakeRequest] = None
     cookies: Optional[Dict[str, bytes]] = None
 
-    def __init__(self, req: Optional[_FakeRequest] = None):
+    def __init__(self, req: Optional[_FakeRequest] = None) -> None:
         self.cookies = {}
         self.req = req
         if self.req:
             self.req.response = self
 
-    def set_cookie(self, name: str, value: str):
+    def set_cookie(self, name: str, value: Union[str, bytes]) -> None:
         _value: bytes
         if isinstance(value, str):
             _value = value.encode()
@@ -66,7 +70,9 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
     `_get_session_id_from_cookie`
     """
 
-    def _makeOne(self, cookie_name, cookie_value):
+    def _makeOne(
+        self, cookie_name: str, cookie_value: str
+    ) -> Tuple[_FakeResponse, _NullSerializer]:
         serializer = _NullSerializer()
         if isinstance(cookie_value, str):
             _cookie_value = serializer.dumps(cookie_value)
@@ -79,6 +85,8 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
         req = _FakeRequest()
         res = _FakeResponse(req)
         res.set_cookie(cookie_name, _cookie_value)
+        if TYPE_CHECKING:
+            assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         _value_encoded = res.cookies[cookie_name]
         self.assertEqual(type(_value_encoded), bytes)
@@ -90,8 +98,10 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
         value_in,  # raw value in
         value_encoded,  # encoded into Response; must be bytes
         value_decoded,  # decoded from request
-    ):
+    ) -> None:
         res, serializer = self._makeOne(cookie_name, value_in)
+        if TYPE_CHECKING:
+            assert res.cookies is not None
         _decoded = _get_session_id_from_cookie(res, cookie_name, serializer)
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_encoded)
@@ -143,7 +153,9 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
        export GENERATE_COOKIE_DATA=1
     """
 
-    def _makeOne(self, cookie_name, cookie_value):
+    def _makeOne(
+        self, cookie_name: str, cookie_value: str
+    ) -> Tuple[_FakeResponse, SignedSerializer]:
         cookie_signer = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
@@ -168,8 +180,12 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
             print("  signed:", _cookie_value)
         return res, cookie_signer
 
-    def _test_setup(self, cookie_name, value_in, value_expected, value_signed):
+    def _test_setup(
+        self, cookie_name: str, value_in: Any, value_expected: Any, value_signed: str
+    ) -> None:
         res, cookie_signer = self._makeOne(cookie_name, value_in)
+        if TYPE_CHECKING:
+            assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_signed)
         value_out = _get_session_id_from_cookie(res, cookie_name, cookie_signer)
@@ -218,7 +234,9 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
        export GENERATE_COOKIE_DATA=1
     """
 
-    def _makeOne(self, cookie_name, cookie_value):
+    def _makeOne(
+        self, cookie_name: str, cookie_value: str
+    ) -> Tuple[_FakeResponse, SignedSerializer]:
         cookie_signer = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
@@ -239,8 +257,12 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
             print("  signed:", _cookie_value)
         return res, cookie_signer
 
-    def _test_setup(self, cookie_name, value_in, value_expected, value_signed):
+    def _test_setup(
+        self, cookie_name: str, value_in: Any, value_expected: Any, value_signed: str
+    ) -> None:
         res, cookie_signer = self._makeOne(cookie_name, value_in)
+        if TYPE_CHECKING:
+            assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_signed)
         value_out = _get_session_id_from_cookie(res, cookie_name, cookie_signer)
@@ -284,7 +306,7 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
     """
 
     def test_webob_default(self):
-        cookie_name = "test_string"
+        # cookie_name = "test_string"
         # mess up a value from something else
         value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmcJ"
 
@@ -295,11 +317,11 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
             "sha512",
         )
         with self.assertRaises(ValueError) as ctx:
-            _cookie_value = cookie_signer.loads(value_signed)
+            _cookie_value = cookie_signer.loads(value_signed)  # noqa: F841
         self.assertEqual(ctx.exception.args[0], "Invalid signature")
 
     def test_our_default(self):
-        cookie_name = "test_string"
+        # cookie_name = "test_string"
         # mess up a value from something else
         value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmcJ"
 
@@ -311,7 +333,7 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
             serializer=_NullSerializer(),
         )
         with self.assertRaises(ValueError) as ctx:
-            _cookie_value = cookie_signer.loads(value_signed)
+            _cookie_value = cookie_signer.loads(value_signed)  # noqa: F841
         self.assertEqual(ctx.exception.args[0], "Invalid signature")
 
     def test_crafted_malicious_1(self):
@@ -319,7 +341,7 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
         WRITE w/json;
         READ w/str
         """
-        cookie_name = "test_int"
+        # cookie_name = "test_int"
         cookie_value = {"a": False, "b": {"c": 1, "d": "e"}}
 
         # by default this will use a JSON serialization

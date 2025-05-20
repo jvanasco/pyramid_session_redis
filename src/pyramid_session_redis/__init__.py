@@ -114,7 +114,7 @@ def session_factory_from_settings(settings: dict) -> Callable:
 
 
 def RedisSessionFactory(
-    secret: str,
+    secret: Optional[str] = None,  # alternate is `cookie_signer`
     timeout: Optional[int] = 1200,
     cookie_name: str = "session",
     cookie_max_age: Optional[int] = None,
@@ -143,7 +143,7 @@ def RedisSessionFactory(
     func_invalid_logger: Optional[Callable] = None,
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
-    cookie_signer: Optional[SerializerInterface] = None,
+    cookie_signer: Optional[SerializerInterface] = None,  # alternate for `secret`
     socket_timeout: Optional[int] = None,  # redis, deprecated
     connection_pool: Optional["ConnectionPool"] = None,  # redis, deprecated
     charset: Optional[str] = None,  # redis, deprecated
@@ -594,6 +594,8 @@ def RedisSessionFactory(
             serializer=_NullSerializer(),  # convert to a string
         )
     else:
+        if TYPE_CHECKING:
+            assert cookie_signer is not None
         _cookie_signer = cookie_signer
 
     def factory(
