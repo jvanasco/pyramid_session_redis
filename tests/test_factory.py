@@ -7,6 +7,8 @@ import re
 from typing import Callable
 from typing import Dict
 from typing import Optional
+from typing import TYPE_CHECKING
+from typing import Union
 import unittest
 
 # pypi
@@ -38,6 +40,9 @@ from . import DummyRedis  # redis Client
 from .test_config import dummy_id_generator
 
 
+if TYPE_CHECKING:
+    from redis.client import Redis as RedisClient
+
 # ==============================================================================
 
 
@@ -60,7 +65,9 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         session = RedisSessionFactory(secret, **kw)(request)
         return session
 
-    def _makeOneSession(self, redis: DummyRedis, session_id: str, **kw) -> RedisSession:
+    def _makeOneSession(
+        self, redis: Union[DummyRedis, "RedisClient"], session_id: str, **kw
+    ) -> RedisSession:
         _set_redis_ttl_onexit = False
         if (kw.get("timeout") and kw.get("set_redis_ttl")) and (
             not kw.get("timeout_trigger")

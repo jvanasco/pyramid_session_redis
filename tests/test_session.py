@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class TestRedisSession(unittest.TestCase):
     def _makeOne(
         self,
-        redis: DummyRedis,
+        redis: Union[DummyRedis, "RedisClient"],
         session_id: str,
         new: bool,
         func_new_session: Callable,
@@ -67,7 +67,7 @@ class TestRedisSession(unittest.TestCase):
 
     def _set_up_session_in_redis(
         self,
-        redis: "DummyRedis",
+        redis: Union[DummyRedis, "RedisClient"],
         session_id: str,
         timeout: int = 0,
         session_dict: Optional[dict] = None,
@@ -669,7 +669,7 @@ class _TestRedisSessionNew_CORE(object):
 
     def _set_up_session_in_redis(
         self,
-        redis: DummyRedis,
+        redis: Union[DummyRedis, "RedisClient"],
         session_id: str,
         timeout: int = 0,
         session_dict: Optional[dict] = None,
@@ -759,7 +759,9 @@ class _TestRedisSessionNew_CORE(object):
         )
 
     def _deserialize_session(
-        self, session: RedisSession, deserialize=pickle.loads
+        self,
+        session: RedisSession,
+        deserialize=pickle.loads,
     ) -> dict:
         _session_id = session.session_id
         _session_data = session.redis._store[_session_id]
