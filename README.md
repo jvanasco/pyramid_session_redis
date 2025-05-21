@@ -36,7 +36,19 @@ and
 Breaking Changes
 ----------------
 
-Starting in `1.7`, the NullSerializer will ensure data is serialized into a string.
+In the `1.7` branch, there are several breaking changes:
+    * Drop Python 3.6
+    * removed deprecated redis commands
+    * minimum redis library is now 4.0
+    * util._NullSerializer will ensure data is serialized into a string.
+    * util._NullSerializer is deprecated; renamed to _util._StringSerializer
+    * util.SerializerInterface is deprecated and replaced with util.SignedSerializerInterface
+    * the entire `pyramid_session_redis.legacy` namespace has been deprecated;
+    * there were serveral (de)serialization issues tied to issues with upstream typing
+
+Planned changes for `1.8` branch:
+    * remove the pyramid_session_redis.legacy namespace
+
 
 
 Prior Branches
@@ -306,11 +318,11 @@ settings, see :doc:`api`. Otherwise, keep reading for the quick list:
     redis.sessions.password = None
 
     # additional options can be supplied to redis-py's StrictRedis
-    redis.sessions.socket_timeout =
-    redis.sessions.connection_pool =
-    redis.sessions.charset = utf-8
-    redis.sessions.errors = strict
-    redis.sessions.unix_socket_path =
+    redis.sessions.redis_socket_timeout =
+    redis.sessions.redis_connection_pool =
+    redis.sessions.redis_encoding = utf-8
+    redis.sessions.redis_errors = strict
+    redis.sessions.redis_unix_socket_path =
 
     # in the advanced section we'll cover how to instantiate your own client
     redis.sessions.client_callable = my.dotted.python.callable

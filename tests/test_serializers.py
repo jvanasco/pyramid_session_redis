@@ -12,41 +12,47 @@ from pyramid_session_redis.exceptions import InvalidSessionId_Serialization
 from pyramid_session_redis.legacy import GracefulCookieSerializer
 from pyramid_session_redis.legacy import LegacyCookieSerializer
 from pyramid_session_redis.legacy import LoggingHookInterface
-from pyramid_session_redis.util import _NullSerializer
+from pyramid_session_redis.util import _StringSerializer
 
 
 # ==============================================================================
 
 
-class TestNullSerializer(unittest.TestCase):
+class TestStringSerializer(unittest.TestCase):
     def test_string(self):
         "this should be a roundtrip"
-        serializer = _NullSerializer()
+        serializer = _StringSerializer()
         data_in = "foo"
         data_out = data_in
         _serialized = serializer.dumps(data_in)
         self.assertEqual(data_out, serializer.loads(_serialized))
 
     def test_int(self):
-        "this should fail; _NullSerializer requires a str"
-        serializer = _NullSerializer()
+        "this should fail; _StringSerializer requires a str"
+        serializer = _StringSerializer()
         data_in = 100
         self.assertRaises(InvalidSessionId_Serialization, serializer.dumps, data_in)
 
     def test_bytes(self):
-        "this should fail; _NullSerializer requires a str"
-        serializer = _NullSerializer()
+        "this should fail; _StringSerializer requires a str"
+        serializer = _StringSerializer()
         data_in = b"foo"
         self.assertRaises(InvalidSessionId_Serialization, serializer.dumps, data_in)
 
 
 class TestCookieSerialization(unittest.TestCase):
     def _makeOne_default(self, secret: str) -> SignedSerializer:
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer = SignedSerializer(
             secret,
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),
+            serializer=_StringSerializer(),
         )
         return cookie_signer
 
@@ -148,7 +154,6 @@ class TestCookieSerialization(unittest.TestCase):
         self.assertEqual(len(logging_hook._successes), 0)
 
         cookie_signer_graceful.loads(_serialized_graceful)
-
         self.assertEqual(len(logging_hook._attempts_global), 1)
         self.assertEqual(len(logging_hook._attempts), 1)
         self.assertEqual(len(logging_hook._successes), 1)

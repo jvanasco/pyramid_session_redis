@@ -8,7 +8,7 @@ from pyramid.response import Response
 from waitress import serve
 
 # local
-from .test_config import LIVE_PSR_CONFIG
+from ._util import LIVE_PSR_CONFIG
 
 # ==============================================================================
 

@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING
 from typing import Union
 import unittest
 
+# pypi
+from pyramid import testing
+
 # local
 from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
 from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
@@ -770,6 +773,17 @@ class _TestRedisSessionNew_CORE(object):
 
 
 class _TestRedisSessionNew__MIXIN_A(object):
+
+    # TODO: typing/protocol for these expected mixin methods
+    _set_up_session_in_Redis_and_makeOne: Callable
+    _make_id_generator: Callable
+    _makeOne: Callable
+    _set_up_session_in_redis: Callable
+    assertEqual: Callable
+    assertIs: Callable
+    assertDictEqual: Callable
+
+    # class
     PYTHON_EXPIRES: Optional[bool] = None
     set_redis_ttl: Optional[bool] = None
     set_redis_ttl_readheavy: Optional[bool] = None
@@ -787,7 +801,8 @@ class _TestRedisSessionNew__MIXIN_A(object):
             set_redis_ttl_readheavy=self.set_redis_ttl_readheavy,
             python_expires=self.PYTHON_EXPIRES,
         )
-        session._deferred_callback(None)  # trigger the real session's set/setex
+        _request = testing.DummyRequest()
+        session._deferred_callback(_request)  # trigger the real session's set/setex
         self.assertEqual(session.session_id, self.session_id)
         self.assertIs(session.new, True)
         self.assertDictEqual(dict(session), {})
@@ -1060,7 +1075,8 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
             session.adjust_session_timeout(self.adjusted_timeout)
         else:
             getattr(session, variant)(self.adjusted_timeout)
-        session._deferred_callback(None)  # trigger the real session's set/setex
+        _request = testing.DummyRequest()
+        session._deferred_callback(_request)  # trigger the real session's set/setex
         self.assertEqual(len(session.redis._history), 3)
         self.assertEqual(session.redis._history[0][0], "get")
         self.assertEqual(session.redis._history[1][0], "get")
@@ -1108,11 +1124,12 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew_TimeoutAdjustments_B.test_timeout_trigger
         """
         session = self._session_new()
+        _request = testing.DummyRequest()
 
         # this should set:
         # session.managed_dict = {'FOO': '1'}
         session["FOO"] = "1"
-        session._deferred_callback(None)  # trigger the real session's set/setex
+        session._deferred_callback(_request)  # trigger the real session's set/setex
 
         serialized_1 = session.from_redis()
         timeout_1 = serialized_1["t"]
@@ -1123,7 +1140,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
             session.adjust_session_timeout(self.adjusted_timeout)
         else:
             getattr(session, variant)(self.adjusted_timeout)
-        session._deferred_callback(None)  # trigger the real session's set/setex
+        session._deferred_callback(_request)  # trigger the real session's set/setex
 
         serialized_2 = session.from_redis()
         timestamp_expiry_new = serialized_2["x"]
@@ -1152,7 +1169,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         func_new_session = self._factory_new_session(session)
         session2 = self._session_get(session, func_new_session)
         self.assertEqual(session2.managed_dict["FOO"], "1")
-        session2._deferred_callback(None)  # trigger the real session's set/setex
+        session2._deferred_callback(_request)  # trigger the real session's set/setex
 
         # okay now check that redis got the correct commands
         # 0 - GET
@@ -1217,6 +1234,7 @@ class TestRedisSessionNew_RedisTTL_Classic(
         python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew_RedisTTL_Classic.test_refresh
         """
         session = self._session_new()
+        _request = testing.DummyRequest()
 
         # okay now check that redis got the correct commands
         # 0 - GET
@@ -1226,7 +1244,7 @@ class TestRedisSessionNew_RedisTTL_Classic(
 
         # but if we store something it would have been different...
         session["FOO"] = "1"
-        session._deferred_callback(None)  # trigger the real session's set/setex
+        session._deferred_callback(_request)  # trigger the real session's set/setex
 
         # 0 - GET
         # 1 - SETEX
@@ -1237,7 +1255,7 @@ class TestRedisSessionNew_RedisTTL_Classic(
         func_new_session = self._factory_new_session(session)
         session2 = self._session_get(session, func_new_session)
         self.assertEqual(session2.managed_dict["FOO"], "1")
-        session2._deferred_callback(None)  # trigger the real session's expire
+        session2._deferred_callback(_request)  # trigger the real session's expire
 
         # 0 - GET
         # 1 - SETEX
@@ -1255,7 +1273,7 @@ class TestRedisSessionNew_RedisTTL_Classic(
         session3 = self._session_get(session, func_new_session)
         self.assertEqual(session3.managed_dict["FOO"], "1")
         session3._deferred_callback(
-            None
+            _request
         )  # trigger the real session's set/setex (but don't)
 
         # 0 - GET
@@ -1286,6 +1304,7 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         python -munittest pyramid_session_redis.tests.test_session.TestRedisSessionNew_RedisTTL_ReadHeavy.test_refresh
         """
         session = self._session_new()
+        _request = testing.DummyRequest()
 
         # okay now check that redis got the correct commands
         # 0 - pipline.GET
@@ -1295,7 +1314,7 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
 
         # but if we store something it would have been different...
         session["FOO"] = "1"
-        session._deferred_callback(None)  # trigger the real session's set/setex
+        session._deferred_callback(_request)  # trigger the real session's set/setex
 
         # 0 - pipline.GET
         # 1 - pipline.EXPIRE
@@ -1310,7 +1329,7 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         session2 = self._session_get(session, func_new_session)
         self.assertEqual(session2.managed_dict["FOO"], "1")
         session2._deferred_callback(
-            None
+            _request
         )  # trigger the real session's set/setex (but don't)
 
         # 0 - pipline.GET
@@ -1330,7 +1349,7 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         session3 = self._session_get(session, func_new_session)
         self.assertEqual(session3.managed_dict["FOO"], "1")
         session3._deferred_callback(
-            None
+            _request
         )  # trigger the real session's set/setex (but don't)
 
         # 0 - pipline.GET

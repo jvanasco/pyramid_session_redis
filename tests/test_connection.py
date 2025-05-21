@@ -25,7 +25,7 @@ class TestConnection(unittest.TestCase):
     def test_get_default_connection(self):
         options = dict(host="localhost", port=999)
         inst = get_default_connection(
-            self.request, client_class=DummyRedis, **options
+            self.request, url=None, client_class=DummyRedis, **options
         )  # noqa: E501
         self.assertEqual(inst.host, "localhost")
         self.assertEqual(inst.port, 999)

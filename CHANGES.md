@@ -2,11 +2,30 @@ Changelog
 =========
 
 * 2025.05.20
-    * version 1.7.0rc2
+    * version 1.7.0rc3
     * more typing
     * testing on py313
 	* drop testing/support for python3.6 due to github removing ubuntu20.04
 	* update pre-commit to use flake8 and a CI version of black
+	* minimum redis Python API is now 4.0.0 (November 15 2021)
+    * removed deprecated redis commands:
+        ``socket_timeout``
+            replaced by  ``redis_socket_timeout``.
+        ``connection_pool``
+            replaced by ``redis_connection_pool``.
+        ``charset``
+            replaced by ``redis_encoding``.
+        ``errors``
+            replaced by ``redis_encoding_errors``.
+        ``unix_socket_path``
+            replaced by ``redis_unix_socket_path``.
+    * util.SerializerInterface is deprecated and replaced with util.SignedSerializerInterface
+       - this will be removed in the next minor release
+    * the entire `pyramid_session_redis.legacy` namespace has been deprecated.
+      this namespace existed to migrate off the `pyramid_redis_session` package
+      that package has not been updated in 9 years, and last supported python 3.4
+       - this will be removed in the next minor release
+    * _NullSerializer has been deprecated and renamed to _StringSerializer
 
 * 2023.06.13
     * version 1.7.0rc1
