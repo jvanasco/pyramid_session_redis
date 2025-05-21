@@ -4,8 +4,8 @@
 import datetime
 import pickle
 import re
-from typing import cast
 from typing import Callable
+from typing import cast
 from typing import Dict
 from typing import Optional
 from typing import TYPE_CHECKING
@@ -31,13 +31,13 @@ from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
 from pyramid_session_redis.exceptions import InvalidSession_PayloadTimeout
 from pyramid_session_redis.exceptions import RawDeserializationError
 from pyramid_session_redis.session import RedisSession
-from pyramid_session_redis.util import _NullSerializer
+from pyramid_session_redis.util import _StringSerializer
 from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
-from pyramid_session_redis.util import SerializerInterface
 from . import DummyRedis  # redis Client
+from ._util import CustomCookieSigner
 from .test_config import dummy_id_generator
 
 
@@ -46,17 +46,6 @@ if TYPE_CHECKING:
     from collections.abc import KeysView
 
 # ==============================================================================
-
-
-class CustomCookieSigner(SerializerInterface):
-    def loads(self, s: bytes) -> str:
-        return s.decode()
-
-    def dumps(self, s: str) -> bytes:
-        return s.encode()
-
-
-# ------------------------------------------------------------------------------
 
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
@@ -101,9 +90,15 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         )
         return session_id
 
-    def _serialize(self, session_id: str, secret: str = "secret") -> str:
+    def _serialize(self, session_id: str, secret: str = "secret") -> bytes:
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer = SignedSerializer(
-            secret, "pyramid_session_redis.", "sha512", serializer=_NullSerializer()
+            secret, "pyramid_session_redis.", "sha512", serializer=_StringSerializer()
         )
         return cookie_signer.dumps(session_id)
 
@@ -115,7 +110,7 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         secret="secret",
     ) -> None:
         cookieval = self._serialize(session_id, secret=secret)
-        request.cookies[cookie_name] = cookieval
+        request.cookies[cookie_name] = cookieval.decode()  # these are str, not bytes
 
     def _make_request(
         self,
@@ -674,10 +669,10 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request = self._make_request()
         inst = self._makeOne(request)
         getattr(inst, variant)(555)
-        inst._deferred_callback(None)  # native callback for persistance
+        inst._deferred_callback(request)  # native callback for persistance
         session_id = inst.session_id
         cookieval = self._serialize(session_id)
-        request.cookies["session"] = cookieval
+        request.cookies["session"] = cookieval.decode()  # these are str, not bytes
         new_session = self._makeOne(request)
         self.assertEqual(new_session.timeout, 555)
 

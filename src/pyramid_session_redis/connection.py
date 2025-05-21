@@ -53,7 +53,8 @@ from redis import StrictRedis
 
 # typing
 if TYPE_CHECKING:
-    from pyramid.request import Request
+    # from pyramid.request import Request  # webob has stubs; pyramid does not
+    from webob.request import Request
 
 # ==============================================================================
 

@@ -48,8 +48,10 @@ from .util import TYPING_SESSION_ID
 if TYPE_CHECKING:
     from collections.abc import ItemsView
     from collections.abc import KeysView
-    from pyramid.request import Request
+
+    # from pyramid.request import Request  # webob has stubs; pyramid does not
     from redis.client import Redis as RedisClient
+    from webob.request import Request
 
 # ==============================================================================
 
@@ -254,15 +256,20 @@ class RedisSession(object):
         redis: "RedisClient",
         session_id: TYPING_SESSION_ID,
         new: bool,
-        new_session: Callable,
-        new_payload_func: Optional[Callable] = None,
-        serialize: Callable = pickle.dumps,  # dict->bytes
-        deserialize: Callable = pickle.loads,  # bytes->dict
+        new_session: Callable[[], TYPING_SESSION_ID],
+        new_payload_func: Optional[Callable[..., Dict]] = None,
+        serialize: Callable[
+            [
+                Dict,
+            ],
+            bytes,
+        ] = pickle.dumps,  # dict->bytes
+        deserialize: Callable[[bytes], Dict] = pickle.loads,  # bytes->dict
         set_redis_ttl: bool = True,
         detect_changes: bool = True,
         deserialized_fails_new: Optional[bool] = None,
-        encode_session_payload_func: Optional[Callable] = None,
-        decode_session_payload_func: Optional[Callable] = None,
+        encode_session_payload_func: Optional[Callable[..., Dict]] = None,
+        decode_session_payload_func: Optional[Callable[[Dict], Dict]] = None,
         timeout: Optional[int] = None,
         timeout_trigger: Optional[int] = None,
         python_expires: Optional[bool] = None,
@@ -275,15 +282,15 @@ class RedisSession(object):
             if set_redis_ttl_readheavy:
                 raise ValueError("`set_redis_ttl_readheavy` requires `timeout`")
         self.redis = redis
-        self.serialize = serialize  # type: ignore[method-assign]
-        self.deserialize = deserialize  # type: ignore[method-assign]
+        self.serialize = serialize  # type: ignore[method-assign, assignment]
+        self.deserialize = deserialize  # type: ignore[method-assign, assignment]
         self.new_session = new_session  # type: ignore[method-assign]
         if new_payload_func is not None:
             self.new_payload = new_payload_func  # type: ignore[method-assign]
         if encode_session_payload_func is not None:
             self.encode_session_payload = encode_session_payload_func  # type: ignore[method-assign]
         if decode_session_payload_func is not None:
-            self.decode_session_payload = decode_session_payload_func  # type: ignore[method-assign]
+            self.decode_session_payload = decode_session_payload_func  # type: ignore[method-assign, assignment]
         self._set_redis_ttl = set_redis_ttl
         self._set_redis_ttl_readheavy = set_redis_ttl_readheavy
         self._detect_changes = detect_changes
@@ -786,12 +793,12 @@ class RedisSession(object):
     def _deferred_callback(self, request: "Request") -> None:
         """
         Finished callback to persist the data if needed.
-        `request` is appended by pyramid's `add_finished_callback` which should
-        invkoe this.
+        `request` is supplied by pyramid's `add_finished_callback` which should
+        invoke this.
         """
         if "_session_state" not in self.__dict__:
             # _session_state is a reified property, which is saved into the
-            # dict if we call `session.invalidate()` the session is immediately
+            # dict. if we call `session.invalidate()` the session is immediately
             # deleted however, accessing it here will trigger a new
             # _session_state creation and insert a placeholder for the
             # session_id into Redis.  this would be ok in certain situations,

@@ -31,6 +31,7 @@ from types import ModuleType
 from typing import Any
 from typing import AnyStr
 from typing import Optional
+from typing import Union
 
 # pypi
 from pyramid.util import strings_differ
@@ -38,7 +39,8 @@ from typing_extensions import Protocol
 from webob.cookies import SignedSerializer
 
 # local
-from .util import _NullSerializer
+from .util import _StringSerializer
+from .util import warn_future
 
 # ==============================================================================
 
@@ -49,6 +51,7 @@ def bytes_(
     encoding: str = "latin-1",
     errors: str = "strict",
 ) -> bytes:
+    warn_future("`bytes_` is deprecated and will be removed in the next minor version")
     return _ensure_binary(s, encoding, errors)
 
 
@@ -68,6 +71,9 @@ def _ensure_binary(
       - `str` -> encoded to `bytes`
       - `bytes` -> `bytes`
     """
+    warn_future(
+        "`_ensure_binary` is deprecated and will be removed in the next minor version"
+    )
     if isinstance(s, bytes):
         return s
     if isinstance(s, str):
@@ -81,6 +87,9 @@ def _ensure_binary(
 def _fallback_conversion(
     secret: AnyStr,
 ) -> bytes:
+    warn_future(
+        "`_fallback_conversion` is deprecated and will be removed in the next minor version"
+    )
     _secret: bytes
     if isinstance(secret, str):
         _secret = bytes_(secret, "utf-8")
@@ -105,6 +114,9 @@ def signed_serialize(
     :param secret: secret for signing
     :returns signature: a signed string, compatible with `signed_deserialize`
     """
+    warn_future(
+        "`signed_serialize` is deprecated and will be removed in the next minor version"
+    )
     _pickled: bytes = pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
     _secret: bytes = _fallback_conversion(secret)
     sig: str = hmac.new(_secret, _pickled, hashlib.sha1).hexdigest()
@@ -129,6 +141,9 @@ def signed_deserialize(
     :returns data: the input which was serialized via `signed_serialize`
     """
     # hmac parameterized only for unit tests
+    warn_future(
+        "`signed_deserialize` is deprecated and will be removed in the next minor version"
+    )
     try:
         input_sig: bytes = bytes_(serialized[:40])
         pickled: bytes = base64.b64decode(bytes_(serialized[40:]))
@@ -156,20 +171,25 @@ class LegacyCookieSerializer(object):
         """
         :param secret: The secret for this serializer
         """
+        warn_future(
+            "`LegacyCookieSerializer` is deprecated and will be removed in the next minor version"
+        )
         _secret: bytes = _fallback_conversion(secret)
         self.secret = _secret
 
-    def loads(self, data: str) -> Any:
-        """
-        :param data: data to be deserialized
-        """
-        return signed_deserialize(data, self.secret)
-
-    def dumps(self, data: Any) -> str:
+    def dumps(self, data: Any) -> bytes:
         """
         :param data: data to be serialized
         """
-        return signed_serialize(data, self.secret)
+        return signed_serialize(data, self.secret).encode()
+
+    def loads(self, data: Union[bytes, str]) -> Any:
+        """
+        :param data: data to be deserialized
+        """
+        if isinstance(data, bytes):
+            data = data.decode()
+        return signed_deserialize(data, self.secret)
 
 
 class LoggingHookInterface(Protocol):
@@ -199,6 +219,12 @@ class GracefulCookieSerializer(object):
     Using this or any pickle-based serializer is not recommended, as it can
     lead to a code exploit during deserialization. This is only provided as
     a temporary migration tool.
+
+
+    webob docs `SignedSerializer`:
+    An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+    should accept bytes and return a Python object.  The ``dumps`` method
+    should accept a Python object and return bytes.
     """
 
     secret: bytes
@@ -224,18 +250,28 @@ class GracefulCookieSerializer(object):
             "current" - attempt/success for the current serializer
             "legacy" - attempt/success for the legacy serializer
         """
+        warn_future(
+            "`GracefulCookieSerializer` is deprecated and will be removed in the next minor version"
+        )
         _secret: bytes = _fallback_conversion(secret)
         self.secret = _secret
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         self.serializer_current = SignedSerializer(
             secret,
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),
+            serializer=_StringSerializer(),
         )
         self.serializer_legacy = LegacyCookieSerializer(_secret)
         self.logging_hook = logging_hook
 
-    def loads(self, data: str) -> Any:
+    def dumps(self, data: Any) -> bytes:
+        """
+        :param data: data to be serialized
+        """
+        return self.serializer_current.dumps(data)
+
+    def loads(self, data: bytes) -> Any:
         """
         :param data: data to be deserialized
         """
@@ -247,7 +283,7 @@ class GracefulCookieSerializer(object):
                 val = self.serializer_current.loads(data)
                 _hook.success("current")
                 return val
-            except Exception as exc:  # noqa: F841
+            except Exception:
                 _hook.attempt("legacy")
                 val = self.serializer_legacy.loads(data)
                 _hook.success("legacy")
@@ -256,11 +292,5 @@ class GracefulCookieSerializer(object):
         # no hooks configured
         try:
             return self.serializer_current.loads(data)
-        except Exception as exc:  # noqa: F841
+        except Exception:
             return self.serializer_legacy.loads(data)
-
-    def dumps(self, data: Any) -> str:
-        """
-        :param data: data to be serialized
-        """
-        return self.serializer_current.dumps(data)

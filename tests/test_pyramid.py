@@ -17,7 +17,7 @@ from webtest import TestApp
 
 # local
 from pyramid_session_redis.session import RedisSession
-from .test_config import LIVE_PSR_CONFIG
+from ._util import LIVE_PSR_CONFIG
 from .web_app import main
 
 # ==============================================================================

@@ -18,15 +18,14 @@ from .exceptions import InvalidSession
 from .exceptions import InvalidSession_NoSessionCookie
 from .session import RedisSession
 from .util import _generate_session_id
-from .util import _NullSerializer
 from .util import _parse_settings
+from .util import _StringSerializer
 from .util import configs_bool  # noqa: F401 ; included for legacy
 from .util import configs_dotable
 from .util import create_unique_session_id
 from .util import empty_session_payload
 from .util import LazyCreateSession
 from .util import NotSpecified
-from .util import SerializerInterface
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
 
@@ -37,10 +36,14 @@ __VERSION__ = "1.7.0rc3"
 # typing
 if TYPE_CHECKING:
     from pyramid.config import Configurator
-    from pyramid.request import Request
-    from pyramid.response import Response
     from redis.connection import ConnectionPool
     from redis.client import Redis as RedisClient
+    from webob.request import Request
+    from webob.response import Response
+    from .util import SignedSerializerInterface
+
+    # from pyramid.request import Request  # webob has stubs; pyramid does not
+    # from pyramid.response import Response  # webob has stubs; pyramid does not
 
 
 # ==============================================================================
@@ -121,19 +124,28 @@ def RedisSessionFactory(
     port: int = 6379,
     db: int = 0,
     password: Optional[str] = None,
-    client_callable: Optional[Callable] = None,
-    serialize: Callable = pickle.dumps,
-    deserialize: Callable = pickle.loads,
-    id_generator: Callable = _generate_session_id,
+    client_callable: Optional[Callable[..., "RedisClient"]] = None,
+    serialize: Callable[
+        [
+            Dict,
+        ],
+        bytes,
+    ] = pickle.dumps,  # dict->bytes
+    deserialize: Callable[[bytes], Dict] = pickle.loads,  # bytes->dict
+    id_generator: Callable[[], str] = _generate_session_id,
     set_redis_ttl: bool = True,
     set_redis_ttl_readheavy: Optional[bool] = None,
     detect_changes: bool = True,
     deserialized_fails_new: Optional[bool] = None,
-    func_check_response_allow_cookies: Optional[Callable] = None,
+    func_check_response_allow_cookies: Optional[
+        Optional[Callable[["Response"], bool]]
+    ] = None,
     func_invalid_logger: Optional[Callable] = None,
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
-    cookie_signer: Optional[SerializerInterface] = None,  # alternate for `secret`
+    cookie_signer: Optional[
+        "SignedSerializerInterface"
+    ] = None,  # alternate for `secret`
     redis_socket_timeout: Optional[int] = None,
     redis_connection_pool: Optional["ConnectionPool"] = None,
     redis_encoding: Optional[str] = None,
@@ -318,10 +330,10 @@ def RedisSessionFactory(
     ``cookie_signer``
     Default: ``None``
     If specified,  ``secret`` MUST be ``None``.
-    An object with two methods, ``loads`` and ``dumps``.
-    The ``loads`` method should accept bytes and return a Python object.
-    The ``dumps`` method should accept a Python object and return bytes.
-    A ``ValueError`` should be raised for malformed inputs.
+    An object with two methods, ``loads`` and ``dumps``::
+        The ``loads`` method should accept bytes and return a Python string.
+        The ``dumps`` method should accept a Python string and return bytes.
+        A ``ValueError`` should be raised for malformed inputs.
 
     ``redis_socket_timeout``
     Default: ``None``.
@@ -459,7 +471,7 @@ def RedisSessionFactory(
     )
 
     _secret_cookiesigner = (secret, cookie_signer)
-    _cookie_signer: SerializerInterface
+    _cookie_signer: "SignedSerializerInterface"
     if all(_secret_cookiesigner) or not any(_secret_cookiesigner):
         raise ValueError(
             "One, and only one, of `secret` and `cookie_signer` must be provided."
@@ -467,11 +479,21 @@ def RedisSessionFactory(
     if secret is not None:
         # the second argument is the salt.
         # customizing this would needlessly complicate integration
+
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # since we use a string session_id, utilizing `_StringSerializer`
+        # saves the overhead of using the default JSON serializer
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         _cookie_signer = SignedSerializer(
             secret,
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),  # convert to a string
+            serializer=_StringSerializer(),  # convert to a string, not json
         )
     else:
         if TYPE_CHECKING:
@@ -480,7 +502,7 @@ def RedisSessionFactory(
 
     def factory(
         request: "Request",
-        new_session_id_func: Callable = create_unique_session_id,
+        new_session_id_func: Callable[..., str] = create_unique_session_id,
     ) -> RedisSession:
         # an explicit client callable gets priority over the default
         redis_conn: "RedisClient" = (
@@ -579,7 +601,7 @@ def RedisSessionFactory(
 def _get_session_id_from_cookie(
     request: "Request",
     cookie_name: str,
-    cookie_signer: SerializerInterface,  # has `.loads`, `.dumps`; MUST return a str
+    cookie_signer: "SignedSerializerInterface",  # has `.loads`, `.dumps`; MUST return a str
 ) -> Optional[str]:
     """
     Attempts to retrieve and return a session ID from a session cookie in the
@@ -589,7 +611,7 @@ def _get_session_id_from_cookie(
     cookieval = request.cookies.get(cookie_name)
     if cookieval is not None:
         try:
-            session_id = cookie_signer.loads(cookieval)
+            session_id = cookie_signer.loads(cookieval.encode())
             if TYPE_CHECKING:
                 # because we load this, it can't be a `LazyCreateSession`
                 assert isinstance(session_id, str)
@@ -604,7 +626,7 @@ def _set_cookie(
     session: RedisSession,
     request: "Request",
     response: "Response",
-    cookie_signer: SerializerInterface,  # has `.loads`, `.dumps`; MUST return a str
+    cookie_signer: "SignedSerializerInterface",  # has `.loads`, `.dumps`; MUST return a str
     cookie_name: str,
     **kwargs,
 ) -> None:
@@ -613,7 +635,8 @@ def _set_cookie(
     `request` and `response` are appended by add_response_callback
     """
     cookieval = cookie_signer.dumps(session.session_id)
-    response.set_cookie(cookie_name, cookieval, **kwargs)
+    # `.dumps` generates bytes; `.set_cookie` expects str
+    response.set_cookie(cookie_name, cookieval.decode(), **kwargs)
 
 
 def _delete_cookie(
@@ -631,9 +654,9 @@ def _cookie_callback(
     response: "Response",
     session_cookie_was_valid: bool,
     cookie_on_exception: bool,
-    set_cookie_func: Callable,
-    delete_cookie_func: Callable,
-    func_check_response_allow_cookies: Optional[Callable],
+    set_cookie_func: Callable[..., None],
+    delete_cookie_func: Callable[..., None],
+    func_check_response_allow_cookies: Optional[Callable[["Response"], bool]],
 ) -> None:
     """
     Response callback to set the appropriate Set-Cookie header.

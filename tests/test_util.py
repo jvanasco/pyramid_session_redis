@@ -43,7 +43,7 @@ class Test_parse_settings(unittest.TestCase):
         self.assertEqual(False, inst["cookie_secure"])
         self.assertEqual("localhost", inst["host"])
         self.assertEqual(1234, inst["port"])
-        self.assertEqual(1234.0, inst["socket_timeout"])
+        self.assertEqual(1234.0, inst["redis_socket_timeout"])
         self.assertNotIn("ignore.this.setting", inst)
 
     def test_minimal_configuration(self):
@@ -125,7 +125,7 @@ class Test_create_unique_session_id(unittest.TestCase):
     def _makeOne(self, redis=DummyRedis(), timeout=300):
         serialize = lambda x: x
         ids = itertools.count(start=1, step=1)
-        generator = lambda: next(ids)
+        generator = lambda: str(next(ids))
         return create_unique_session_id(
             redis,
             timeout,
@@ -135,13 +135,13 @@ class Test_create_unique_session_id(unittest.TestCase):
 
     def test_id_is_unique(self):
         result = self._makeOne()
-        self.assertEqual(result, 1)
+        self.assertEqual(result, "1")
 
     def test_id_not_unique(self):
         redis = DummyRedis()
-        redis.set(1, "")
+        redis.set("1", "")
         result = self._makeOne(redis)
-        self.assertEqual(result, 2)
+        self.assertEqual(result, "2")
 
 
 class Test__generate_session_id(unittest.TestCase):

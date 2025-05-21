@@ -36,7 +36,19 @@ and
 Breaking Changes
 ----------------
 
-Starting in `1.7`, the NullSerializer will ensure data is serialized into a string.
+In the `1.7` branch, there are several breaking changes:
+    * Drop Python 3.6
+    * removed deprecated redis commands
+    * minimum redis library is now 4.0
+    * util._NullSerializer will ensure data is serialized into a string.
+    * util._NullSerializer is deprecated; renamed to _util._StringSerializer
+    * util.SerializerInterface is deprecated and replaced with util.SignedSerializerInterface
+    * the entire `pyramid_session_redis.legacy` namespace has been deprecated;
+    * there were serveral (de)serialization issues tied to issues with upstream typing
+
+Planned changes for `1.8` branch:
+    * remove the pyramid_session_redis.legacy namespace
+
 
 
 Prior Branches

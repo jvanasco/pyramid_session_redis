@@ -34,6 +34,7 @@ testing_requires = [
     "mypy",
     "nose",
     "pytest",
+    "types-webob",  # stubs
     "webob",  # in Pyramid
     "webtest",
     "waitress",

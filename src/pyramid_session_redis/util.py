@@ -8,6 +8,7 @@ from math import ceil
 from secrets import token_urlsafe
 from time import time as time_time
 import typing
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Optional
@@ -22,7 +23,6 @@ from pyramid.settings import asbool
 from redis.exceptions import WatchError
 from typing_extensions import Protocol
 
-
 # local
 from .exceptions import InvalidSessionId_Deserialization
 from .exceptions import InvalidSessionId_Serialization
@@ -30,6 +30,8 @@ from .exceptions import InvalidSessionId_Serialization
 if TYPE_CHECKING:
     from .session import RedisSession
     from redis.client import Redis as RedisClient
+
+    # from webob.cookies import _Serializer
 
 # ==============================================================================
 
@@ -237,16 +239,18 @@ def _insert_session_id_if_unique(
     redis: "RedisClient",
     timeout: int,
     session_id: str,
-    serialize: Callable,
+    serialize: Callable[[Any], bytes],
     set_redis_ttl: bool,
     data_payload: Optional[dict] = None,
-    new_payload_func: Optional[Callable] = None,
+    new_payload_func: Optional[Callable[..., Dict]] = None,
     python_expires: Optional[bool] = None,
 ) -> Optional[str]:
     """
-    Attempt to insert a given ``session_id`` and return the successful id
-    or ``None``.  ``timeout`` could be 0/None, in that case do-not track
-    the timeout data
+    Attempt to insert a given ``session_id`` AND empty payload; returning the
+    successful id or ``None``.
+
+    ``timeout`` could be 0/None, in that case do-not track
+    the timeout data.
 
     This will create an empty/null session and redis entry for the id.
 
@@ -301,11 +305,11 @@ def _insert_session_id_if_unique(
 def create_unique_session_id(
     redis: "RedisClient",
     timeout: int,
-    serialize: Callable,
-    generator: Callable = _generate_session_id,
+    serialize: Callable[[Any], bytes],
+    generator: Callable[[], str] = _generate_session_id,
     set_redis_ttl: bool = True,
     data_payload: Optional[Dict] = None,
-    new_payload_func: Optional[Callable] = None,
+    new_payload_func: Optional[Callable[..., Dict]] = None,
     python_expires: Optional[bool] = None,
 ) -> str:
     """
@@ -453,13 +457,16 @@ def refresh(wrapped: Callable) -> Callable:
     return wrapped_refresh
 
 
-class SerializerInterface(Protocol):
+class SignedSerializerInterface(Protocol):
     def dumps(self, s: str) -> bytes: ...
-
     def loads(self, s: bytes) -> str: ...
 
 
-class _NullSerializer(object):
+# `SerializerInterface` is Deprecated in 1.7.x
+SerializerInterface = SignedSerializerInterface
+
+
+class _StringSerializer(SignedSerializerInterface):
     """
     A cheap serializer for compatibility with ``webob.cookies.SignedSerializer``.
     Our usage is only for encoding a signed session_id.
@@ -467,8 +474,7 @@ class _NullSerializer(object):
     By default, webob uses json loads/dumps.  As this library only uses strings
     for session, id, we can have a quick savings here.
 
-    The webob interface dictates:
-
+    The webob interface dictates for ``SignedSerializer``
         https://github.com/Pylons/webob/blob/main/src/webob/cookies.py#L663
 
         An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
@@ -476,6 +482,14 @@ class _NullSerializer(object):
         should accept a Python object and return bytes.  A ``ValueError`` should
         be raised for malformed inputs.  Default: ``None`, which will use a
         derivation of :func:`json.dumps` and ``json.loads``.
+
+    Additionally:
+        SignedSerializer.dumps: expects Any and coverts to bytes;
+           `SignedSerializer.dumps::self.serializer.dumps` expects Any and coverts to bytes;
+                we only need to operate on strings, so can lock this down
+        SignedSerializer.loads: expects Any and coverts to bytes;
+           `SignedSerializer.dumps::self.serializer.dumps` expects Any and coverts to bytes;
+                we only need to operate on strings, so can lock this down
     """
 
     def dumps(self, s: str) -> bytes:
@@ -489,3 +503,7 @@ class _NullSerializer(object):
             return str(s, "utf-8", "strict")
         except Exception as exc:
             raise InvalidSessionId_Deserialization(exc)
+
+
+# `_NullSerializer` is Deprecated in 1.7.x
+_NullSerializer = _StringSerializer

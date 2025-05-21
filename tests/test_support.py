@@ -7,7 +7,6 @@ from typing import Dict
 from typing import Optional
 from typing import Tuple
 from typing import TYPE_CHECKING
-from typing import Union
 import unittest
 
 # pypi
@@ -16,14 +15,14 @@ from webob.cookies import SignedSerializer
 # local
 from pyramid_session_redis import _get_session_id_from_cookie
 from pyramid_session_redis.exceptions import InvalidSessionId_Serialization
-from pyramid_session_redis.util import _NullSerializer
+from pyramid_session_redis.util import _StringSerializer
 
 # ==============================================================================
 
 # export GENERATE_COOKIE_DATA=1
 GENERATE_COOKIE_DATA = bool(int(os.getenv("GENERATE_COOKIE_DATA", "0")))
 
-TYPE_COOKIES = Optional[Dict[str, bytes]]
+TYPE_COOKIES = Optional[Dict[str, str]]
 
 # ----
 
@@ -53,22 +52,19 @@ class _FakeResponse(object):
         if self.req:
             self.req.response = self
 
-    def set_cookie(self, name: str, value: Union[str, bytes]) -> None:
-        _value: bytes
-        if isinstance(value, str):
-            _value = value.encode()
-        else:
-            _value = value
+    def set_cookie(self, name: str, value: str) -> None:
+        # webob.set_cookie expects str
+        assert isinstance(value, str)
         if self.cookies is not None:
-            self.cookies[name] = _value
+            self.cookies[name] = value
 
 
 class Test_GetSessionIdFromCookie(unittest.TestCase):
     """
-    In production, we should NEVER use a _NullSerializer like this.
+    In production, we should NEVER use a _StringSerializer like this.
     Instead, we should always use a SignedSerializer.
 
-    The _NullSerializer is only used in this context to test the function
+    The _StringSerializer is only used in this context to test the function
     `_get_session_id_from_cookie`
     """
 
@@ -76,16 +72,16 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
         self,
         cookie_name: str,
         cookie_value: str,
-    ) -> Tuple[_FakeResponse, _NullSerializer]:
-        serializer = _NullSerializer()
+    ) -> Tuple[_FakeRequest, _FakeResponse, _StringSerializer]:
+        serializer = _StringSerializer()
         if isinstance(cookie_value, str):
-            _cookie_value = serializer.dumps(cookie_value)
+            _cookie_signed = serializer.dumps(cookie_value)  # bytes
+            _cookie_value = _cookie_signed.decode()  # set_cookie wants str
         else:
             self.assertRaises(
                 InvalidSessionId_Serialization, serializer.dumps, cookie_value
             )
             raise _ExpectedFailure_Setup()
-
         req = _FakeRequest()
         res = _FakeResponse(req)
         res.set_cookie(cookie_name, _cookie_value)
@@ -93,20 +89,20 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
             assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         _value_encoded = res.cookies[cookie_name]
-        self.assertEqual(type(_value_encoded), bytes)
-        return res, serializer
+        self.assertEqual(type(_value_encoded), str)
+        return req, res, serializer
 
     def _test_setup(
         self,
         cookie_name: str,
-        value_in,  # raw value in
-        value_encoded: bytes,  # encoded into Response; must be bytes
+        value_in: Any,  # raw value in
+        value_encoded: Any,  # encoded into Response; must be bytes
         value_decoded: str,  # decoded from request
     ) -> None:
-        res, serializer = self._makeOne(cookie_name, value_in)
+        req, res, serializer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:
             assert res.cookies is not None
-        _decoded = _get_session_id_from_cookie(res, cookie_name, serializer)
+        _decoded = _get_session_id_from_cookie(req, cookie_name, serializer)
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_encoded)
         self.assertEqual(value_decoded, _decoded)
@@ -115,7 +111,7 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
     def test_string(self):
         cookie_name = "test_string"
         cookie_value = "string"
-        value_encoded = b"string"
+        value_encoded = "string"
         value_decoded = "string"
         self._test_setup(cookie_name, cookie_value, value_encoded, value_decoded)
 
@@ -150,7 +146,7 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
         )
 
 
-class Test_CookieSigner_NullSerializer(unittest.TestCase):
+class Test_CookieSigner_StringSerializer(unittest.TestCase):
     """
     to generate data for tests::
 
@@ -161,22 +157,30 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
         self,
         cookie_name: str,
         cookie_value: str,
-    ) -> Tuple[_FakeResponse, SignedSerializer]:
+    ) -> Tuple[_FakeRequest, _FakeResponse, SignedSerializer]:
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),
+            serializer=_StringSerializer(),
         )
         if isinstance(cookie_value, str):
-            _cookie_value = cookie_signer.dumps(cookie_value)
+            _cookie_signed = cookie_signer.dumps(cookie_value)  # bytes
+            _cookie_value = _cookie_signed.decode()  # set_cookie( wants str
         else:
             self.assertRaises(
                 InvalidSessionId_Serialization, cookie_signer.dumps, cookie_value
             )
             raise _ExpectedFailure_Setup()
 
-        res = _FakeResponse()
+        req = _FakeRequest()
+        res = _FakeResponse(req)
         res.set_cookie(cookie_name, _cookie_value)
         if GENERATE_COOKIE_DATA:
             print("--------")
@@ -184,7 +188,7 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
             print("  name:  ", cookie_name)
             print("  value: ", cookie_value)
             print("  signed:", _cookie_value)
-        return res, cookie_signer
+        return req, res, cookie_signer
 
     def _test_setup(
         self,
@@ -193,12 +197,12 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
         value_expected: Any,
         value_signed: str,
     ) -> None:
-        res, cookie_signer = self._makeOne(cookie_name, value_in)
+        req, res, cookie_signer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:
             assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_signed)
-        value_out = _get_session_id_from_cookie(res, cookie_name, cookie_signer)
+        value_out = _get_session_id_from_cookie(req, cookie_name, cookie_signer)
         self.assertEqual(value_expected, value_out)
 
     def test_string(self):
@@ -248,7 +252,13 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         self,
         cookie_name: str,
         cookie_value: str,
-    ) -> Tuple[_FakeResponse, SignedSerializer]:
+    ) -> Tuple[_FakeRequest, _FakeResponse, SignedSerializer]:
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
@@ -258,8 +268,10 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
             self.assertRaises(TypeError, cookie_signer.dumps, cookie_value)
             raise _ExpectedFailure_Setup()
         else:
-            _cookie_value = cookie_signer.dumps(cookie_value)
-        res = _FakeResponse()
+            _cookie_signed = cookie_signer.dumps(cookie_value)  # bytes
+            _cookie_value = _cookie_signed.decode()  # .set_cookie wants str
+        req = _FakeRequest()
+        res = _FakeResponse(req)
         res.set_cookie(cookie_name, _cookie_value)
         if GENERATE_COOKIE_DATA:
             print("--------")
@@ -267,7 +279,7 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
             print("  name:  ", cookie_name)
             print("  value: ", cookie_value)
             print("  signed:", _cookie_value)
-        return res, cookie_signer
+        return req, res, cookie_signer
 
     def _test_setup(
         self,
@@ -276,12 +288,12 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         value_expected: Any,
         value_signed: str,
     ) -> None:
-        res, cookie_signer = self._makeOne(cookie_name, value_in)
+        req, res, cookie_signer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:
             assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_signed)
-        value_out = _get_session_id_from_cookie(res, cookie_name, cookie_signer)
+        value_out = _get_session_id_from_cookie(req, cookie_name, cookie_signer)
         self.assertEqual(value_expected, value_out)
 
     def test_string(self):
@@ -327,6 +339,12 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
         value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmcJ"
 
         # now, let's try to read it...
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
@@ -342,11 +360,17 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
         value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmcJ"
 
         # now, let's try to read it...
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),
+            serializer=_StringSerializer(),
         )
         with self.assertRaises(ValueError) as ctx:
             _cookie_value = cookie_signer.loads(value_signed)  # noqa: F841
@@ -361,6 +385,12 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
         cookie_value = {"a": False, "b": {"c": 1, "d": "e"}}
 
         # by default this will use a JSON serialization
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer_write = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
@@ -375,11 +405,17 @@ class Test_CookieSigner_Invalids(unittest.TestCase):
         self.assertEqual(cookie_value, decoded_native)
 
         # but this only handles strings...
+        # webob docs `SignedSerializer`:
+        # An object with two methods: `loads`` and ``dumps``.  The ``loads`` method
+        # should accept bytes and return a Python object.  The ``dumps`` method
+        # should accept a Python object and return bytes.
+
+        # SignedSerializer(secret, salt, hashalg="sha512", serializer=None)
         cookie_signer_read = SignedSerializer(
             "secret",
             "pyramid_session_redis.",
             "sha512",
-            serializer=_NullSerializer(),
+            serializer=_StringSerializer(),
         )
 
         # decoding with the alternate signer should force this as a string
