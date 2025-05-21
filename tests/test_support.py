@@ -205,7 +205,7 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
         cookie_name = "test_string"
         cookie_value = "string"
         value_expected = "string"
-        value_signed = b"JW5R1E8zj18d1HHYi1v0bXsBrGgEPSG0BKQ4U1CjLkNbFM4WlTz1XzQEebEOv4k9F8RGuT3V_TizoDdRwz52sHN0cmluZw"
+        value_signed = "JW5R1E8zj18d1HHYi1v0bXsBrGgEPSG0BKQ4U1CjLkNbFM4WlTz1XzQEebEOv4k9F8RGuT3V_TizoDdRwz52sHN0cmluZw"
         self._test_setup(cookie_name, cookie_value, value_expected, value_signed)
 
     def test_bytes(self):
@@ -288,7 +288,7 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         cookie_name = "test_string"
         cookie_value = "string"
         value_expected = "string"
-        value_signed = b"r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmci"
+        value_signed = "r3pVu9XGVFfz1MZQYdVT9kWVrb94mZT1TdL8HNYnFVf5cDcXPaL4ULuQ_GZ7hNAZNQCwfSRSGuffr6eQTgoHBSJzdHJpbmci"
         self._test_setup(cookie_name, cookie_value, value_expected, value_signed)
 
     def test_bytes(self):
@@ -309,7 +309,7 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         cookie_name = "test_int"
         cookie_value = 1
         value_expected = 1
-        value_signed = b"5aK2BseK-h0dYZa18Pxv8PVdLrKJwlmYNyh2Ck_-febyiABrjgFx1bNrwf128CL0I7Ulpw3f9FpOwlU7sMe5xDE"
+        value_signed = "5aK2BseK-h0dYZa18Pxv8PVdLrKJwlmYNyh2Ck_-febyiABrjgFx1bNrwf128CL0I7Ulpw3f9FpOwlU7sMe5xDE"
         self._test_setup(cookie_name, cookie_value, value_expected, value_signed)
 
 

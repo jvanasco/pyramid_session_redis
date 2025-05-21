@@ -9,6 +9,7 @@ from secrets import token_urlsafe
 from time import time as time_time
 import typing
 from typing import Callable
+from typing import Dict
 from typing import Optional
 from typing import Type
 from typing import TYPE_CHECKING
@@ -160,7 +161,7 @@ def int_time() -> int:
 def empty_session_payload(
     timeout: int = 0,
     python_expires: Optional[bool] = None,
-) -> dict:
+) -> Dict:
     """
     creates an empty session payload
 
@@ -181,13 +182,13 @@ def empty_session_payload(
 
 
 def encode_session_payload(
-    managed_dict: dict,
+    managed_dict: Dict,
     created: int,
     timeout: int,  # = 0?
     expires: int,  # = 0?
     timeout_trigger: Optional[int] = None,
     python_expires: Optional[bool] = None,
-) -> dict:
+) -> Dict:
     """
     called by a session to recode for storage;
     inverse of ``decode_session_payload``
@@ -215,7 +216,7 @@ def encode_session_payload(
     return data
 
 
-def decode_session_payload(payload: dict) -> dict:
+def decode_session_payload(payload: Dict) -> Dict:
     """
     decode a serialized session payload to kwargs
     inverse of ``encode_session_payload``
@@ -303,7 +304,7 @@ def create_unique_session_id(
     serialize: Callable,
     generator: Callable = _generate_session_id,
     set_redis_ttl: bool = True,
-    data_payload: Optional[dict] = None,
+    data_payload: Optional[Dict] = None,
     new_payload_func: Optional[Callable] = None,
     python_expires: Optional[bool] = None,
 ) -> str:
@@ -337,7 +338,7 @@ def create_unique_session_id(
             return attempt
 
 
-def _parse_settings(settings: dict) -> dict:
+def _parse_settings(settings: Dict) -> Dict:
     """
     Convenience function to collect settings prefixed by 'redis.sessions' and
     coerce settings to ``int``, ``float``, and ``bool`` as needed.
@@ -380,8 +381,8 @@ def _parse_settings(settings: dict) -> dict:
                     options[i] = None
 
     # coerce float
-    if "socket_timeout" in options:
-        options["socket_timeout"] = float(options["socket_timeout"])
+    if "redis_socket_timeout" in options:
+        options["redis_socket_timeout"] = float(options["redis_socket_timeout"])
 
     # check for settings conflict
     if "prefix" in options and "id_generator" in options:

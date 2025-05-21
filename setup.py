@@ -25,7 +25,7 @@ with open(os.path.join(HERE, "README.md")) as f:
 
 # set up requires
 install_requires = [
-    "redis>=2.4.11, != 2.9.1",
+    "redis>=4.0.0",
     "pyramid>=2",
     "zope.interface",  # in Pyramid
     "typing_extensions",  # for 3.7 `Literal`; Protocol

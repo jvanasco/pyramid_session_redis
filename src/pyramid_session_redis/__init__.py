@@ -9,7 +9,6 @@ from typing import Optional
 from typing import TYPE_CHECKING
 
 # pypi
-from redis import VERSION as _redis_version  # since at least the 2.x branch
 from webob.cookies import SignedSerializer
 
 # local
@@ -30,10 +29,9 @@ from .util import NotSpecified
 from .util import SerializerInterface
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
-from .util import warn_future
 
 
-__VERSION__ = "1.7.0rc2"
+__VERSION__ = "1.7.0rc3"
 
 
 # typing
@@ -44,14 +42,6 @@ if TYPE_CHECKING:
     from redis.connection import ConnectionPool
     from redis.client import Redis as RedisClient
 
-# try to pull out the redis version
-# the official type can have a str, so we need to cast
-# we only ever use the major
-REDIS_VERSION_MAIN: int = 0
-try:
-    REDIS_VERSION_MAIN = int(_redis_version[0])
-except Exception:
-    pass
 
 # ==============================================================================
 
@@ -97,17 +87,17 @@ def includeme(config: "Configurator") -> None:
     config.set_session_factory(session_factory)
 
 
-def session_factory_from_settings(settings: dict) -> Callable:
+def session_factory_from_settings(settings: Dict) -> Callable:
     """
-    Convenience method to construct a ``RedisSessionFactory`` from Paste config
-    settings. Only settings prefixed with "redis.sessions" will be inspected
-    and, if needed, coerced to their appropriate types (for example, casting
-    the ``timeout`` value as an `int`).
+    Convenience method to construct a ``RedisSessionFactory`` callable from
+    Paste config settings. Only settings prefixed with "redis.sessions" will be
+    inspected and, if needed, coerced to their appropriate types (for example,
+    casting the ``timeout`` value as an `int`).
 
     Parameters:
 
     ``settings``
-    A dict of Pyramid application settings
+        A dict of Pyramid application settings
     """
     options = _parse_settings(settings)
     return RedisSessionFactory(**options)
@@ -144,11 +134,6 @@ def RedisSessionFactory(
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
     cookie_signer: Optional[SerializerInterface] = None,  # alternate for `secret`
-    socket_timeout: Optional[int] = None,  # redis, deprecated
-    connection_pool: Optional["ConnectionPool"] = None,  # redis, deprecated
-    charset: Optional[str] = None,  # redis, deprecated
-    errors: Optional[str] = None,  # redis, deprecated
-    unix_socket_path: Optional[str] = None,  # redis, deprecated
     redis_socket_timeout: Optional[int] = None,
     redis_connection_pool: Optional["ConnectionPool"] = None,
     redis_encoding: Optional[str] = None,
@@ -358,30 +343,10 @@ def RedisSessionFactory(
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
 
-    ``socket_timeout``
-    Default: ``None``.
-    Deprecated passthrough argument to the `StrictRedis` constructor.
-    Please upgrade to ``redis_socket_timeout``.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    ``connection_pool``
-    Default: ``None``.
-    Deprecated passthrough argument to the `StrictRedis` constructor.
-    Please upgrade to ``redis_connection_pool``.
-
-    ``charset``
-    Default: ``utf-8``.
-    Deprecated passthrough argument to the `StrictRedis` constructor.
-    Please upgrade to ``redis_encoding``.
-
-    ``errors``
-    Default: ``strict``.
-    Deprecated passthrough argument to the `StrictRedis` constructor.
-    Please upgrade to ``redis_encoding_errors``.
-
-    ``unix_socket_path``
-    Default: ``None``.
-    Deprecated passthrough argument to the `StrictRedis` constructor.
-    Please upgrade to ``redis_unix_socket_path``.
+    Timeout Example
+    ---------------
 
     Given this example:
 
@@ -406,21 +371,19 @@ def RedisSessionFactory(
     user leaves the site at 49 minutes and returns at 61 minutes, the trigger
     will not have been made and the session will have expired.
 
+    Redis **kwargs
+    ---------------
+
     The following arguments are passed straight to the ``StrictRedis``
     constructor and allow you to further configure the Redis client::
 
-        modern                 | deprecated
+        modern                 | previously deprecated name
         -----------------------+--------------------
         redis_socket_timeout   | socket_timeout
         redis_connection_pool  | connection_pool
         redis_encoding         | charset
         redis_encoding_errors  | errors
         redis_unix_socket_path | unix_socket_path
-
-    Users are encouraged to use the modern `redis_` namespace and not the
-    deprecated legacy kwargs. Warnings will be emitted when deprecated kwargs
-    are used. Submitting two equivalent kwargs will result in a ValueError
-    being raised.
     """
     if timeout == 0:
         timeout = None
@@ -462,73 +425,6 @@ def RedisSessionFactory(
     if cookie_samesite is not None:
         set_cookie_kwargs["samesite"] = cookie_samesite
 
-    # handle redis deprecations
-    if socket_timeout is not None:
-        warn_future(
-            "`socket_timeout` has been deprecated in favor of `redis_socket_timeout`"
-        )
-        if redis_socket_timeout:
-            raise ValueError(
-                "Submit only one of `redis_socket_timeout`, `socket_timeout`"
-            )
-    if connection_pool is not None:
-        warn_future(
-            "`connection_pool` has been deprecated in favor of"
-            "`redis_connection_pool`"
-        )
-        if redis_connection_pool:
-            raise ValueError(
-                "Submit only one of `redis_connection_pool`, `connection_pool`"
-            )
-    if charset is not None:
-        warn_future("`charset` has been deprecated in favor of `redis_encoding`")
-        warn_future(
-            "Redis removed the `charset` kwarg in release 4.0.0, in favor of "
-            "the `encoding` kwarg. If needed, this library will attempt to "
-            "invoke Redis with the specified `charset` as the `encoding` "
-            "value, but this support is deprecated by this library as well. "
-            "Please update your code to use `redis_encoding` instead of "
-            "`charset`, which will passed to Redis as the `encoding` kwarg."
-        )
-        if redis_encoding:
-            raise ValueError("Submit only one of `redis_encoding`, `charset`")
-    if errors is not None:
-        warn_future("`errors` has been deprecated in favor of `redis_encoding_errors`")
-        warn_future(
-            "Redis removed the `errors` kwarg in release 4.0.0, in favor of "
-            "the `encoding_errors` kwarg. If needed, this library will attempt "
-            "to invoke Redis with the specified `errors` as the "
-            "`encoding_errors` value, but this support is deprecated by this "
-            "library as well. Please update your code to use "
-            "`redis_encoding_errors` instead of `errors`, which will passed to "
-            "Redis as the `encoding_errors` kwarg."
-        )
-        if redis_encoding_errors:
-            raise ValueError("Submit only one of `redis_encoding_errors`, `errors`")
-    if unix_socket_path is not None:
-        warn_future(
-            "`unix_socket_path` has been deprecated in favor of"
-            "`redis_unix_socket_path`"
-        )
-        if redis_unix_socket_path:
-            raise ValueError(
-                "Submit only one of `redis_unix_socket_path`, `unix_socket_path`"
-            )
-
-    # favor the new terms to the old.
-    # black formats this horribly within the dict, so calculate here for legibility
-    redis_socket_timeout = (
-        redis_socket_timeout if redis_socket_timeout is not None else socket_timeout
-    )
-    redis_connection_pool = (
-        redis_connection_pool if redis_connection_pool is not None else connection_pool
-    )
-    redis_unix_socket_path = (
-        redis_unix_socket_path
-        if redis_unix_socket_path is not None
-        else unix_socket_path
-    )
-
     # good for all factory() requests
     redis_options = dict(
         host=host,
@@ -544,24 +440,8 @@ def RedisSessionFactory(
     # retaining backwards compatibility
     if redis_encoding is not None:
         redis_options["encoding"] = redis_encoding
-    else:
-        if REDIS_VERSION_MAIN < 4:
-            # legacy kwarg still supported; will trigger Redis warnings/errors
-            redis_options["charset"] = "utf-8" if charset is None else charset
-        else:
-            # modern deprecation
-            if charset is not None:
-                redis_options["encoding"] = charset
     if redis_encoding_errors is not None:
         redis_options["encoding_errors"] = redis_encoding_errors
-    else:
-        if REDIS_VERSION_MAIN < 4:
-            # legacy kwarg still supported; will trigger Redis warnings/errors
-            redis_options["errors"] = "strict" if errors is None else errors
-        else:
-            # modern deprecation
-            if errors is not None:
-                redis_options["encoding_errors"] = errors
 
     # good for all factory() requests
     new_payload_func = functools.partial(
@@ -803,7 +683,7 @@ def _cookie_callback(
             _set_cookie_and_response()
         elif session_cookie_was_valid:
             # We don't set a cookie for the new session here (as
-            # cookie_on_exception is False and an exception was raised), but we
+            # `cookie_on_exception` is `False` and an exception was raised), but we
             # still need to delete the existing cookie for the session that the
             # request started with (as the session has now been invalidated).
             delete_cookie_func(response=response)

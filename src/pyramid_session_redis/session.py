@@ -7,6 +7,7 @@ from secrets import token_hex
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from typing import Dict
 from typing import Iterator
 from typing import List
 from typing import Optional
@@ -66,7 +67,7 @@ def hashed_value(serialized: bytes) -> str:
 
 class _SessionState(object):
     session_id: TYPING_SESSION_ID
-    managed_dict: dict
+    managed_dict: Dict
     created: int
     timeout: Optional[int]
     expires: Optional[int]  # see `util.empty_session_payload`
@@ -94,7 +95,7 @@ class _SessionState(object):
     def __init__(
         self,
         session_id: TYPING_SESSION_ID,
-        managed_dict: dict,
+        managed_dict: Dict,
         created: int,
         timeout: Optional[int],  # loaded off dict
         expires: Optional[int],  # loaded off dict
@@ -308,7 +309,7 @@ class RedisSession(object):
         # this should be set via __init__
         raise NotImplementedError()
 
-    def new_payload(self) -> dict:
+    def new_payload(self) -> Dict:
         # this should be set via __init__
         return empty_session_payload()
 
@@ -319,7 +320,7 @@ class RedisSession(object):
         """
         return encode_session_payload_func(*args, **kwargs)
 
-    def decode_session_payload(self, payload: dict) -> dict:
+    def decode_session_payload(self, payload: Dict) -> Dict:
         """
         used to recode for serialization
         this can be overridden via __init__
@@ -330,11 +331,11 @@ class RedisSession(object):
         """
         return decode_session_payload_func(payload)
 
-    def serialize(self, data: dict) -> bytes:
+    def serialize(self, data: Dict) -> bytes:
         # this should be set via __init__
         raise NotImplementedError()
 
-    def deserialize(self, serialized: bytes) -> dict:
+    def deserialize(self, serialized: bytes) -> Dict:
         # this should be set via __init__
         raise NotImplementedError()
 
@@ -407,7 +408,7 @@ class RedisSession(object):
         return self._session_state.session_id
 
     @property
-    def managed_dict(self) -> dict:
+    def managed_dict(self) -> Dict:
         return self._session_state.managed_dict
 
     @property
@@ -452,21 +453,21 @@ class RedisSession(object):
         self,
         session_id: Optional[TYPING_SESSION_ID] = None,
         persisted_hash: Optional[None] = None,
-    ) -> dict: ...
+    ) -> Dict: ...
 
     @overload
     def from_redis(  # noqa: E704
         self,
         session_id: Optional[TYPING_SESSION_ID] = None,
         persisted_hash: Literal[False] = False,
-    ) -> Tuple[dict, None]: ...
+    ) -> Tuple[Dict, None]: ...
 
     @overload
     def from_redis(  # noqa: E704
         self,
         session_id: Optional[TYPING_SESSION_ID] = None,
         persisted_hash: Literal[True] = True,
-    ) -> Tuple[dict, str]: ...
+    ) -> Tuple[Dict, str]: ...
 
     def from_redis(
         self,

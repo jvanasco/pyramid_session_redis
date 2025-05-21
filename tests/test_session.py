@@ -770,6 +770,17 @@ class _TestRedisSessionNew_CORE(object):
 
 
 class _TestRedisSessionNew__MIXIN_A(object):
+
+    # TODO: typing/protocol for these expected mixin methods
+    _set_up_session_in_Redis_and_makeOne: Callable
+    _make_id_generator: Callable
+    _makeOne: Callable
+    _set_up_session_in_redis: Callable
+    assertEqual: Callable
+    assertIs: Callable
+    assertDictEqual: Callable
+
+    # class
     PYTHON_EXPIRES: Optional[bool] = None
     set_redis_ttl: Optional[bool] = None
     set_redis_ttl_readheavy: Optional[bool] = None

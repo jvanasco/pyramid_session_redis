@@ -306,11 +306,11 @@ settings, see :doc:`api`. Otherwise, keep reading for the quick list:
     redis.sessions.password = None
 
     # additional options can be supplied to redis-py's StrictRedis
-    redis.sessions.socket_timeout =
-    redis.sessions.connection_pool =
-    redis.sessions.charset = utf-8
-    redis.sessions.errors = strict
-    redis.sessions.unix_socket_path =
+    redis.sessions.redis_socket_timeout =
+    redis.sessions.redis_connection_pool =
+    redis.sessions.redis_encoding = utf-8
+    redis.sessions.redis_errors = strict
+    redis.sessions.redis_unix_socket_path =
 
     # in the advanced section we'll cover how to instantiate your own client
     redis.sessions.client_callable = my.dotted.python.callable

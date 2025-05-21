@@ -36,6 +36,8 @@ class AppTest(unittest.TestCase):
         testing.tearDown()
 
     def test_session_access__none(self):
+        if TYPE_CHECKING:
+            assert self._testapp is not None
         request = Request.blank("/session_access__none")
         with pyramid.scripting.prepare(
             registry=self._pyramid_app.registry,
@@ -59,6 +61,8 @@ class AppTest(unittest.TestCase):
             calling set and unset within a single request
             SHOULD NOT persist the empty session
         """
+        if TYPE_CHECKING:
+            assert self._testapp is not None
         request = Request.blank("/session_access__set_unset")
         with pyramid.scripting.prepare(
             registry=self._pyramid_app.registry,

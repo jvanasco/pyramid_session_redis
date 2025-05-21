@@ -2,6 +2,8 @@
 
 # stdlib
 import itertools
+from typing import Any
+from typing import Dict
 import unittest
 
 # local
@@ -30,7 +32,7 @@ class Test_parse_settings(unittest.TestCase):
             "redis.sessions.cookie_secure": "false",
             "redis.sessions.host": "localhost",
             "redis.sessions.port": "1234",
-            "redis.sessions.socket_timeout": "1234",
+            "redis.sessions.redis_socket_timeout": "1234",
             "ignore.this.setting": "",
         }
         return settings
@@ -52,7 +54,7 @@ class Test_parse_settings(unittest.TestCase):
     def test_no_secret_raises_error(self):
         from pyramid.exceptions import ConfigurationError
 
-        settings = {}
+        settings: Dict[str, Any] = {}
         self.assertRaises(ConfigurationError, self._makeOne, settings)
 
     def test_prefix_and_generator_raises_error(self):

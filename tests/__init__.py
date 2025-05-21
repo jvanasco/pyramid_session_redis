@@ -44,7 +44,8 @@ class DummySession(object):
 class DummyRedis(object):
     url: Optional[str]
     timeouts: Dict[str, int]
-    store: Dict[str, Any]
+    _store: Dict[str, Any]
+    opts: Dict[str, Any]
 
     def __init__(self, raise_watcherror=False, **kw):
         self.url = None

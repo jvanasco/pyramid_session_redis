@@ -4,6 +4,7 @@
 import datetime
 import pickle
 import re
+from typing import cast
 from typing import Callable
 from typing import Dict
 from typing import Optional
@@ -42,6 +43,7 @@ from .test_config import dummy_id_generator
 
 if TYPE_CHECKING:
     from redis.client import Redis as RedisClient
+    from collections.abc import KeysView
 
 # ==============================================================================
 
@@ -481,8 +483,10 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertIsNone(persisted)
 
         # make sure we don't have any keys in redis
-        keys = request.session.redis.keys()
-        self.assertEqual(len(keys), 0)
+        keys_ = request.session.redis.keys()
+        if TYPE_CHECKING:
+            keys_ = cast(KeysView, keys_)
+        self.assertEqual(len(keys_), 0)
 
     def test_existing_session_session_after_invalidate_coe_True_no_exception(self):
         # existing session -> invalidate() -> new session
@@ -712,47 +716,13 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertEqual(inst_0.timeout, None)
 
     def test_session_factory_from_settings_redis_encodings(self):
-        settings_old = {
-            "redis.sessions.secret": "secret",
-            "redis.sessions.charset": "ascii",
-            "redis.sessions.errors": "replace",
-        }
-        session_using_old = session_factory_from_settings(settings_old)
-        assert session_using_old
-
         settings_new = {
             "redis.sessions.secret": "secret",
             "redis.sessions.redis_encoding": "ascii",
             "redis.sessions.redis_encoding_errors": "replace",
         }
-        session_using_new = session_factory_from_settings(settings_new)
-        assert session_using_new
-
-    def test_session_factory_incompatible_kwargs(self):
-        # incompatible args should raise a ValueError
-        _test_matrix = (
-            ("redis_socket_timeout", "socket_timeout", 1),
-            ("redis_connection_pool", "connection_pool", 1),
-            ("redis_encoding", "charset", "ascii"),
-            ("redis_encoding_errors", "errors", "ascii"),
-            ("redis_unix_socket_path", "unix_socket_path", "/path/to"),
-        )
-        for _set in _test_matrix:
-            with self.assertRaises(ValueError) as cm_expected_exception:
-                _settings = {
-                    "redis.sessions.secret": "secret",  # required
-                    "redis.sessions.%s" % _set[0]: _set[2],
-                    "redis.sessions.%s" % _set[1]: _set[2],
-                }
-                session_using_old = session_factory_from_settings(  # noqa: F841
-                    _settings
-                )
-            exception_wrapper = cm_expected_exception.exception
-            wrapped_exception = exception_wrapper.args[0]
-            assert wrapped_exception == "Submit only one of `%s`, `%s`" % (
-                _set[0],
-                _set[1],
-            )
+        # always returns a callable
+        session_using_new = session_factory_from_settings(settings_new)  # noqa: F841
 
     def test_check_response(self):
         factory = RedisSessionFactory(
@@ -848,6 +818,16 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
 
 class _TestRedisSessionFactoryCore_UtilsNew(object):
+
+    # TODO: typing/protocol for these expected mixin methods
+    _assert_is_a_header_to_set_cookie: Callable
+    _make_request: Callable
+    _makeOne: Callable
+    _makeOneSession: Callable
+    _set_session_cookie: Callable
+    assertEqual: Callable
+    assertNotIn: Callable
+
     def _deserialize_session_stored(
         self, session: RedisSession, deserialize: Callable = pickle.loads
     ) -> dict:
