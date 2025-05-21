@@ -31,10 +31,10 @@ from types import ModuleType
 from typing import Any
 from typing import AnyStr
 from typing import Optional
-from typing import Type
 
 # pypi
 from pyramid.util import strings_differ
+from typing_extensions import Protocol
 from webob.cookies import SignedSerializer
 
 # local
@@ -172,6 +172,13 @@ class LegacyCookieSerializer(object):
         return signed_serialize(data, self.secret)
 
 
+class LoggingHookInterface(Protocol):
+
+    def attempt(self, value: str) -> None: ...
+
+    def success(self, value: str) -> None: ...
+
+
 class GracefulCookieSerializer(object):
     """
     `GracefulCookieSerializer` is designed to help developers migrate sessions
@@ -197,12 +204,12 @@ class GracefulCookieSerializer(object):
     secret: bytes
     serializer_current: SignedSerializer  # has .dumps/.loads
     serializer_legacy: LegacyCookieSerializer  # has .dumps/.loads
-    logging_hook: Optional[Type]  # has .attempt, .success
+    logging_hook: Optional[LoggingHookInterface]  # has .attempt, .success
 
     def __init__(
         self,
         secret: AnyStr,
-        logging_hook: Optional[Type] = None,
+        logging_hook: Optional[LoggingHookInterface] = None,
     ):
         """
         :param secret: string. the secret

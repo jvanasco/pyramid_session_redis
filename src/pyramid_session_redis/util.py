@@ -183,8 +183,8 @@ def empty_session_payload(
 def encode_session_payload(
     managed_dict: dict,
     created: int,
-    timeout: int,
-    expires: int,
+    timeout: int,  # = 0?
+    expires: int,  # = 0?
     timeout_trigger: Optional[int] = None,
     python_expires: Optional[bool] = None,
 ) -> dict:
@@ -453,11 +453,9 @@ def refresh(wrapped: Callable) -> Callable:
 
 
 class SerializerInterface(Protocol):
-    def dumps(self, s: str) -> bytes:
-        ...
+    def dumps(self, s: str) -> bytes: ...
 
-    def loads(self, s: bytes) -> str:
-        ...
+    def loads(self, s: bytes) -> str: ...
 
 
 class _NullSerializer(object):

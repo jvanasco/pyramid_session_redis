@@ -10,6 +10,7 @@ from typing import Callable
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import overload
 from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import Union
@@ -17,6 +18,7 @@ from typing import Union
 # pypi
 from pyramid.decorator import reify
 from pyramid.interfaces import ISession
+from typing_extensions import Literal
 from zope.interface import implementer
 
 # local
@@ -41,13 +43,6 @@ from .util import TYPING_COOKIE_EXPIRES__A
 from .util import TYPING_COOKIE_MAX_AGE__A
 from .util import TYPING_KEY
 from .util import TYPING_SESSION_ID
-
-
-# typing
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from collections.abc import ItemsView
@@ -452,11 +447,32 @@ class RedisSession(object):
         )
         return self.serialize(data)
 
+    @overload
+    def from_redis(  # noqa: E704
+        self,
+        session_id: Optional[TYPING_SESSION_ID] = None,
+        persisted_hash: Optional[None] = None,
+    ) -> dict: ...
+
+    @overload
+    def from_redis(  # noqa: E704
+        self,
+        session_id: Optional[TYPING_SESSION_ID] = None,
+        persisted_hash: Literal[False] = False,
+    ) -> Tuple[dict, None]: ...
+
+    @overload
+    def from_redis(  # noqa: E704
+        self,
+        session_id: Optional[TYPING_SESSION_ID] = None,
+        persisted_hash: Literal[True] = True,
+    ) -> Tuple[dict, str]: ...
+
     def from_redis(
         self,
         session_id: Optional[TYPING_SESSION_ID] = None,
-        persisted_hash: Optional[bool] = None,
-    ) -> Union[dict, Tuple[dict, Union[str, None]]]:
+        persisted_hash: Optional[Literal[True, False]] = None,
+    ):
         """
         Get and deserialize the persisted data for this session from Redis.
         If ``persisted_hash`` is ``None`` (default), returns a single

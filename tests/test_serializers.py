@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 
 # stdlib
+from typing import Optional
 import unittest
 
 # pypi
@@ -11,6 +11,7 @@ from webob.cookies import SignedSerializer
 from pyramid_session_redis.exceptions import InvalidSessionId_Serialization
 from pyramid_session_redis.legacy import GracefulCookieSerializer
 from pyramid_session_redis.legacy import LegacyCookieSerializer
+from pyramid_session_redis.legacy import LoggingHookInterface
 from pyramid_session_redis.util import _NullSerializer
 
 
@@ -40,7 +41,7 @@ class TestNullSerializer(unittest.TestCase):
 
 
 class TestCookieSerialization(unittest.TestCase):
-    def _makeOne_default(self, secret):
+    def _makeOne_default(self, secret: str) -> SignedSerializer:
         cookie_signer = SignedSerializer(
             secret,
             "pyramid_session_redis.",
@@ -49,11 +50,15 @@ class TestCookieSerialization(unittest.TestCase):
         )
         return cookie_signer
 
-    def _makeOne_legacy(self, secret):
+    def _makeOne_legacy(self, secret: str) -> LegacyCookieSerializer:
         cookie_signer = LegacyCookieSerializer(secret)
         return cookie_signer
 
-    def _makeOne_graceful(self, secret, logging_hook=None):
+    def _makeOne_graceful(
+        self,
+        secret: str,
+        logging_hook: Optional[LoggingHookInterface] = None,
+    ) -> GracefulCookieSerializer:
         cookie_signer = GracefulCookieSerializer(
             secret,
             logging_hook=logging_hook,
@@ -117,19 +122,19 @@ class TestCookieSerialization(unittest.TestCase):
         secret = "foo"
         session_id = "session_id:123"
 
-        class LoggingHook(object):
+        class LoggingHook(LoggingHookInterface):
             def __init__(self):
                 self._attempts_global = []
                 self._attempts = []
                 self._successes = []
 
-            def attempt(self, serializer):
+            def attempt(self, serializer: str) -> None:
                 if serializer == "global":
                     self._attempts_global.append(serializer)
                 else:
                     self._attempts.append(serializer)
 
-            def success(self, serializer):
+            def success(self, serializer: str) -> None:
                 self._successes.append(serializer)
 
         logging_hook = LoggingHook()
