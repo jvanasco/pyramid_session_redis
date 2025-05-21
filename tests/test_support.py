@@ -23,6 +23,8 @@ from pyramid_session_redis.util import _NullSerializer
 # export GENERATE_COOKIE_DATA=1
 GENERATE_COOKIE_DATA = bool(int(os.getenv("GENERATE_COOKIE_DATA", "0")))
 
+TYPE_COOKIES = Optional[Dict[str, bytes]]
+
 # ----
 
 
@@ -34,7 +36,7 @@ class _FakeRequest(object):
     response: Optional["_FakeResponse"] = None
 
     @property
-    def cookies(self):
+    def cookies(self) -> TYPE_COOKIES:
         """proxy against response.set_cookie to loosely mimic interace"""
         if self.response:
             return self.response.cookies
@@ -43,10 +45,10 @@ class _FakeRequest(object):
 
 class _FakeResponse(object):
     req: Optional[_FakeRequest] = None
-    cookies: Optional[Dict[str, bytes]] = None
+    cookies: TYPE_COOKIES = None
 
     def __init__(self, req: Optional[_FakeRequest] = None) -> None:
-        self.cookies = {}
+        self.cookies: TYPE_COOKIES = {}
         self.req = req
         if self.req:
             self.req.response = self
@@ -71,7 +73,9 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
     """
 
     def _makeOne(
-        self, cookie_name: str, cookie_value: str
+        self,
+        cookie_name: str,
+        cookie_value: str,
     ) -> Tuple[_FakeResponse, _NullSerializer]:
         serializer = _NullSerializer()
         if isinstance(cookie_value, str):
@@ -94,10 +98,10 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
 
     def _test_setup(
         self,
-        cookie_name,
+        cookie_name: str,
         value_in,  # raw value in
-        value_encoded,  # encoded into Response; must be bytes
-        value_decoded,  # decoded from request
+        value_encoded: bytes,  # encoded into Response; must be bytes
+        value_decoded: str,  # decoded from request
     ) -> None:
         res, serializer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:
@@ -154,7 +158,9 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
     """
 
     def _makeOne(
-        self, cookie_name: str, cookie_value: str
+        self,
+        cookie_name: str,
+        cookie_value: str,
     ) -> Tuple[_FakeResponse, SignedSerializer]:
         cookie_signer = SignedSerializer(
             "secret",
@@ -181,7 +187,11 @@ class Test_CookieSigner_NullSerializer(unittest.TestCase):
         return res, cookie_signer
 
     def _test_setup(
-        self, cookie_name: str, value_in: Any, value_expected: Any, value_signed: str
+        self,
+        cookie_name: str,
+        value_in: Any,
+        value_expected: Any,
+        value_signed: str,
     ) -> None:
         res, cookie_signer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:
@@ -235,7 +245,9 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
     """
 
     def _makeOne(
-        self, cookie_name: str, cookie_value: str
+        self,
+        cookie_name: str,
+        cookie_value: str,
     ) -> Tuple[_FakeResponse, SignedSerializer]:
         cookie_signer = SignedSerializer(
             "secret",
@@ -258,7 +270,11 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
         return res, cookie_signer
 
     def _test_setup(
-        self, cookie_name: str, value_in: Any, value_expected: Any, value_signed: str
+        self,
+        cookie_name: str,
+        value_in: Any,
+        value_expected: Any,
+        value_signed: str,
     ) -> None:
         res, cookie_signer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:

@@ -1,4 +1,5 @@
 # stdlib
+from typing import Optional
 
 # pypi
 from pyramid.config import Configurator
@@ -12,22 +13,22 @@ from .test_config import LIVE_PSR_CONFIG
 # ==============================================================================
 
 
-def session_access__none(request: Request):
+def session_access__none(request: Request) -> Response:
     return Response("<body><h1>session_access__none</h1></body>")
 
 
-def session_access__set(request: Request):
+def session_access__set(request: Request) -> Response:
     request.session["a"] = 1
     return Response("<body><h1>session_access__set</h1></body>")
 
 
-def session_access__set_unset(request: Request):
+def session_access__set_unset(request: Request) -> Response:
     request.session["a"] = 1
     del request.session["a"]
     return Response("<body><h1>session_access__set_unset</h1></body>")
 
 
-def session_access__unset(request: Request):
+def session_access__unset(request: Request) -> Response:
     try:
         del request.session["a"]
     except Exception:
@@ -35,7 +36,7 @@ def session_access__unset(request: Request):
     return Response("<body><h1>session_access__unset</h1></body>")
 
 
-def main(global_config, **settings):
+def main(global_config: Optional[str], **settings):
     """This function returns a Pyramid WSGI application."""
     config = Configurator(settings=settings)
     config.include("pyramid_session_redis")

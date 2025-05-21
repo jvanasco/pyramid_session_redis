@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 # stdlib
+from typing import Dict
+from typing import Union
 import unittest
 
 # pypi
@@ -8,6 +10,7 @@ from pyramid import testing
 from pyramid.exceptions import ConfigurationError
 from pyramid.request import Request
 from pyramid.threadlocal import get_current_request
+from typing_extensions import Literal
 
 # local
 from pyramid_session_redis.exceptions import InvalidSession
@@ -25,7 +28,7 @@ _id_path = "tests.test_config.dummy_id_generator"
 _client_path = "tests.test_config.dummy_client_callable"
 _invalid_logger = "tests.test_config.dummy_invalid_logger"
 
-TEST_PSR_CONFIG = {
+TEST_PSR_CONFIG: Dict[str, Union[str, int]] = {
     "redis.sessions.secret": "supersecret",
     "redis.sessions.db": 9,
     "redis.sessions.serialize": "pickle.dumps",
@@ -48,11 +51,11 @@ def dummy_id_generator() -> str:
 
 
 # used to ensure includeme can resolve a dotted path to a redis client callable
-def dummy_client_callable(request: Request, **opts):
+def dummy_client_callable(request: Request, **opts) -> str:
     return "client"
 
 
-def dummy_invalid_logger(request: Request, raised: Exception):
+def dummy_invalid_logger(request: Request, raised: Exception) -> Literal[True]:
     assert isinstance(raised, InvalidSession)
     return True
 
@@ -97,7 +100,7 @@ class Test_includeme_simple(unittest.TestCase):
     def test_includeme_id_generator(self):
         request = get_current_request()  # noqa: F841
         generator = self.settings["redis.sessions.id_generator"]
-        self.assertEqual(generator(), 42)
+        self.assertEqual(generator(), "42")
 
     def test_includeme_client_callable(self):
         request = get_current_request()
@@ -109,7 +112,7 @@ class Test_includeme_simple(unittest.TestCase):
         logging_func = self.settings["redis.sessions.func_invalid_logger"]
         raised_error = InvalidSession_DeserializationError("foo")
         # check to ensure this is an InvalidSession instance
-        self.assertTrue(logging_func(raised_error))
+        self.assertTrue(logging_func(request, raised_error))
 
 
 class Test_includeme_advanced(unittest.TestCase):

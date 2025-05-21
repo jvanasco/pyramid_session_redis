@@ -3,6 +3,7 @@
 # stdlib
 from typing import Dict
 from typing import Optional
+from typing import TYPE_CHECKING
 import unittest
 
 # pypi
@@ -15,9 +16,9 @@ from webtest import TestApp
 # from pyramid.paster import get_appsettings
 
 # local
+from pyramid_session_redis.session import RedisSession
 from .test_config import LIVE_PSR_CONFIG
 from .web_app import main
-from pyramid_session_redis.session import RedisSession
 
 # ==============================================================================
 
@@ -70,7 +71,7 @@ class AppTest(unittest.TestCase):
             assert res.text == "<body><h1>session_access__set_unset</h1></body>"
             assert "Set-Cookie" not in res.headers
 
-    def test_session_access__set(self):
+    def test_session_access__set(self) -> None:
         """
         Edge B
             calling:
@@ -78,6 +79,8 @@ class AppTest(unittest.TestCase):
             * unset on request 2
             SHOULD persist the empty session
         """
+        if TYPE_CHECKING:
+            assert self._testapp is not None
         session_id: str
         session_cookie: str
         request = Request.blank("/session_access__set")
