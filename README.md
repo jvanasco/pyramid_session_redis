@@ -48,6 +48,7 @@ In the `1.7` branch, there are several breaking changes:
 
 Planned changes for `1.8` branch:
     * remove the pyramid_session_redis.legacy namespace
+    * set `invalidate_empty_session` to True
 
 
 

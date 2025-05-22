@@ -26,6 +26,7 @@ Changelog
       that package has not been updated in 9 years, and last supported python 3.4
        - this will be removed in the next minor release
     * _NullSerializer has been deprecated and renamed to _StringSerializer
+    * introduce `invalidate_empty_session` to automatically clear sessions
 
 * 2023.06.13
     * version 1.7.0rc1

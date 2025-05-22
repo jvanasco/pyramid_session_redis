@@ -116,30 +116,58 @@ def _generate_session_id() -> str:
 # these lists are maintained here as a public API, so implementers who need
 # to customize their integration can do so without fear of breaking changes
 
+# these we just ignore in code, but track here:
+configs_str = (
+    "secret",
+    "cookie_name",
+    "cookie_path",
+    "cookie_domain",
+    "cookie_comment",
+    "cookie_samesite",
+    "redis_unix_socket_path",
+    "redis_encoding_errors",
+    "redis_encoding",
+)
+
+# treat as strings here
 configs_dotable = (
     "client_callable",
-    "serialize",
+    "cookie_signer",
     "deserialize",
-    "id_generator",
     "func_check_response_allow_cookies",
     "func_invalid_logger",
-    "cookie_signer",
+    "id_generator",
+    "serialize",
 )
 
 configs_bool = (
-    "cookie_secure",
     "cookie_httponly",
     "cookie_on_exception",
-    "set_redis_ttl",
-    "set_redis_ttl_readheavy",
-    "detect_changes",
+    "cookie_secure",
     "deserialized_fails_new",
+    "detect_changes",
+    "invalidate_empty_session",
     "python_expires",
+    "set_redis_ttl_readheavy",
+    "set_redis_ttl",
 )
 
-configs_int = ("port", "db", "cookie_max_age")
+configs_int = (
+    "db",
+    "port",
+)
 
-configs_int_none = ("timeout", "timeout_trigger")
+configs_int_none = (
+    "cookie_max_age",
+    "redis_socket_timeout",
+    "timeout",
+    "timeout_trigger",
+)
+
+configs_unsupported = (
+    "cookie_expires",  # datetime objects
+    "redis_connection_pool",  # ConnectionPool
+)
 
 
 # ---------------------
@@ -357,6 +385,17 @@ def _parse_settings(settings: Dict) -> Dict:
         param = k.split(".")[-1]
         value = settings[k]
         options[param] = value
+
+    # check unsupported
+    _unsupported = []
+    for u in configs_unsupported:
+        if u in options:
+            _unsupported.append(u)
+    if _unsupported:
+        raise ConfigurationError(
+            "Detcted config settings that are not compatible with this parser: %s."
+            % _unsupported
+        )
 
     _secret_cookiesigner = (options.get("secret"), options.get("cookie_signer"))
     if all(_secret_cookiesigner) or not any(_secret_cookiesigner):

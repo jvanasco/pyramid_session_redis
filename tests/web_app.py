@@ -22,10 +22,10 @@ def session_access__set(request: Request) -> Response:
     return Response("<body><h1>session_access__set</h1></body>")
 
 
-def session_access__set_unset(request: Request) -> Response:
+def session_access__set_and_unset(request: Request) -> Response:
     request.session["a"] = 1
     del request.session["a"]
-    return Response("<body><h1>session_access__set_unset</h1></body>")
+    return Response("<body><h1>session_access__set_and_unset</h1></body>")
 
 
 def session_access__unset(request: Request) -> Response:
@@ -51,9 +51,11 @@ def main(global_config: Optional[str], **settings):
     config.add_route("session_access__set", "/session_access__set")
     config.add_view(session_access__set, route_name="session_access__set")
 
-    # session_access__set_unset
-    config.add_route("session_access__set_unset", "/session_access__set_unset")
-    config.add_view(session_access__set_unset, route_name="session_access__set_unset")
+    # session_access__set_and_unset
+    config.add_route("session_access__set_and_unset", "/session_access__set_and_unset")
+    config.add_view(
+        session_access__set_and_unset, route_name="session_access__set_and_unset"
+    )
 
     # session_access__unset
     config.add_route("session_access__unset", "/session_access__unset")

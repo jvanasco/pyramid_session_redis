@@ -727,6 +727,14 @@ class RedisSession(object):
     # RedisSession extra methods
 
     @recookie
+    def please_recookie(self) -> None:
+        """
+        this does nothing, other than invoking `@recookie` to ensure the cookie
+        is sent with the Response.
+        """
+        return None
+
+    @recookie
     def adjust_cookie_expires(self, expires: TYPING_COOKIE_EXPIRES) -> None:
         """
         Adjust the `expires` value on the cookie.
