@@ -2,7 +2,7 @@ Changelog
 =========
 
 * 2025.05.20
-    * version 1.7.0rc3
+    * version 1.7.0rc2
     * more typing
     * testing on py313
 	* drop testing/support for python3.6 due to github removing ubuntu20.04
