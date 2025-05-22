@@ -124,19 +124,26 @@ configs_str = (
     "cookie_domain",
     "cookie_comment",
     "cookie_samesite",
+    "host",  # DEPRECATED in 1.7; REMOVING in 1.8
+    "password",  # DEPRECATED in 1.7; REMOVING in 1.8
+    "redis_host",
+    "redis_password",
     "redis_unix_socket_path",
     "redis_encoding_errors",
     "redis_encoding",
+    "redis_url",
+    "url",  # DEPRECATED in 1.7; REMOVING in 1.8
 )
 
 # treat as strings here
 configs_dotable = (
-    "client_callable",
+    "client_callable",  # DEPRECATED in 1.7; REMOVING in 1.8
     "cookie_signer",
     "deserialize",
     "func_check_response_allow_cookies",
     "func_invalid_logger",
     "id_generator",
+    "redis_client_callable",
     "serialize",
 )
 
@@ -153,8 +160,10 @@ configs_bool = (
 )
 
 configs_int = (
-    "db",
-    "port",
+    "db",  # DEPRECATED in 1.7; REMOVING in 1.8
+    "port",  # DEPRECATED in 1.7; REMOVING in 1.8
+    "redis_db",
+    "redis_port",
 )
 
 configs_int_none = (
@@ -501,7 +510,7 @@ class SignedSerializerInterface(Protocol):
     def loads(self, s: bytes) -> str: ...
 
 
-# `SerializerInterface` is Deprecated in 1.7.x
+# `SerializerInterface` ; DEPRECATED in 1.7; REMOVING in 1.8
 SerializerInterface = SignedSerializerInterface
 
 
@@ -544,5 +553,5 @@ class _StringSerializer(SignedSerializerInterface):
             raise InvalidSessionId_Deserialization(exc)
 
 
-# `_NullSerializer` is Deprecated in 1.7.x
+# `_NullSerializer` DEPRECATED in 1.7; REMOVING in 1.8
 _NullSerializer = _StringSerializer
