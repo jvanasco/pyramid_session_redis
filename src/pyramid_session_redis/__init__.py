@@ -125,17 +125,19 @@ def RedisSessionFactory(
     cookie_comment: Optional[str] = None,
     cookie_samesite: Optional[str] = None,
     cookie_on_exception: bool = True,
-    url: Optional[str] = None,  # DEPRECATED
+    url: Optional[str] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_url: Optional[str] = None,
     host: str = "localhost",
-    redis_host: str = "localhost",  # DEPRECATED
-    port: int = 6379,  # DEPRECATED
+    redis_host: str = "localhost",  # DEPRECATED in 1.7; REMOVING in 1.8
+    port: int = 6379,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_port: int = 6379,
-    db: int = 0,  # DEPRECATED
+    db: int = 0,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_db: int = 0,
-    password: Optional[str] = None,  # DEPRECATED
+    password: Optional[str] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_password: Optional[str] = None,
-    client_callable: Optional[Callable[..., "RedisClient"]] = None,  # DEPRECATED
+    client_callable: Optional[
+        Callable[..., "RedisClient"]
+    ] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_client_callable: Optional[Callable[..., "RedisClient"]] = None,
     serialize: Callable[[Dict], bytes] = pickle.dumps,  # dict->bytes
     deserialize: Callable[[bytes], Dict] = pickle.loads,  # bytes->dict
@@ -236,34 +238,34 @@ def RedisSessionFactory(
     If ``True``, set a session cookie even if an exception occurs
     while rendering a view.
 
-    ``url`` DEPRECATED
+    ``url`` DEPRECATED in 1.7; REMOVING in 1.8
     ``redis_url`` replacement
     Default: ``None``.
     A connection string for a Redis server, in the format:
     redis://username:password@localhost:6379/0
 
-    ``host`` DEPRECATED
+    ``host`` DEPRECATED in 1.7; REMOVING in 1.8
     ``redis_host`` replacement
     Default: ``localhost``.
     A string representing the IP of your Redis server.
 
-    ``port`` DEPRECATED
+    ``port`` DEPRECATED in 1.7; REMOVING in 1.8
     ``redis_port`` replacement
     Default: ``6379``.
     An integer representing the port of your Redis server.
 
-    ``db`` DEPRECATED
+    ``db`` DEPRECATED in 1.7; REMOVING in 1.8
     ``redis_db`` replacement
     Integer value; Default: ``0``
     An integer to select a specific database on your Redis server.
 
-    ``password`` DEPRECATED
+    ``password`` DEPRECATED in 1.7; REMOVING in 1.8
     ``redis_password`` replacement
     Default: ``None``.
     A string password to connect to your Redis server/database if
     required.
 
-    ``client_callable`` DEPRECATED
+    ``client_callable`` DEPRECATED in 1.7; REMOVING in 1.8
     ``redis_client_callable`` replacement
     Default: ``None``.
     A python callable that accepts a Pyramid `request` and Redis config options
