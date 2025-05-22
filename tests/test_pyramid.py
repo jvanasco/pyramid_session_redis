@@ -13,14 +13,29 @@ from pyramid.router import Router
 import pyramid.scripting
 from webtest import TestApp
 
-# from pyramid.paster import get_appsettings
-
 # local
+import pyramid_session_redis
 from pyramid_session_redis.session import RedisSession
 from ._util import LIVE_PSR_CONFIG
 from .web_app import main
 
 # ==============================================================================
+
+INVALIDATE_CONFIG_TRUE = LIVE_PSR_CONFIG.copy()
+INVALIDATE_CONFIG_TRUE.update({"redis.sessions.invalidate_empty_session": True})
+
+INVALIDATE_CONFIG_FALSE = LIVE_PSR_CONFIG.copy()
+INVALIDATE_CONFIG_FALSE.update({"redis.sessions.invalidate_empty_session": False})
+
+
+def _parse_cookie(header: str) -> Dict:
+    morsels = {}
+    # ('Set-Cookie', 'session=; Max-Age=0; Path=/; expires=Wed, 31-Dec-97 23:59:59 GMT')])
+    _items = [i.strip() for i in header.split(";")]
+    for _it in _items:
+        (k, v) = [i.strip() for i in _it.split("=", 1)]  # max 2 items
+        morsels[k.lower()] = v
+    return morsels
 
 
 class AppTest(unittest.TestCase):
@@ -28,12 +43,31 @@ class AppTest(unittest.TestCase):
     _pyramid_app: Router
     _settings: Dict = LIVE_PSR_CONFIG
 
+    def assertCookieIsSetter(self, cookie: str) -> bool:
+        morsels = _parse_cookie(cookie)
+        assert morsels["session"] != ""  # not empty string
+        if "max-age" in morsels:
+            assert int(morsels["max-age"]) >= 1
+        # expires=Wed, 31-Dec-97 23:59:59 GMT
+        return True
+
+    def assertCookieIsUnsetter(self, cookie: str) -> bool:
+        morsels = _parse_cookie(cookie)
+        assert morsels["session"] == ""  # empty string
+        if "max-age" in morsels:
+            assert int(morsels["max-age"]) <= 0
+        # expires=Wed, 31-Dec-97 23:59:59 GMT
+        return True
+
     def setUp(self) -> None:
         self._pyramid_app = app = main(None, **self._settings)
         self._testapp = TestApp(app)
 
     def tearDown(self):
         testing.tearDown()
+
+
+class Test_BasicSessionUsage(AppTest):
 
     def test_session_access__none(self):
         if TYPE_CHECKING:
@@ -55,7 +89,7 @@ class AppTest(unittest.TestCase):
             request.response.text
             """
 
-    def test_session_access__set_unset(self):
+    def test_session_access__set_and_unset(self):
         """
         Edge A-
             calling set and unset within a single request
@@ -63,7 +97,7 @@ class AppTest(unittest.TestCase):
         """
         if TYPE_CHECKING:
             assert self._testapp is not None
-        request = Request.blank("/session_access__set_unset")
+        request = Request.blank("/session_access__set_and_unset")
         with pyramid.scripting.prepare(
             registry=self._pyramid_app.registry,
             request=request,
@@ -72,16 +106,26 @@ class AppTest(unittest.TestCase):
             assert isinstance(request.session, RedisSession)
             assert not request.session.keys()  # request not invoked
             res = self._testapp.app.invoke_request(request)
-            assert res.text == "<body><h1>session_access__set_unset</h1></body>"
+            assert res.text == "<body><h1>session_access__set_and_unset</h1></body>"
             assert "Set-Cookie" not in res.headers
 
-    def test_session_access__set(self) -> None:
+
+class _Test_InvalidateEmptySession(AppTest):
+
+    def _test_session_access__set__then__unset(self, invalidates: bool) -> None:
         """
         Edge B
             calling:
             * set on request 1;
             * unset on request 2
-            SHOULD persist the empty session
+
+            SHOULD persist the empty session if:
+                v1.7 - default
+                redis.sessions.invalidate_empty_session = False
+
+            SHOULD delete the empty session if:
+                v1.8 - default
+                redis.sessions.invalidate_empty_session = True
         """
         if TYPE_CHECKING:
             assert self._testapp is not None
@@ -119,4 +163,34 @@ class AppTest(unittest.TestCase):
             )  # request invoked, session cleared
             assert not request2.session.keys()  # request invoked, cleared in view
             assert res2.text == "<body><h1>session_access__unset</h1></body>"
-            assert "Set-Cookie" in res.headers
+
+            if invalidates:
+                assert "Set-Cookie" in res2.headers
+                self.assertCookieIsUnsetter(res2.headers["Set-Cookie"])
+            else:
+                assert "Set-Cookie" not in res2.headers
+
+
+class Test_InvalidateEmptySession_Unconfigured(_Test_InvalidateEmptySession):
+
+    def test_not_configured(self) -> None:
+        # 1.7 = False
+        # 1.8 = True
+        assert pyramid_session_redis.INVALIDATE_EMPTY_SESSION is False
+        self._test_session_access__set__then__unset(invalidates=False)
+
+
+class Test_InvalidateEmptySession_True(_Test_InvalidateEmptySession):
+
+    _settings = INVALIDATE_CONFIG_TRUE
+
+    def test_configured_true(self) -> None:
+        self._test_session_access__set__then__unset(invalidates=True)
+
+
+class Test_InvalidateEmptySession_False(_Test_InvalidateEmptySession):
+
+    _settings = INVALIDATE_CONFIG_FALSE
+
+    def test_configured_false(self) -> None:
+        self._test_session_access__set__then__unset(invalidates=False)

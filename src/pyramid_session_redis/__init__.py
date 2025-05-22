@@ -49,6 +49,11 @@ if TYPE_CHECKING:
 # ==============================================================================
 
 
+# in 1.7 this is False
+# in 1.8 this will be True
+INVALIDATE_EMPTY_SESSION = False
+
+
 def check_response_allow_cookies(response: "Response") -> bool:
     """
     reference implementation for ``func_check_response_allow_cookies``
@@ -125,12 +130,7 @@ def RedisSessionFactory(
     db: int = 0,
     password: Optional[str] = None,
     client_callable: Optional[Callable[..., "RedisClient"]] = None,
-    serialize: Callable[
-        [
-            Dict,
-        ],
-        bytes,
-    ] = pickle.dumps,  # dict->bytes
+    serialize: Callable[[Dict], bytes] = pickle.dumps,  # dict->bytes
     deserialize: Callable[[bytes], Dict] = pickle.loads,  # bytes->dict
     id_generator: Callable[[], str] = _generate_session_id,
     set_redis_ttl: bool = True,
@@ -151,6 +151,7 @@ def RedisSessionFactory(
     redis_encoding: Optional[str] = None,
     redis_encoding_errors: Optional[str] = None,
     redis_unix_socket_path: Optional[str] = None,
+    invalidate_empty_session: bool = INVALIDATE_EMPTY_SESSION,
 ) -> Callable:
     """
     Constructs and returns a session factory that will provide session data
@@ -354,6 +355,13 @@ def RedisSessionFactory(
     ``redis_unix_socket_path``
     Default: ``None``.
     Passthrough argument to the `StrictRedis` constructor.
+
+    ``invalidate_empty_session``
+    Default: ``False``
+    Will invalidate an empty session, deleting the cookie and expiring
+    the backend storage.
+    * Added in 1.7
+    * IMPORTANT: This will default to `True` in 1.8
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -590,6 +598,7 @@ def RedisSessionFactory(
             set_cookie_func=set_cookie_func,
             delete_cookie_func=delete_cookie_func,
             func_check_response_allow_cookies=func_check_response_allow_cookies,
+            invalidate_empty_session=invalidate_empty_session,
         )
         request.add_response_callback(cookie_callback)
         request.add_finished_callback(session._deferred_callback)
@@ -657,14 +666,16 @@ def _cookie_callback(
     set_cookie_func: Callable[..., None],
     delete_cookie_func: Callable[..., None],
     func_check_response_allow_cookies: Optional[Callable[["Response"], bool]],
+    invalidate_empty_session: bool,
 ) -> None:
     """
     Response callback to set the appropriate Set-Cookie header.
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
+
     # `session._session_state` will not exist after `invalidate` and other methods
-    # so we will sextract some info from it...
+    # so we will extract some info from it...
     please_recookie = None
     _override_args = {}
     if "_session_state" in session.__dict__:
@@ -674,19 +685,9 @@ def _cookie_callback(
                 _override_args["expires"] = session._session_state.cookie_expires
             if session._session_state.cookie_max_age != NotSpecified:
                 _override_args["max_age"] = session._session_state.cookie_max_age
-    if func_check_response_allow_cookies is not None:
-        if not func_check_response_allow_cookies(response):
-            # if we don't want to send cookies on this response,
-            # we might not want to persist or refresh
-            # session._session_state.dont_persist = True
-            # session._session_state.dont_refresh = True
-            return
-    if session._invalidated:
-        if session_cookie_was_valid:
-            delete_cookie_func(response=response)
-        return
 
     # helper function for multiple contexts
+    # note how this helper function uses the above-set `_override_args`
     def _set_cookie_and_response() -> None:
         set_cookie_func(request=request, response=response, **_override_args)
 
@@ -698,6 +699,28 @@ def _cookie_callback(
         vary = set(response.vary if response.vary is not None else [])
         vary |= set(varies)
         response.vary = vary
+
+    if func_check_response_allow_cookies is not None:
+        if not func_check_response_allow_cookies(response):
+            # if we don't want to send cookies on this response,
+            # we might not want to persist or refresh
+            # session._session_state.dont_persist = True
+            # session._session_state.dont_refresh = True
+            return
+
+    # Important: this must remain an option so people can keep empty sessions
+    # see: https://github.com/jvanasco/pyramid_session_redis/issues/67
+    if invalidate_empty_session:
+        # if the session is empty...
+        if not session.managed_dict:
+            # invalidate the session, clearing Redis and setting a marker
+            session.invalidate()
+            # the next block will delete the cookie and return
+
+    if session._invalidated:
+        if session_cookie_was_valid:
+            delete_cookie_func(response=response)
+        return
 
     if session.new:
         if not session.session_id_safecheck:
