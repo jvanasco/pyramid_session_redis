@@ -23,6 +23,7 @@ from typing_extensions import Literal
 from zope.interface import implementer
 
 # local
+from .compat import _PY_3_9_OR_ABOVE
 from .exceptions import InvalidSession_DeserializationError
 from .exceptions import InvalidSession_Lazycreate
 from .exceptions import InvalidSession_NotInBackend
@@ -59,11 +60,14 @@ if TYPE_CHECKING:
 def hashed_value(serialized: bytes) -> str:
     """
     quick hash of serialized data
-    only used for comparison
+    only used for comparison to detect changes
 
     :param serialized: string. serialized data to hash.
     :returns hash: string.
     """
+    if _PY_3_9_OR_ABOVE:
+        # TODO: this becomes the default when 3.9 is the minimum version
+        return hashlib.md5(serialized, usedforsecurity=False).hexdigest()
     return hashlib.md5(serialized).hexdigest()
 
 
