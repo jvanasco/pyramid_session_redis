@@ -28,6 +28,7 @@ from .util import LazyCreateSession
 from .util import NotSpecified
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
+from .util import warn_future
 
 
 __VERSION__ = "1.7.0rc3"
@@ -124,12 +125,18 @@ def RedisSessionFactory(
     cookie_comment: Optional[str] = None,
     cookie_samesite: Optional[str] = None,
     cookie_on_exception: bool = True,
-    url: Optional[str] = None,
+    url: Optional[str] = None,  # DEPRECATED
+    redis_url: Optional[str] = None,
     host: str = "localhost",
-    port: int = 6379,
-    db: int = 0,
-    password: Optional[str] = None,
-    client_callable: Optional[Callable[..., "RedisClient"]] = None,
+    redis_host: str = "localhost",  # DEPRECATED
+    port: int = 6379,  # DEPRECATED
+    redis_port: int = 6379,
+    db: int = 0,  # DEPRECATED
+    redis_db: int = 0,
+    password: Optional[str] = None,  # DEPRECATED
+    redis_password: Optional[str] = None,
+    client_callable: Optional[Callable[..., "RedisClient"]] = None,  # DEPRECATED
+    redis_client_callable: Optional[Callable[..., "RedisClient"]] = None,
     serialize: Callable[[Dict], bytes] = pickle.dumps,  # dict->bytes
     deserialize: Callable[[bytes], Dict] = pickle.loads,  # bytes->dict
     id_generator: Callable[[], str] = _generate_session_id,
@@ -229,29 +236,35 @@ def RedisSessionFactory(
     If ``True``, set a session cookie even if an exception occurs
     while rendering a view.
 
-    ``url``
+    ``url`` DEPRECATED
+    ``redis_url`` replacement
     Default: ``None``.
     A connection string for a Redis server, in the format:
     redis://username:password@localhost:6379/0
 
-    ``host``
+    ``host`` DEPRECATED
+    ``redis_host`` replacement
     Default: ``localhost``.
     A string representing the IP of your Redis server.
 
-    ``port``
+    ``port`` DEPRECATED
+    ``redis_port`` replacement
     Default: ``6379``.
     An integer representing the port of your Redis server.
 
-    ``db``
+    ``db`` DEPRECATED
+    ``redis_db`` replacement
     Integer value; Default: ``0``
     An integer to select a specific database on your Redis server.
 
-    ``password``
+    ``password`` DEPRECATED
+    ``redis_password`` replacement
     Default: ``None``.
     A string password to connect to your Redis server/database if
     required.
 
-    ``client_callable``
+    ``client_callable`` DEPRECATED
+    ``redis_client_callable`` replacement
     Default: ``None``.
     A python callable that accepts a Pyramid `request` and Redis config options
     and returns a Redis client such as redis-py's `StrictRedis`.
@@ -445,12 +458,58 @@ def RedisSessionFactory(
     if cookie_samesite is not None:
         set_cookie_kwargs["samesite"] = cookie_samesite
 
+    # handle redis deprecations
+    if host is not None:
+        warn_future("`host` has been deprecated in favor of `redis_host`")
+        if redis_host:
+            raise ValueError(
+                "Submit only one of `redis_host` (preferred); `host` (deprecated)."
+            )
+        redis_host = host
+    if port is not None:
+        warn_future("`port` has been deprecated in favor of `redis_port`")
+        if redis_port:
+            raise ValueError(
+                "Submit only one of `redis_port` (preferred); `port` (deprecated)."
+            )
+        redis_port = port
+    if db is not None:
+        warn_future("`db` has been deprecated in favor of `redis_db`")
+        if redis_db:
+            raise ValueError(
+                "Submit only one of `redis_db` (preferred); `db` (deprecated)."
+            )
+        redis_db = db
+    if password is not None:
+        warn_future("`password` has been deprecated in favor of `redis_password`")
+        if redis_password:
+            raise ValueError(
+                "Submit only one of `redis_password` (preferred); `password` (deprecated)."
+            )
+        redis_password = password
+    if url is not None:
+        warn_future("`url` has been deprecated in favor of `redis_url`")
+        if redis_url:
+            raise ValueError(
+                "Submit only one of `redis_url` (preferred); `url` (deprecated)."
+            )
+        redis_url = url
+    if client_callable is not None:
+        warn_future(
+            "`client_callable` has been deprecated in favor of `redis_client_callable`"
+        )
+        if redis_client_callable:
+            raise ValueError(
+                "Submit only one of `redis_client_callable` (preferred); `client_callable` (deprecated)."
+            )
+        redis_client_callable = client_callable
+
     # good for all factory() requests
     redis_options = dict(
-        host=host,
-        port=port,
-        db=db,
-        password=password,
+        host=redis_host,
+        port=redis_port,
+        db=redis_db,
+        password=redis_password,
         socket_timeout=redis_socket_timeout,
         connection_pool=redis_connection_pool,
         unix_socket_path=redis_unix_socket_path,
@@ -514,9 +573,9 @@ def RedisSessionFactory(
     ) -> RedisSession:
         # an explicit client callable gets priority over the default
         redis_conn: "RedisClient" = (
-            client_callable(request, **redis_options)
-            if client_callable is not None
-            else get_default_connection(request, url=url, **redis_options)  # type: ignore[arg-type]
+            redis_client_callable(request, **redis_options)
+            if redis_client_callable is not None
+            else get_default_connection(request, url=redis_url, **redis_options)  # type: ignore[arg-type]
         )
 
         new_session_func = functools.partial(

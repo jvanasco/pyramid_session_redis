@@ -124,19 +124,26 @@ configs_str = (
     "cookie_domain",
     "cookie_comment",
     "cookie_samesite",
+    "host",  # DEPRECATED
+    "password",  # DEPRECATED
+    "redis_host",
+    "redis_password",
     "redis_unix_socket_path",
     "redis_encoding_errors",
     "redis_encoding",
+    "redis_url",
+    "url",  # DEPRECATED
 )
 
 # treat as strings here
 configs_dotable = (
-    "client_callable",
+    "client_callable",  # DEPRECATED
     "cookie_signer",
     "deserialize",
     "func_check_response_allow_cookies",
     "func_invalid_logger",
     "id_generator",
+    "redis_client_callable",
     "serialize",
 )
 
@@ -153,8 +160,10 @@ configs_bool = (
 )
 
 configs_int = (
-    "db",
-    "port",
+    "db",  # DEPRECATED
+    "port",  # DEPRECATED
+    "redis_db",
+    "redis_port",
 )
 
 configs_int_none = (
