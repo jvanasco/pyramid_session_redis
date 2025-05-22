@@ -127,11 +127,11 @@ def RedisSessionFactory(
     cookie_on_exception: bool = True,
     url: Optional[str] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_url: Optional[str] = None,
-    host: str = "localhost",
+    host: Optional[str] = None,
     redis_host: str = "localhost",  # DEPRECATED in 1.7; REMOVING in 1.8
-    port: int = 6379,  # DEPRECATED in 1.7; REMOVING in 1.8
+    port: Optional[int] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_port: int = 6379,
-    db: int = 0,  # DEPRECATED in 1.7; REMOVING in 1.8
+    db: Optional[int] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_db: int = 0,
     password: Optional[str] = None,  # DEPRECATED in 1.7; REMOVING in 1.8
     redis_password: Optional[str] = None,
