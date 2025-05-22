@@ -1,7 +1,11 @@
 Changelog
 =========
 
-* 2025.05.20
+* 2025.05.22
+    * version 1.7.0rc3
+    * hashlib.md5() specifies `usedforsecurity=False` in Py39 and above
+
+* 2025.05.22
     * version 1.7.0rc2
     * more typing
     * testing on py313

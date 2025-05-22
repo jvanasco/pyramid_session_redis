@@ -31,7 +31,7 @@ from .util import TYPING_SESSION_ID
 from .util import warn_future
 
 
-__VERSION__ = "1.7.0rc2"
+__VERSION__ = "1.7.0rc3"
 
 
 # typing
