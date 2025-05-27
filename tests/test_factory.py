@@ -38,6 +38,7 @@ from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
 from . import DummyRedis  # redis Client
 from ._util import CustomCookieSigner
+from ._util import is_cookie_setter
 from ._util import is_cookie_unsetter
 from .test_config import dummy_id_generator
 
@@ -91,7 +92,7 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         request.add_finished_callback(session._deferred_callback)
 
     def _process_callbacks(
-        self, request: testing.DummyRequest, response: webob.Response
+        self, request: testing.DummyRequest, response: Optional[webob.Response] = None
     ) -> None:
         # since requests/responses are manually constructed,
         # we must manually execute these
@@ -173,7 +174,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request = self._make_request()
         session_id_in_cookie = self._new_session_id(request)
         self._set_session_cookie(request=request, session_id=session_id_in_cookie)
-        session = self._makeOneForRequest(request)
+        session = self._makeOneForRequest(request, is_new_session=False)
         self.assertEqual(session.session_id, session_id_in_cookie)
         self.assertIs(session.new, False)
 
@@ -224,7 +225,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         )
         session["key"] = "value"
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
 
@@ -277,7 +278,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         )
         session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
 
@@ -301,7 +302,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request.session = self._makeOneForRequest(request)
         request.session["a"] = 1  # ensure a lazycreate is triggered
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -313,7 +314,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request.session["a"] = 1  # ensure a lazycreate is triggered
         request.exception = Exception()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -324,7 +325,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request.session = self._makeOneForRequest(request, cookie_on_exception=False)
         request.session["a"] = 1  # ensure a lazycreate is triggered
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -336,7 +337,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request.session["a"] = 1  # ensure a lazycreate is triggered
         request.exception = Exception()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         self.assertNotIn("Set-Cookie", response.headers)
 
     def test_new_session_invalidate(self):
@@ -346,7 +347,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request.session["a"] = 1  # ensure a lazycreate is triggered
         request.session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         self.assertNotIn("Set-Cookie", response.headers)
 
     def test_new_session_session_after_invalidate_coe_True_no_exception(self):
@@ -358,7 +359,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session.invalidate()
         session["key"] = "value"
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -373,7 +374,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["key"] = "value"
         request.exception = Exception()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -388,7 +389,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session.invalidate()
         session["key"] = "value"
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -404,7 +405,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["key"] = "value"
         request.exception = Exception()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         self.assertNotIn("Set-Cookie", response.headers)
 
     def test_new_session_multiple_invalidates(self):
@@ -417,7 +418,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["key"] = "value"
         session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         self.assertNotIn("Set-Cookie", response.headers)
 
     def test_new_session_multiple_invalidates_with_no_new_session_in_between(self):
@@ -430,7 +431,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session.invalidate()
         session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         self.assertNotIn("Set-Cookie", response.headers)
 
     def test_new_session_int_time(self):
@@ -457,8 +458,9 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request1.session = self._makeOneForRequest(request1)
         request1.session["a"] = None  # put some data into the cookie
         response1 = webob.Response()
-        request1.response_callbacks[0](request1, response1)
-        self.assertNotIn("Set-Cookie", response1.headers)
+        self._process_callbacks(request1, response1)
+        self.assertIn("Set-Cookie", response1.headers)
+        assert is_cookie_setter(response1.headers["Set-Cookie"])
 
         # now check an empty cookie
         request2 = self._make_request()
@@ -467,7 +469,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         )
         request2.session = self._makeOneForRequest(request2)
         response2 = webob.Response()
-        request2.response_callbacks[0](request2, response2)
+        self._process_callbacks(request2, response2)
         self.assertIn("Set-Cookie", response2.headers)
         cookie_header2 = response2.headers["Set-Cookie"]
         is_cookie_unsetter(cookie_header2)
@@ -481,7 +483,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         request.session = self._makeOneForRequest(request)
         request.session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
@@ -507,7 +509,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         # invalidate
         request.session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
@@ -536,7 +538,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session.invalidate()
         session["key"] = "value"
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -553,7 +555,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["key"] = "value"
         request.exception = Exception()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -571,7 +573,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session.invalidate()
         session["key"] = "value"
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self._assert_is_a_header_to_set_cookie(set_cookie_headers[0])
@@ -590,7 +592,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["key"] = "value"
         request.exception = Exception()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
@@ -609,7 +611,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["key"] = "value"
         session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
@@ -626,7 +628,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session.invalidate()
         session.invalidate()
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertIn("Max-Age=0", set_cookie_headers[0])
@@ -682,7 +684,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session["a"] = None  # invalidate_empty_sessions=True
         session.adjust_cookie_max_age(None)
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         set_cookie_headers = response.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers), 1)
         self.assertNotIn("; expires=", set_cookie_headers[0])
@@ -695,7 +697,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
         session2.adjust_cookie_max_age(100)
         response2 = webob.Response()
-        request2.response_callbacks[0](request2, response2)
+        self._process_callbacks(request2, response2)
         set_cookie_headers2 = response2.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers2), 1)
         self.assertIn("; expires=", set_cookie_headers2[0])
@@ -707,7 +709,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session3 = request3.session = self._makeOneForRequest(request3)
         session3.adjust_cookie_max_age(datetime.timedelta(100))
         response3 = webob.Response()
-        request3.response_callbacks[0](request3, response3)
+        self._process_callbacks(request3, response3)
         set_cookie_headers3 = response3.headers.getall("Set-Cookie")
         self.assertEqual(len(set_cookie_headers3), 1)
         self.assertIn("; expires=", set_cookie_headers3[0])
@@ -783,7 +785,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session = factory(request)
         session["a"] = 1  # we only create a cookie on edit
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         hdrs_sc = response.headers.getall("Set-Cookie")
         self.assertEqual(len(hdrs_sc), 1)
         self.assertEqual(response.vary, ("Cookie",))
@@ -795,7 +797,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             session["a"] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_exclude, "1")
-            request.response_callbacks[0](request, response)
+            self._process_callbacks(request, response)
             hdrs_sc = response.headers.getall("Set-Cookie")
             self.assertEqual(len(hdrs_sc), 0)
             self.assertEqual(response.vary, None)
@@ -807,7 +809,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             session["a"] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_dontcare, "1")
-            request.response_callbacks[0](request, response)
+            self._process_callbacks(request, response)
             hdrs_sc = response.headers.getall("Set-Cookie")
             self.assertEqual(len(hdrs_sc), 1)
             self.assertEqual(response.vary, ("Cookie",))
@@ -835,7 +837,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         session = factory(request)
         session["a"] = 1  # we only create a cookie on edit
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         hdrs_sc = response.headers.getall("Set-Cookie")
         self.assertEqual(len(hdrs_sc), 1)
         self.assertEqual(response.vary, ("Cookie",))
@@ -847,7 +849,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             session["a"] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_exclude, "1")
-            request.response_callbacks[0](request, response)
+            self._process_callbacks(request, response)
             hdrs_sc = response.headers.getall("Set-Cookie")
             self.assertEqual(len(hdrs_sc), 0)
             self.assertEqual(response.vary, None)
@@ -859,7 +861,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
             session["a"] = 1  # we only create a cookie on edit
             response = webob.Response()
             response.headers.add(hdr_dontcare, "1")
-            request.response_callbacks[0](request, response)
+            self._process_callbacks(request, response)
             hdrs_sc = response.headers.getall("Set-Cookie")
             self.assertEqual(len(hdrs_sc), 1)
             self.assertEqual(response.vary, ("Cookie",))
@@ -974,7 +976,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         request.session = self._makeOneForRequest(request, **session_args)
         request.session["a"] = 1  # ensure a lazycreate is triggered
         response = webob.Response()
-        request.response_callbacks[0](request, response)  # sets the cookie
+        self._process_callbacks(request, response)  # sets the cookie
         set_cookie_headers = response.headers.getall("Set-Cookie")
         request._process_finished_callbacks()  # runs any persist if needed
         self.assertEqual(len(set_cookie_headers), 1)
@@ -993,10 +995,10 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         self._set_session_cookie(request=request, session_id=session_id)
         request.session = self._makeOneForRequest(request, **session_args)
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         request._process_finished_callbacks()  # runs any persist if needed
 
-        self.assertNotIn("Set-Cookie", response.headers)
+        self.assertIn("Set-Cookie", response.headers)
         # stored_session_data = self._deserialize_session_stored(request.session)
         return request
 
@@ -2656,7 +2658,7 @@ class TestRedisSessionFactory_CustomCookie(
         session["a"] = 1  # we only create a cookie on edit
 
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         hdrs_sc = response.headers.getall("Set-Cookie")
         self.assertEqual(len(hdrs_sc), 1)
         self.assertEqual(response.vary, ("Cookie",))
@@ -2679,7 +2681,7 @@ class TestRedisSessionFactory_CustomCookie(
         session["a"] = 1  # we only create a cookie on edit
 
         response = webob.Response()
-        request.response_callbacks[0](request, response)
+        self._process_callbacks(request, response)
         hdrs_sc = response.headers.getall("Set-Cookie")
         self.assertEqual(len(hdrs_sc), 1)
         self.assertEqual(response.vary, ("Cookie",))

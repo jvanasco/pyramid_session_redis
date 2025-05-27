@@ -19,9 +19,10 @@ Changelog
   * internal
     * connections were previously cached onto `Request.registry._redis_sessions`
       now cached onto `_pyramid_session_redis`
+    * tests
+      * tests were not invoking `_process_finished_callbacks` on mocked objects,
+        which improperly tested several scenarios
      
-
-
 * v1.7.0
   * released 2025.05.27
   * no changes from v1.7.0rc3  

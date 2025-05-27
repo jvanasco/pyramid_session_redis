@@ -42,7 +42,11 @@ def _parse_cookie(header: str) -> Dict:
     # ('Set-Cookie', 'session=; Max-Age=0; Path=/; expires=Wed, 31-Dec-97 23:59:59 GMT')])
     _items = [i.strip() for i in header.split(";")]
     for _it in _items:
-        (k, v) = [i.strip() for i in _it.split("=", 1)]  # max 2 items
+        if "=" in _it:
+            (k, v) = [i.strip() for i in _it.split("=", 1)]  # max 2 items
+        else:
+            k = _it
+            v = None
         morsels[k.lower()] = v
     return morsels
 
