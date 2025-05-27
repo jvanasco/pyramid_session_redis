@@ -78,7 +78,7 @@ def get_default_connection(
     :returns: An instance of `StrictRedis`
     """
     # attempt to get an existing connection from the registry
-    client = getattr(request.registry, "_redis_sessions", None)
+    client = getattr(request.registry, "_pyramid_session_redis", None)
 
     # if we found an active connection, return it
     if client is not None:
@@ -104,6 +104,6 @@ def get_default_connection(
         redis = client_class(**redis_options)
 
     # save the new connection in the registry
-    setattr(request.registry, "_redis_sessions", redis)
+    setattr(request.registry, "_pyramid_session_redis", redis)
 
     return redis

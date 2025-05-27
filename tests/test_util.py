@@ -28,12 +28,12 @@ class Test_parse_settings(unittest.TestCase):
 
     def _makeSettings(self):
         settings = {
-            "redis.sessions.secret": "mysecret",
-            "redis.sessions.cookie_secure": "false",
-            "redis.sessions.host": "localhost",
-            "redis.sessions.port": "1234",
-            "redis.sessions.redis_socket_timeout": "1234",
             "ignore.this.setting": "",
+            "redis.sessions.cookie_secure": "false",
+            "redis.sessions.redis_host": "localhost",
+            "redis.sessions.redis_port": "1234",
+            "redis.sessions.redis_socket_timeout": "1234",
+            "redis.sessions.secret": "mysecret",
         }
         return settings
 
@@ -41,8 +41,8 @@ class Test_parse_settings(unittest.TestCase):
         settings = self._makeSettings()
         inst = self._makeOne(settings)
         self.assertEqual(False, inst["cookie_secure"])
-        self.assertEqual("localhost", inst["host"])
-        self.assertEqual(1234, inst["port"])
+        self.assertEqual("localhost", inst["redis_host"])
+        self.assertEqual(1234, inst["redis_port"])
         self.assertEqual(1234.0, inst["redis_socket_timeout"])
         self.assertNotIn("ignore.this.setting", inst)
 
@@ -61,16 +61,16 @@ class Test_parse_settings(unittest.TestCase):
         from pyramid.exceptions import ConfigurationError
 
         settings = {
-            "redis.sessions.secret": "test",
-            "redis.sessions.prefix": "test",
             "redis.sessions.id_generator": "test",
+            "redis.sessions.prefix": "test",
+            "redis.sessions.secret": "test",
         }
         self.assertRaises(ConfigurationError, self._makeOne, settings)
 
     def test_prefix_in_options(self):
         settings = {
-            "redis.sessions.secret": "test",
             "redis.sessions.prefix": "testprefix",
+            "redis.sessions.secret": "test",
         }
         inst = self._makeOne(settings)
         implicit_generator = inst["id_generator"]

@@ -16,6 +16,8 @@ from webtest import TestApp
 # local
 import pyramid_session_redis
 from pyramid_session_redis.session import RedisSession
+from ._util import is_cookie_setter
+from ._util import is_cookie_unsetter
 from ._util import LIVE_PSR_CONFIG
 from .web_app import main
 
@@ -28,36 +30,16 @@ INVALIDATE_CONFIG_FALSE = LIVE_PSR_CONFIG.copy()
 INVALIDATE_CONFIG_FALSE.update({"redis.sessions.invalidate_empty_session": False})
 
 
-def _parse_cookie(header: str) -> Dict:
-    morsels = {}
-    # ('Set-Cookie', 'session=; Max-Age=0; Path=/; expires=Wed, 31-Dec-97 23:59:59 GMT')])
-    _items = [i.strip() for i in header.split(";")]
-    for _it in _items:
-        (k, v) = [i.strip() for i in _it.split("=", 1)]  # max 2 items
-        morsels[k.lower()] = v
-    return morsels
-
-
 class AppTest(unittest.TestCase):
     _testapp: Optional[TestApp] = None
     _pyramid_app: Router
     _settings: Dict = LIVE_PSR_CONFIG
 
     def assertCookieIsSetter(self, cookie: str) -> bool:
-        morsels = _parse_cookie(cookie)
-        assert morsels["session"] != ""  # not empty string
-        if "max-age" in morsels:
-            assert int(morsels["max-age"]) >= 1
-        # expires=Wed, 31-Dec-97 23:59:59 GMT
-        return True
+        assert is_cookie_setter(cookie)
 
     def assertCookieIsUnsetter(self, cookie: str) -> bool:
-        morsels = _parse_cookie(cookie)
-        assert morsels["session"] == ""  # empty string
-        if "max-age" in morsels:
-            assert int(morsels["max-age"]) <= 0
-        # expires=Wed, 31-Dec-97 23:59:59 GMT
-        return True
+        assert is_cookie_unsetter(cookie)
 
     def setUp(self) -> None:
         self._pyramid_app = app = main(None, **self._settings)
@@ -176,8 +158,8 @@ class Test_InvalidateEmptySession_Unconfigured(_Test_InvalidateEmptySession):
     def test_not_configured(self) -> None:
         # 1.7 = False
         # 1.8 = True
-        assert pyramid_session_redis.INVALIDATE_EMPTY_SESSION is False
-        self._test_session_access__set__then__unset(invalidates=False)
+        assert pyramid_session_redis.INVALIDATE_EMPTY_SESSION is True
+        self._test_session_access__set__then__unset(invalidates=True)
 
 
 class Test_InvalidateEmptySession_True(_Test_InvalidateEmptySession):

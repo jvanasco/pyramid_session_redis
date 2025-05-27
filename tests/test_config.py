@@ -46,13 +46,13 @@ class Test_includeme_simple(unittest.TestCase):
         request = testing.DummyRequest()
         self.config = testing.setUp(request=request)
         self.config.registry.settings = {
-            "redis.sessions.secret": "supersecret",
-            "redis.sessions.db": 9,
-            "redis.sessions.serialize": "pickle.dumps",
             "redis.sessions.deserialize": "pickle.loads",
-            "redis.sessions.id_generator": _id_path,
-            "redis.sessions.client_callable": _client_path,
             "redis.sessions.func_invalid_logger": _invalid_logger,
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.redis_client_callable": _client_path,
+            "redis.sessions.redis_db": 9,
+            "redis.sessions.secret": "supersecret",
+            "redis.sessions.serialize": "pickle.dumps",
         }
         self.config.include("pyramid_session_redis")
         self.settings = self.config.registry.settings
@@ -74,7 +74,7 @@ class Test_includeme_simple(unittest.TestCase):
 
     def test_includeme_client_callable(self):
         request = get_current_request()
-        get_client = self.settings["redis.sessions.client_callable"]
+        get_client = self.settings["redis.sessions.redis_client_callable"]
         self.assertEqual(get_client(request), "client")
 
     def test_includeme_invalid_logger(self):
@@ -90,14 +90,14 @@ class Test_includeme_advanced(unittest.TestCase):
         request = testing.DummyRequest()
         self.config = testing.setUp(request=request)
         self.config.registry.settings = {
-            "redis.sessions.db": 9,
-            "redis.sessions.serialize": "pickle.dumps",
             "redis.sessions.deserialize": "pickle.loads",
-            "redis.sessions.id_generator": _id_path,
-            "redis.sessions.client_callable": _client_path,
             "redis.sessions.func_invalid_logger": _invalid_logger,
-            # "redis.sessions.secret": "supersecret",  # don't include!
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.redis_client_callable": _client_path,
+            "redis.sessions.redis_db": 9,
+            "redis.sessions.serialize": "pickle.dumps",
             # "redis.sessions.cookie_signer": "",  # don't include!
+            # "redis.sessions.secret": "supersecret",  # don't include!
         }
         with self.assertRaises(ConfigurationError) as cm:
             self.config.include("pyramid_session_redis")
@@ -111,14 +111,14 @@ class Test_includeme_advanced(unittest.TestCase):
         request = testing.DummyRequest()
         self.config = testing.setUp(request=request)
         self.config.registry.settings = {
-            "redis.sessions.db": 9,
-            "redis.sessions.serialize": "pickle.dumps",
-            "redis.sessions.deserialize": "pickle.loads",
-            "redis.sessions.id_generator": _id_path,
-            "redis.sessions.client_callable": _client_path,
-            "redis.sessions.func_invalid_logger": _invalid_logger,
-            "redis.sessions.secret": "supersecret",
             "redis.sessions.cookie_signer": CustomCookieSigner(),
+            "redis.sessions.deserialize": "pickle.loads",
+            "redis.sessions.func_invalid_logger": _invalid_logger,
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.redis_client_callable": _client_path,
+            "redis.sessions.redis_db": 9,
+            "redis.sessions.secret": "supersecret",
+            "redis.sessions.serialize": "pickle.dumps",
         }
         with self.assertRaises(ConfigurationError) as cm:
             self.config.include("pyramid_session_redis")
@@ -132,11 +132,11 @@ class Test_includeme_advanced(unittest.TestCase):
         request = testing.DummyRequest()
         self.config = testing.setUp(request=request)
         self.config.registry.settings = {
-            "redis.sessions.db": 9,
-            "redis.sessions.serialize": "pickle.dumps",
-            "redis.sessions.deserialize": "pickle.loads",
-            "redis.sessions.id_generator": _id_path,
-            "redis.sessions.client_callable": _client_path,
-            "redis.sessions.func_invalid_logger": _invalid_logger,
             "redis.sessions.cookie_signer": CustomCookieSigner(),
+            "redis.sessions.deserialize": "pickle.loads",
+            "redis.sessions.func_invalid_logger": _invalid_logger,
+            "redis.sessions.id_generator": _id_path,
+            "redis.sessions.redis_client_callable": _client_path,
+            "redis.sessions.redis_db": 9,
+            "redis.sessions.serialize": "pickle.dumps",
         }
