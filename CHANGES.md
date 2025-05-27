@@ -1,55 +1,80 @@
 Changelog
 =========
 
-* 2025.05.22
-    * version 1.7.0rc3
-    * hashlib.md5() specifies `usedforsecurity=False` in Py39 and above
 
-* 2025.05.22
-    * version 1.7.0rc2
-    * more typing
-    * testing on py313
-	* drop testing/support for python3.6 due to github removing ubuntu20.04
-	* update pre-commit to use flake8 and a CI version of black
-	* minimum redis Python API is now 4.0.0 (November 15 2021)
-    * removed deprecated redis kwargs:
-        ``socket_timeout``
-            replaced by  ``redis_socket_timeout``.
-        ``connection_pool``
-            replaced by ``redis_connection_pool``.
-        ``charset``
-            replaced by ``redis_encoding``.
-        ``errors``
-            replaced by ``redis_encoding_errors``.
-        ``unix_socket_path``
-            replaced by ``redis_unix_socket_path``.
-    * util.SerializerInterface is deprecated and replaced with util.SignedSerializerInterface
-       - this will be removed in the next minor release (1.8)
-    * the entire `pyramid_session_redis.legacy` namespace has been deprecated.
-      this namespace existed to migrate off the `pyramid_redis_session` package
-      that package has not been updated in 9 years, and last supported python 3.4
-       - this will be removed in the next minor release (1.8)
-    * _NullSerializer has been deprecated and renamed to _StringSerializer
-    * introduce `invalidate_empty_session` to automatically clear sessions
-    * deprecate additional redis kwargs, in favor of variants with a `redis_` prefix:
-        url -> redis_url
-        host -> redis_host
-        port -> redis_port
-        db -> redis_db
-        password -> redis_password
-        client_callable -> redis_client_callable
-       - this will be removed in the next minor release (1.8)
+* v1.8.0dev
+  * remove deprecations:
+    * `pyramid_session_redis.legacy` namespace
+    * `util.SerializerInterface`
+    * `util._NullSerializer`
+  * remove deprecated constructor kwargs; use `redis_` prefixes:
+      client_callable -> redis_client_callable
+      db -> redis_db
+      host -> redis_host
+      password -> redis_password
+      port -> redis_port
+      url -> redis_url
+  * toggle behavior:
+    `invalidate_empty_session` defaults to `True`
+  * internal
+    * connections were previously cached onto `Request.registry._redis_sessions`
+      now cached onto `_pyramid_session_redis`
+     
 
-* 2023.06.13
-    * version 1.7.0rc1
-    * Breaking Changes:
-      * The `session_id` will now always be serialized into a string.
-        * If a custom `id_generator` is used, it MUST return a string.
-        * Default usage of this package should not be affected at all.      
-	* code style changes
-	* dropping PY2
-	* initial typing support
-	* remove some webob dependencies
+
+* v1.7.0
+  * released 2025.05.27
+  * no changes from v1.7.0rc3  
+
+* v1.7.0rc3
+  * 2025.05.22
+  * hashlib.md5() specifies `usedforsecurity=False` in Py39 and above
+
+* v1.7.0rc2
+  * 2025.05.22
+  * more typing
+  * testing on py313
+  * drop testing/support for python3.6 due to github removing ubuntu20.04
+  * update pre-commit to use flake8 and a CI version of black
+  * minimum redis Python API is now 4.0.0 (November 15 2021)
+  * removed deprecated redis kwargs:
+      ``socket_timeout``
+          replaced by  ``redis_socket_timeout``.
+      ``connection_pool``
+          replaced by ``redis_connection_pool``.
+      ``charset``
+          replaced by ``redis_encoding``.
+      ``errors``
+          replaced by ``redis_encoding_errors``.
+      ``unix_socket_path``
+          replaced by ``redis_unix_socket_path``.
+  * util.SerializerInterface is deprecated and replaced with util.SignedSerializerInterface
+     - this will be removed in the next minor release (1.8)
+  * the entire `pyramid_session_redis.legacy` namespace has been deprecated.
+    this namespace existed to migrate off the `pyramid_redis_session` package
+    that package has not been updated in 9 years, and last supported python 3.4
+     - this will be removed in the next minor release (1.8)
+  * _NullSerializer has been deprecated and renamed to _StringSerializer
+  * introduce `invalidate_empty_session` to automatically clear sessions
+  * deprecate additional redis kwargs, in favor of variants with a `redis_` prefix:
+      url -> redis_url
+      host -> redis_host
+      port -> redis_port
+      db -> redis_db
+      password -> redis_password
+      client_callable -> redis_client_callable
+     - this will be removed in the next minor release (1.8)
+
+* v1.7.0rc1
+  * 2023.06.13
+  * Breaking Changes:
+    * The `session_id` will now always be serialized into a string.
+      * If a custom `id_generator` is used, it MUST return a string.
+      * Default usage of this package should not be affected at all.      
+  * code style changes
+  * dropping PY2
+  * initial typing support
+  * remove some webob dependencies
 
 * 2021.11.16
 	* version 1.6.3
