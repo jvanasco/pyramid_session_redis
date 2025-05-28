@@ -9,6 +9,16 @@ from typing import Optional
 from redis.exceptions import WatchError
 
 
+import warnings
+
+warnings.filterwarnings(
+    "ignore", message=".*pkg_resources.declare_namespace.*", category=DeprecationWarning
+)
+warnings.filterwarnings(
+    "ignore", message=".*pkg_resources is deprecated.*", category=DeprecationWarning
+)
+
+
 # ==============================================================================
 
 

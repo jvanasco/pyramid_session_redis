@@ -28,12 +28,12 @@ class Test_parse_settings(unittest.TestCase):
 
     def _makeSettings(self):
         settings = {
-            "redis.sessions.secret": "mysecret",
+            "ignore.this.setting": "",
             "redis.sessions.cookie_secure": "false",
             "redis.sessions.host": "localhost",
             "redis.sessions.port": "1234",
             "redis.sessions.redis_socket_timeout": "1234",
-            "ignore.this.setting": "",
+            "redis.sessions.secret": "mysecret",
         }
         return settings
 
@@ -61,9 +61,9 @@ class Test_parse_settings(unittest.TestCase):
         from pyramid.exceptions import ConfigurationError
 
         settings = {
-            "redis.sessions.secret": "test",
-            "redis.sessions.prefix": "test",
             "redis.sessions.id_generator": "test",
+            "redis.sessions.prefix": "test",
+            "redis.sessions.secret": "test",
         }
         self.assertRaises(ConfigurationError, self._makeOne, settings)
 
