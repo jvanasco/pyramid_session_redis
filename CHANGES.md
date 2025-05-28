@@ -3,6 +3,7 @@ Changelog
 
 * version 1.7.1
     * backported test fixes from 1.8.0
+    * backported some functionality from 1.8.0
     * internal storage renamed to _pyramid_session_redis
 
 * version 1.7.0
