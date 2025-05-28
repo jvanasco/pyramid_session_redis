@@ -7,10 +7,11 @@ on:
   push:
     branches: 
       - main
-      # branches used to test the workflow
-      - "workflow_test_*"
+      - "branch-*"
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - "branch-*"
 
 jobs:
   build:
