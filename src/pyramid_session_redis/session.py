@@ -253,7 +253,7 @@ class RedisSession(object):
     _timeout: Optional[int]
     _timeout_trigger: Optional[int]
     _python_expires: Optional[bool]
-    _new: bool
+    _new: bool  # only used for testing/resync
 
     def __init__(
         self,
@@ -302,7 +302,7 @@ class RedisSession(object):
         self._timeout = timeout
         self._timeout_trigger = timeout_trigger
         self._python_expires = python_expires
-        self._new = new
+        self._new = new  # only used for testing/resync
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
@@ -416,6 +416,11 @@ class RedisSession(object):
 
     @property
     def session_id(self) -> str:
+        """
+        note:
+        accessing this will create a new `_session_state` and `session_id`
+        if there is no `_session_state`, such as in the case of an invalidation
+        """
         return self._session_state.session_id
 
     @property

@@ -8,6 +8,7 @@ from typing import Callable
 from typing import cast
 from typing import Dict
 from typing import Optional
+from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import Union
 import unittest
@@ -39,6 +40,7 @@ from pyramid_session_redis.util import LazyCreateSession
 from . import DummyRedis  # redis Client
 from ._util import CustomCookieSigner
 from ._util import is_cookie_setter
+from ._util import is_cookie_unsetter
 from .test_config import dummy_id_generator
 
 
@@ -55,7 +57,6 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         self, request: testing.DummyRequest, secret="secret", is_new_session=True, **kw
     ) -> RedisSession:
         session = RedisSessionFactory(secret, **kw)(request)
-
         # Fake the session being new
         if is_new_session:
             session._new = True
@@ -149,6 +150,92 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
         setattr(request.registry, "_pyramid_session_redis", _redis_sessions)
         request.exception = None
         return request
+
+    def _setup_multi_request(
+        self,
+        cookie_name: Optional[str] = None,
+        cookie_path: Optional[str] = None,
+        cookie_domain: Optional[str] = None,
+    ) -> Tuple[testing.DummyRequest, webob.Response]:
+        """
+        modeled after `.test_existing_session()`
+        """
+        kwargs__is_cookie_setter = {}
+        kwargs__makeOneForRequest = {}
+        kwargs__set_session_cookie = {}
+        if cookie_name:
+            kwargs__is_cookie_setter["cookie_name"] = cookie_name
+            kwargs__makeOneForRequest["cookie_name"] = cookie_name
+            kwargs__set_session_cookie["cookie_name"] = cookie_name
+        if cookie_path:
+            kwargs__is_cookie_setter["cookie_path"] = cookie_path
+            kwargs__makeOneForRequest["cookie_path"] = cookie_path
+        if cookie_domain:
+            kwargs__is_cookie_setter["cookie_domain"] = cookie_domain
+            kwargs__makeOneForRequest["cookie_domain"] = cookie_domain
+
+        # first, build a session to have data
+        request1 = self._make_request()
+        session_id = self._new_session_id(request1)
+        self._set_session_cookie(
+            request=request1, session_id=session_id, **kwargs__set_session_cookie
+        )
+        request1.session = self._makeOneForRequest(
+            request1, **kwargs__makeOneForRequest
+        )
+        request1.session["a"] = None  # put some data into the cookie
+        response1 = webob.Response()
+        self._process_callbacks(request1, response1)
+        assert "Set-Cookie" in response1.headers
+        assert is_cookie_setter(
+            response1.headers["Set-Cookie"], **kwargs__is_cookie_setter
+        )
+
+        # second, ensure we load the session
+        # we do nothing - so there are no cookies
+        request2 = self._make_request(request_old=request1)
+        self._set_session_cookie(
+            request=request2, session_id=session_id, **kwargs__set_session_cookie
+        )
+        request2.session = self._makeOneForRequest(
+            request2, is_new_session=False, **kwargs__makeOneForRequest
+        )
+        assert "a" in request2.session
+        response2 = webob.Response()
+        self._process_callbacks(request2, response2)
+        # we've done nothing to the session
+        assert "Set-Cookie" not in response2.headers
+
+        return request2, response2
+
+    def _setup_multi_request__new_req(
+        self,
+        request: testing.DummyRequest,
+        cookie_name: Optional[str] = None,
+        cookie_path: Optional[str] = None,
+        cookie_domain: Optional[str] = None,
+    ) -> testing.DummyRequest:
+        kwargs__makeOneForRequest = {}
+        kwargs__set_session_cookie = {}
+        if cookie_name:
+            kwargs__makeOneForRequest["cookie_name"] = cookie_name
+            kwargs__set_session_cookie["cookie_name"] = cookie_name
+        if cookie_path:
+            kwargs__makeOneForRequest["cookie_path"] = cookie_path
+        if cookie_domain:
+            kwargs__makeOneForRequest["cookie_domain"] = cookie_domain
+
+        request2 = self._make_request(request_old=request)
+        self._set_session_cookie(
+            request=request2,
+            session_id=request.session.session_id,
+            **kwargs__set_session_cookie,
+        )
+        request2.session = self._makeOneForRequest(
+            request2, is_new_session=False, **kwargs__makeOneForRequest
+        )
+        assert "a" in request2.session
+        return request2
 
 
 class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
@@ -263,23 +350,56 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         cookie_path = "/path"
         cookie_domain = "example.com"
 
-        request = self._make_request()
+        kwargs__cookiecheck = {
+            "cookie_name": cookie_name,
+            "cookie_path": cookie_path,
+            "cookie_domain": cookie_domain,
+        }
+
+        # request 1
+        # no session access
+        request1 = self._make_request()
         self._set_session_cookie(
-            request=request,
+            request=request1,
             cookie_name=cookie_name,
-            session_id=self._new_session_id(request),
+            session_id=self._new_session_id(request1),
         )
-        session = request.session = self._makeOneForRequest(
-            request,
+        request1.session = self._makeOneForRequest(
+            request1,
             cookie_name=cookie_name,
             cookie_path=cookie_path,
             cookie_domain=cookie_domain,
         )
-        session.invalidate()
-        response = webob.Response()
-        self._process_callbacks(request, response)
-        set_cookie_headers = response.headers.getall("Set-Cookie")
+        request1.session.invalidate()
+        response1 = webob.Response()
+        self._process_callbacks(request1, response1)
+        set_cookie_headers = response1.headers.getall("Set-Cookie")
+        # v1.8, `invalidate_empty_session=True` by default
         self.assertEqual(len(set_cookie_headers), 1)
+        assert is_cookie_unsetter(
+            response1.headers["Set-Cookie"], **kwargs__cookiecheck
+        )
+
+        # request 2
+        # session has data
+        _request, _response = self._setup_multi_request(
+            cookie_name=cookie_name,
+            cookie_path=cookie_path,
+            cookie_domain=cookie_domain,
+        )
+        request2 = self._setup_multi_request__new_req(
+            _request,
+            cookie_name=cookie_name,
+            cookie_path=cookie_path,
+            cookie_domain=cookie_domain,
+        )
+        request2.session.invalidate()
+        response2 = webob.Response()
+        self._process_callbacks(request2, response2)
+        assert "Set-Cookie" in response2.headers
+        assert is_cookie_unsetter(
+            response2.headers["Set-Cookie"], **kwargs__cookiecheck
+        )
 
         # Make another response and .delete_cookie() using the same values and
         # settings to get the expected header to compare against
@@ -287,7 +407,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         response_to_check_against.delete_cookie(
             cookie_name, path=cookie_path, domain=cookie_domain
         )
-        expected_header = response.headers.getall("Set-Cookie")[0]
+        expected_header = response2.headers.getall("Set-Cookie")[0]
         self.assertEqual(set_cookie_headers[0], expected_header)
 
     # The tests below with names beginning with test_new_session_ test cases
@@ -447,34 +567,54 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
     # as in test_ctor_with_cookie_still_valid.
 
     def test_existing_session(self):
-        # v1.8, `invalidate_empty_session=True` by default
         # v1.7, `invalidate_empty_session=False` by default
-        # first, check a filled cookie
-        # this should send no header, because nothing changed
+        # v1.8, `invalidate_empty_session=True` by default
+
+        # subtest 1
+        # no session access
         request1 = self._make_request()
-        self._set_session_cookie(
-            request=request1, session_id=self._new_session_id(request1)
-        )
+        session_id1 = self._new_session_id(request1)
+        self._set_session_cookie(request=request1, session_id=session_id1)
         request1.session = self._makeOneForRequest(request1)
-        request1.session["a"] = None  # put some data into the cookie
         response1 = webob.Response()
         self._process_callbacks(request1, response1)
-        self.assertIn("Set-Cookie", response1.headers)
-        assert is_cookie_setter(response1.headers["Set-Cookie"])
+        assert "Set-Cookie" not in response1.headers
 
-        # now check an empty cookie
-        request2 = self._make_request()
-        self._set_session_cookie(
-            request=request2, session_id=self._new_session_id(request2)
-        )
-        request2.session = self._makeOneForRequest(request2)
-        response2 = webob.Response()
-        self._process_callbacks(request2, response2)
-        self.assertNotIn("Set-Cookie", response2.headers)
-        # # v1.8 below
-        # self.assertIn("Set-Cookie", response2.headers)
-        # cookie_header2 = response2.headers["Set-Cookie"]
-        # is_cookie_unsetter(cookie_header2)
+        # subtest 2
+        # session has data
+        # 2a - build session
+        request2a = self._make_request()
+        session_id2 = self._new_session_id(request2a)
+        self._set_session_cookie(request=request2a, session_id=session_id2)
+        request2a.session = self._makeOneForRequest(request2a)
+        request2a.session["a"] = None  # put some data into the cookie
+        response2a = webob.Response()
+        self._process_callbacks(request2a, response2a)
+        assert "Set-Cookie" in response2a.headers
+        assert is_cookie_setter(response2a.headers["Set-Cookie"])
+
+        # 2b - don't change existing session
+        request2b = self._make_request(request_old=request2a)
+        self._set_session_cookie(request=request2b, session_id=session_id2)
+        request2b.session = self._makeOneForRequest(request2b, is_new_session=False)
+        assert "a" in request2b.session
+        response2b = webob.Response()
+        self._process_callbacks(request2b, response2b)
+        # we've done nothing to the session
+        assert "Set-Cookie" not in response2b.headers
+
+        # 2c - empty existing session
+        request2c = self._make_request(request_old=request2a)
+        self._set_session_cookie(request=request2c, session_id=session_id2)
+        request2c.session = self._makeOneForRequest(request2c, is_new_session=False)
+        assert "a" in request2c.session
+        del request2c.session["a"]
+        response2c = webob.Response()
+        self._process_callbacks(request2c, response2c)
+        # v1.8, `invalidate_empty_session=True` by default
+        # v1.7, `invalidate_empty_session=False` by default
+        assert "Set-Cookie" not in response2c.headers
+        # assert is_cookie_unsetter(response2c.headers["Set-Cookie"])
 
     def test_existing_session_invalidate(self):
         # existing session -> invalidate()
