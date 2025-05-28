@@ -670,6 +670,11 @@ def _cookie_callback(
     Response callback to set the appropriate Set-Cookie header.
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
+
+    Important: `invalidate_empty_session` must remain an option so people
+    can keep empty sessions if using a workaround.
+
+    see: https://github.com/jvanasco/pyramid_session_redis/issues/67
     """
 
     # `session._session_state` will not exist after `invalidate` and other methods
@@ -706,14 +711,20 @@ def _cookie_callback(
             # session._session_state.dont_refresh = True
             return
 
-    # Important: this must remain an option so people can keep empty sessions
-    # see: https://github.com/jvanasco/pyramid_session_redis/issues/67
-    if invalidate_empty_session:
+    # gate this function against `session._invalidated`
+    # `session.new` will create a new `_session_state` if invalidated
+    # creating a new _session_state will lose the invalidated check
+    if invalidate_empty_session and not session._invalidated:
         # if the session is empty...
         if not session.managed_dict:
-            # invalidate the session, clearing Redis and setting a marker
-            session.invalidate()
-            # the next block will delete the cookie and return
+            if session.new:
+                # mark this session to not persist
+                session._session_state.dont_persist = True
+                session._session_state.dont_refresh = True
+            else:
+                # invalidate the session, clearing Redis and setting a marker
+                session.invalidate()
+                # the next block will delete the cookie and return
 
     if session._invalidated:
         if session_cookie_was_valid:
