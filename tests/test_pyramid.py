@@ -35,10 +35,10 @@ class AppTest(unittest.TestCase):
     _pyramid_app: Router
     _settings: Dict = LIVE_PSR_CONFIG
 
-    def assertCookieIsSetter(self, cookie: str) -> bool:
+    def assertCookieIsSetter(self, cookie: str) -> None:
         assert is_cookie_setter(cookie)
 
-    def assertCookieIsUnsetter(self, cookie: str) -> bool:
+    def assertCookieIsUnsetter(self, cookie: str) -> None:
         assert is_cookie_unsetter(cookie)
 
     def setUp(self) -> None:
