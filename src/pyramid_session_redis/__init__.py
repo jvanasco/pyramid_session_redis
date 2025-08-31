@@ -30,7 +30,7 @@ from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
 
 
-__VERSION__ = "1.8.0dev"
+__VERSION__ = "1.8.0"
 
 
 # typing
