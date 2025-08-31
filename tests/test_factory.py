@@ -53,6 +53,8 @@ if TYPE_CHECKING:
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
 
+    _set_up_session_in_redis: Callable
+
     def _makeOneForRequest(
         self, request: testing.DummyRequest, secret="secret", is_new_session=True, **kw
     ) -> RedisSession:
@@ -1009,6 +1011,10 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
 
 class _TestRedisSessionFactoryCore_UtilsNew(object):
+
+    _makeOneForRequest: Callable
+    _process_callbacks: Callable
+    assertIn: Callable
 
     # TODO: typing/protocol for these expected mixin methods
     _assert_is_a_header_to_set_cookie: Callable
