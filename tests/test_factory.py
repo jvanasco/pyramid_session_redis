@@ -43,10 +43,10 @@ from ._util import is_cookie_setter
 from ._util import is_cookie_unsetter
 from .test_config import dummy_id_generator
 
-
 if TYPE_CHECKING:
-    from redis.client import Redis as RedisClient
     from collections.abc import KeysView
+
+    from redis.client import Redis as RedisClient
 
 # ==============================================================================
 
