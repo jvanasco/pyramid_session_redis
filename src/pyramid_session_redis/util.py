@@ -28,8 +28,9 @@ from .exceptions import InvalidSessionId_Deserialization
 from .exceptions import InvalidSessionId_Serialization
 
 if TYPE_CHECKING:
-    from .session import RedisSession
     from redis.client import Redis as RedisClient
+
+    from .session import RedisSession
 
     # from webob.cookies import _Serializer
 

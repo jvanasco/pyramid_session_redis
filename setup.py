@@ -53,7 +53,6 @@ setup(
     classifiers=[
         "Intended Audience :: Developers",
         "Framework :: Pyramid",
-        "License :: OSI Approved :: BSD License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
@@ -69,12 +68,14 @@ setup(
     url="https://github.com/jvanasco/pyramid_session_redis",
     license="BSD",
     test_suite="nose.collector",
-    packages=find_packages(
-        where="src",
-    ),
+    packages=find_packages(where="src"),
     package_dir={"": "src"},
-    package_data={"pyramid_session_redis": ["py.typed"]},
-    include_package_data=True,
+    package_data={
+        "": [
+            "py.typed",
+            "docs/*",
+        ],
+    },
     zip_safe=False,
     entry_points="",
     install_requires=install_requires,

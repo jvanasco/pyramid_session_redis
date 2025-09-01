@@ -29,21 +29,20 @@ from .util import NotSpecified
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_SESSION_ID
 
-
-__VERSION__ = "1.8.0dev"
-
-
-# typing
 if TYPE_CHECKING:
     from pyramid.config import Configurator
-    from redis.connection import ConnectionPool
     from redis.client import Redis as RedisClient
+    from redis.connection import ConnectionPool
     from webob.request import Request
     from webob.response import Response
+
     from .util import SignedSerializerInterface
 
     # from pyramid.request import Request  # webob has stubs; pyramid does not
     # from pyramid.response import Response  # webob has stubs; pyramid does not
+
+
+__VERSION__ = "1.8.0"
 
 
 # ==============================================================================

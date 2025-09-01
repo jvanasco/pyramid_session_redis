@@ -4,12 +4,10 @@ import pickle
 from typing import Any
 from typing import Dict
 from typing import Optional
+import warnings
 
 # pypi
 from redis.exceptions import WatchError
-
-
-import warnings
 
 warnings.filterwarnings(
     "ignore", message=".*pkg_resources.declare_namespace.*", category=DeprecationWarning
