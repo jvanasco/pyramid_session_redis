@@ -1,8 +1,7 @@
 Changelog
 =========
 
-
-* v1.8.0dev
+* v1.8.0
   * remove deprecations:
     * `pyramid_session_redis.legacy` namespace
     * `util.SerializerInterface`
