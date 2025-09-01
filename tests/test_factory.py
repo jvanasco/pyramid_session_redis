@@ -43,15 +43,17 @@ from ._util import is_cookie_setter
 from ._util import is_cookie_unsetter
 from .test_config import dummy_id_generator
 
-
 if TYPE_CHECKING:
-    from redis.client import Redis as RedisClient
     from collections.abc import KeysView
+
+    from redis.client import Redis as RedisClient
 
 # ==============================================================================
 
 
 class _TestRedisSessionFactoryCore(unittest.TestCase):
+
+    _set_up_session_in_redis: Callable
 
     def _makeOneForRequest(
         self, request: testing.DummyRequest, secret="secret", is_new_session=True, **kw
@@ -1010,6 +1012,10 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
 
 
 class _TestRedisSessionFactoryCore_UtilsNew(object):
+
+    _makeOneForRequest: Callable
+    _process_callbacks: Callable
+    assertIn: Callable
 
     # TODO: typing/protocol for these expected mixin methods
     _assert_is_a_header_to_set_cookie: Callable
