@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/jvanasco/pyramid_session_redis.png)](https://travis-ci.org/jvanasco/pyramid_session_redis)
+[![Build Status](https://github.com/jvanasco/pyramid_session_redis/actions/workflows/python-package.yml/badge.svg)](https://github.com/jvanasco/pyramid_session_redis/actions/workflows/python-package.yml)
 
 
 Overview
