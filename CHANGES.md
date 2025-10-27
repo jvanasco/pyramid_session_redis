@@ -2,7 +2,13 @@ Changelog
 =========
 
 
-* v1.8.0dev
+* v1.8.1
+  * updated readme example, which still used the deprecated redis constructor args.  
+    PR #90 courtesy of https://github.com/williamwu0220
+  * updated mypi/test requirements
+  * added versioning policy to readme
+
+* v1.8.0
   * remove deprecations:
     * `pyramid_session_redis.legacy` namespace
     * `util.SerializerInterface`
