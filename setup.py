@@ -31,6 +31,7 @@ install_requires = [
     "typing_extensions",  # for 3.7 `Literal`; Protocol
 ]
 testing_requires = [
+    "coverage",
     "mypy",
     "nose",
     "pytest",
@@ -40,7 +41,6 @@ testing_requires = [
     "webtest",
     "waitress",
 ]
-testing_extras = install_requires + testing_requires + ["coverage"]
 docs_extras = [
     "sphinx",
 ]
@@ -68,7 +68,6 @@ setup(
     author_email="jonathan@findmeon.com",
     url="https://github.com/jvanasco/pyramid_session_redis",
     license="BSD",
-    test_suite="nose.collector",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     package_data={
@@ -80,9 +79,8 @@ setup(
     zip_safe=False,
     entry_points="",
     install_requires=install_requires,
-    tests_require=testing_requires,
     extras_require={
-        "testing": testing_extras,
+        "testing": testing_requires,
         "docs": docs_extras,
     },
 )
