@@ -7,6 +7,7 @@ Changelog
     PR #90 courtesy of https://github.com/williamwu0220
   * updated mypi/test requirements
   * added versioning policy to readme
+  * small packaging fixes
 
 * v1.8.0
   * remove deprecations:
