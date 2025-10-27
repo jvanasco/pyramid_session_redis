@@ -33,6 +33,20 @@ and
 * Pyramid 2.0
 
 
+Versioning Policy
+-----------------
+
+This project uses a popular variant of Semantic Versioning that is commonplace in the Python ecosystem and used by Python itself.
+
+Major versions denote large breaking changes, such as package reorganization or the removal of large functionalities.  This is typically used by API redesigns.
+
+Minor versions may have small breaking changes, which will be announced in advance via deprecation warnings.
+
+Patch versions should not contain breaking changes.
+
+Users should pin projects to use "less than" the next minor version.  For example, the recommended pinning for the v1.8 line of releases is "pyramid_session_redis<1.9".
+
+
 Breaking Changes
 ----------------
 
