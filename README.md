@@ -310,13 +310,13 @@ settings, see :doc:`api`. Otherwise, keep reading for the quick list:
     redis.sessions.cookie_on_exception = True
 
     # you can supply a redis connection string as a URL
-    redis.sessions.url = redis://username:password@localhost:6379/0
+    redis.sessions.redis_url = redis://username:password@localhost:6379/0
 
     # or as individual settings (note: the URL gets preference if you do both)
-    redis.sessions.host = localhost
-    redis.sessions.port = 6379
-    redis.sessions.db = 0
-    redis.sessions.password = None
+    redis.sessions.redis_host = localhost
+    redis.sessions.redis_port = 6379
+    redis.sessions.redis_db = 0
+    redis.sessions.redis_password = None
 
     # additional options can be supplied to redis-py's StrictRedis
     redis.sessions.redis_socket_timeout =
