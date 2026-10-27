@@ -35,6 +35,24 @@ Install tox separately if it is not already available. The mypy environment
 checks source, the full test suite, and consumer-side typing contracts,
 including preserved signatures of decorated session methods.
 
+Configuration layout
+--------------------
+
+``setup.cfg`` contains package metadata, dependency extras, package discovery,
+Flake8 settings, and tox environments. ``pyproject.toml`` selects the build
+backend and holds the Black, mypy, and pytest configuration. Run
+``python -m mypy`` to check the source and test paths configured there.
+
+The version remains in ``pyramid_session_redis.__VERSION__``. Setuptools reads
+its literal value through the ``attr:`` directive rather than importing the
+application during a build. Modern builds and editable installs use the
+declared PEP 517/660 backend; there is no ``setup.py`` entry point. Use
+``python -m pip install -e '.[testing,docs]'`` for development and
+``python -m build`` for distributions.
+
+``MANIFEST.in`` controls source archive contents. Pre-commit and GitHub Actions
+retain their native YAML files, and Sphinx retains ``docs/conf.py``.
+
 Real Redis and Valkey backends
 ------------------------------
 
@@ -61,7 +79,7 @@ Run from the repository root::
 
 Open ``docs/_build/html/index.html`` in a browser. The warnings-as-errors build
 also runs in CI. Configuration reads the version from source without importing
-``setup.py`` or connecting to a backend.
+the application or connecting to a backend.
 
 Documentation sources live in the top-level ``docs/`` directory. They are
 maintained in the repository and excluded from both wheels and source archives;

@@ -2,6 +2,10 @@ Changelog
 =========
 
 * Unreleased
+  * Move packaging metadata and dependencies from setup.py into setup.cfg,
+    along with tox environments. Consolidate mypy and pytest settings in
+    pyproject.toml and declare the setuptools build backend. Remove obsolete
+    easy_install aliases and nose-only configuration.
   * Pin setuptools below 82 in the testing extra for older Pyramid releases
     that import pkg_resources without declaring their own upper bound.
   * Type-check the full test suite, explicitly adapt partial test clients, and

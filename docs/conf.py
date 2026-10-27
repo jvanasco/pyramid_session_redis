@@ -1,4 +1,4 @@
-"""Build from a checkout without importing setup.py or the application."""
+"""Build from a checkout without importing the application."""
 
 import ast
 from pathlib import Path
