@@ -63,12 +63,22 @@ jobs:
         pip install --upgrade tox flake8 pytest mypy
         pip install ".[testing]"
         pip freeze
-    - name: Test with tox/pytest
+    - name: Test with coverage
       # tox is used to run pytest
       env:
         PSR_TEST_REDIS_URL: redis://localhost:${{ job.services.backend.ports['6379'] }}/9
       run: |
-        tox -e py
+        tox -e coverage
+    - name: Save coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-py${{ matrix.python-version }}-${{ strategy.job-index }}
+        path: |
+          htmlcov/
+          coverage.xml
+          coverage.json
+        if-no-files-found: warn
 
   typing:
     runs-on: ubuntu-22.04

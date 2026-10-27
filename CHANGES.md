@@ -2,6 +2,10 @@ Changelog
 =========
 
 * Unreleased
+  * Add pytest-cov line and branch coverage through `tox -e coverage`, with
+    terminal, HTML, XML, and JSON reports saved by the Python/backend CI matrix.
+    Add focused regression cases for configuration validation, cookie policy,
+    expiry boundaries, lazy refresh, and optimistic writes without a TTL.
   * Move packaging metadata and dependencies from setup.py into setup.cfg,
     along with tox environments. Consolidate mypy and pytest settings in
     pyproject.toml and declare the setuptools build backend. Remove obsolete

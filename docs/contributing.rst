@@ -35,12 +35,41 @@ Install tox separately if it is not already available. The mypy environment
 checks source, the full test suite, and consumer-side typing contracts,
 including preserved signatures of decorated session methods.
 
+Coverage reports
+----------------
+
+The ``testing`` extra includes pytest-cov and coverage.py's TOML support. Run
+line and branch coverage against a disposable Redis or Valkey backend::
+
+    PSR_TEST_REDIS_URL=redis://localhost:6379/9 tox -e coverage
+
+Without a backend, leave the URL unset and run the unit suite only::
+
+    tox -e coverage -- --ignore=tests/test_pyramid.py
+
+The terminal report lists missing lines and branch destinations. Open
+``htmlcov/index.html`` to inspect them in context. ``coverage.xml`` and
+``coverage.json`` contain machine-readable reports; ``.coverage`` contains the
+raw measurements. Generated files are ignored by Git.
+
+Coverage measures the library package, including modules not imported by the
+tests. Ordinary pytest runs do not enable measurement. To use pytest directly::
+
+    python -m pytest --cov --cov-config=pyproject.toml --cov-report=term-missing
+
+The configured CI matrix runs coverage against each Python/backend combination
+and saves HTML, XML, and JSON reports as artifacts, even when tests fail. There
+is initially no minimum-percentage gate. Review uncovered behavior before
+choosing a threshold; coverage is evidence of execution, not proof that an
+assertion tests every relevant outcome. Interpreter-specific compatibility
+branches can legitimately differ between matrix entries.
+
 Configuration layout
 --------------------
 
 ``setup.cfg`` contains package metadata, dependency extras, package discovery,
 Flake8 settings, and tox environments. ``pyproject.toml`` selects the build
-backend and holds the Black, mypy, and pytest configuration. Run
+backend and holds the Black, mypy, pytest, and coverage configuration. Run
 ``python -m mypy`` to check the source and test paths configured there.
 
 The version remains in ``pyramid_session_redis.__VERSION__``. Setuptools reads

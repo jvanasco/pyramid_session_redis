@@ -20,3 +20,12 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["pyramid_session_redis"]
+branch = true
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+precision = 2

@@ -1,9 +1,11 @@
 """Session lifecycle regressions with deterministic clocks and command histories."""
 
+import datetime
 import pickle
 from unittest.mock import patch
 
 from pyramid import testing
+from pyramid.response import Response
 import pytest
 
 from pyramid_session_redis import RedisSessionFactory
@@ -14,6 +16,7 @@ from pyramid_session_redis.exceptions import SessionConflict
 from pyramid_session_redis.session import RedisSession
 from pyramid_session_redis.util import _parse_settings
 from pyramid_session_redis.util import LazyCreateSession
+from . import as_redis_client
 from . import DummyRedis
 
 
@@ -106,6 +109,14 @@ def test_negative_timeout_is_rejected(redis, clock):
         RedisSessionFactory(secret="secret", timeout=-1)
     with pytest.raises(ValueError):
         make_session(redis).adjust_session_timeout(-1)
+    with pytest.raises(ValueError):
+        RedisSession(
+            redis=as_redis_client(redis),
+            session_id=LazyCreateSession,
+            new=True,
+            new_session=lambda: "new",
+            timeout=-1,
+        )
 
 
 @pytest.mark.parametrize(
@@ -141,9 +152,16 @@ def test_default_writes_keep_the_fast_path(redis, clock):
 
 
 @pytest.mark.parametrize("invalidate", [True, False])
-def test_optimistic_writes_reject_removed_or_changed_payload(redis, clock, invalidate):
-    first = make_session(redis, optimistic_concurrency=True)
-    second = make_session(redis, optimistic_concurrency=True)
+@pytest.mark.parametrize("set_redis_ttl", [True, False])
+def test_optimistic_writes_reject_removed_or_changed_payload(
+    redis, clock, invalidate, set_redis_ttl
+):
+    first = make_session(
+        redis, optimistic_concurrency=True, set_redis_ttl=set_redis_ttl
+    )
+    second = make_session(
+        redis, optimistic_concurrency=True, set_redis_ttl=set_redis_ttl
+    )
     if invalidate:
         first.invalidate()
     else:
@@ -192,3 +210,84 @@ def test_factory_passes_concurrency_option_to_new_and_existing_sessions(redis, c
 
 def test_decorated_methods_keep_names():
     assert RedisSession.adjust_cookie_max_age.__name__ == "adjust_cookie_max_age"
+
+
+@pytest.mark.parametrize(
+    "options,message",
+    [
+        ({"timeout": None, "python_expires": False}, "requires"),
+        ({"timeout": 0, "python_expires": False}, "requires"),
+        ({"set_redis_ttl": False, "python_expires": False}, "requires"),
+        ({"python_expires": True}, "not compatible"),
+        ({"python_expires": False, "timeout_trigger": 20}, "not compatible"),
+    ],
+)
+def test_invalid_readheavy_configuration_is_rejected(options, message):
+    with pytest.raises(ValueError, match=message):
+        RedisSessionFactory(secret="secret", set_redis_ttl_readheavy=True, **options)
+
+
+def test_factory_zero_timeout_creates_a_session_without_expiry(redis, clock):
+    factory = RedisSessionFactory(
+        secret="secret", timeout=0, redis_client_callable=lambda *a, **kw: redis
+    )
+    session = factory(testing.DummyRequest())
+    session["user"] = "alice"
+    session.do_persist()
+    payload = pickle.loads(redis.get(session.ensure_id()))
+    assert "x" not in payload
+    assert "t" not in payload
+    assert session.timeout is None
+    assert all(entry[0] != "setex" for entry in redis._history)
+
+
+def test_refreshing_a_lazy_session_does_not_allocate_an_id(redis, clock):
+    factory = RedisSessionFactory(
+        secret="secret", redis_client_callable=lambda *a, **kw: redis
+    )
+    session = factory(testing.DummyRequest())
+    session.do_refresh()
+    assert session.session_id is LazyCreateSession
+    assert redis._history == []
+
+
+@pytest.mark.parametrize("timestamp,expected_expiry", [(1079, 1100), (1080, 1180)])
+def test_read_only_expiry_refresh_respects_trigger_boundary(
+    redis, timestamp, expected_expiry
+):
+    with patch("pyramid_session_redis.session.int_time", return_value=timestamp), patch(
+        "pyramid_session_redis.util.int_time", return_value=timestamp
+    ):
+        session = make_session(
+            redis, python_expires=True, detect_changes=False, timeout_trigger=20
+        )
+        assert session.get("user") == "alice"
+        session._deferred_callback(testing.DummyRequest())
+    assert pickle.loads(redis.get("sid"))["x"] == expected_expiry
+
+
+def test_factory_cookie_policy_reaches_the_response(redis, clock):
+    factory = RedisSessionFactory(
+        secret="secret",
+        redis_client_callable=lambda *a, **kw: redis,
+        cookie_secure=True,
+        cookie_httponly=True,
+        cookie_samesite="lax",
+        cookie_comment="session-policy",
+        cookie_expires=datetime.timedelta(days=1),
+    )
+    request = testing.DummyRequest(exception=None)
+    session = factory(request)
+    session["user"] = "alice"
+    response = Response()
+    request._process_response_callbacks(response)
+    request._process_finished_callbacks()
+    cookie = response.headers["Set-Cookie"].lower()
+    for attribute in (
+        "; secure",
+        "; httponly",
+        "; samesite=lax",
+        "comment=session-policy",
+        "expires=",
+    ):
+        assert attribute in cookie
