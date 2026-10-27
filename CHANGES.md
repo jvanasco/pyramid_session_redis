@@ -2,6 +2,12 @@ Changelog
 =========
 
 * Unreleased
+  * Keep specific session-ID serialization exceptions as ValueError subclasses
+    and preserve their original causes so malformed cookies are rejected safely.
+  * Share factory/session configuration validation before backend access.
+  * Deprecate the unused compatibility helpers `is_integer` and `to_binary`
+    with caller-directed FutureWarning messages; retain their behavior.
+    Keep `warn_future` as the internal deprecation-warning utility.
   * Add pytest-cov line and branch coverage through `tox -e coverage`, with
     terminal, HTML, XML, and JSON reports saved by the Python/backend CI matrix.
     Add focused regression cases for configuration validation, cookie policy,

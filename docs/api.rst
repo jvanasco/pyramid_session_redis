@@ -26,6 +26,9 @@ interface. Applications normally obtain it from ``request.session`` rather
 than constructing it directly. See :doc:`sessions` for dictionary operations,
 flash messages, CSRF tokens, and the deferred lifecycle.
 
+Direct construction applies the same timeout and read-heavy configuration
+checks as the factory, before attempting backend operations.
+
 .. list-table::
    :header-rows: 1
    :widths: 50 50
@@ -90,6 +93,11 @@ Exceptions are defined in ``pyramid_session_redis.exceptions``.
     Raised for decoder/validation failures when recovery is disabled. It is
     not automatically replaced with a fresh session.
 
+``InvalidSessionId_Deserialization`` / ``InvalidSessionId_Serialization``
+    Specific ``ValueError`` subclasses for session-ID decoding and encoding
+    failures. The original exception remains in ``__cause__`` and ``args[0]``
+    for diagnostics. Malformed cookie IDs are rejected by cookie loading.
+
 ``SessionConflict``
     Raised only by opt-in optimistic persistence when the original payload
     changed or disappeared, or when a watched key changed during the write.
@@ -112,3 +120,14 @@ Helpers
 ``pyramid_session_redis.connection.get_default_connection(request, ...)``
     Obtain or cache the default synchronous client on the application registry.
     Custom multi-backend integrations should instead supply a client getter.
+
+Deprecated compatibility helpers
+--------------------------------
+
+``pyramid_session_redis.util.is_integer`` and ``to_binary`` emit ``FutureWarning``
+when called and are scheduled for removal in a future minor release. Their
+existing results and error behavior are retained during deprecation.
+
+Use ``float(value).is_integer()`` with explicit conversion-error handling in
+place of ``is_integer``. For ``to_binary``, encode strings using
+``value.encode(encoding)`` and leave byte strings unchanged.

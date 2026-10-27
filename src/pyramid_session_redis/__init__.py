@@ -20,6 +20,7 @@ from .session import RedisSession
 from .util import _generate_session_id
 from .util import _parse_settings
 from .util import _StringSerializer
+from .util import _validate_session_options
 from .util import configs_bool  # noqa: F401 ; included for legacy
 from .util import configs_dotable
 from .util import create_unique_session_id
@@ -408,26 +409,18 @@ def RedisSessionFactory(
         redis_encoding_errors  | errors
         redis_unix_socket_path | unix_socket_path
     """
-    if timeout is not None and timeout < 0:
-        raise ValueError("`timeout` must be nonnegative or None")
+    _validate_session_options(
+        timeout=timeout,
+        set_redis_ttl=set_redis_ttl,
+        set_redis_ttl_readheavy=set_redis_ttl_readheavy,
+        timeout_trigger=timeout_trigger,
+        python_expires=python_expires,
+    )
     if timeout == 0:
         timeout = None
 
     if timeout_trigger and not python_expires:  # fix this
         python_expires = True
-
-    # optimize a `TTL refresh` under certain conditions
-    if set_redis_ttl_readheavy:
-        if (not timeout) or (not set_redis_ttl):
-            raise ValueError(
-                "`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`"
-            )
-        if timeout_trigger or python_expires:
-            raise ValueError(
-                "`set_redis_ttl_readheavy` is not compatible with"
-                "`timeout_trigger` and `python_expires`"
-            )
-    # optimize_redis_ttl = False
 
     _set_redis_ttl_onexit = False
     if (timeout and set_redis_ttl) and (

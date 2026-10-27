@@ -33,6 +33,7 @@ from .exceptions import InvalidSession_PayloadLegacy
 from .exceptions import InvalidSession_PayloadTimeout
 from .exceptions import RawDeserializationError
 from .exceptions import SessionConflict
+from .util import _validate_session_options
 from .util import decode_session_payload as decode_session_payload_func
 from .util import empty_session_payload
 from .util import encode_session_payload as encode_session_payload_func
@@ -295,14 +296,16 @@ class RedisSession(object):
         _set_redis_ttl_onexit: Optional[bool] = None,
         optimistic_concurrency: bool = False,
     ):
-        if timeout is not None and timeout < 0:
-            raise ValueError("`timeout` must be nonnegative or None")
+        _validate_session_options(
+            timeout=timeout,
+            set_redis_ttl=set_redis_ttl,
+            set_redis_ttl_readheavy=set_redis_ttl_readheavy,
+            timeout_trigger=timeout_trigger,
+            python_expires=python_expires,
+        )
         timeout = timeout or None
         if timeout_trigger and not python_expires:  # fix this
             python_expires = True
-        if not timeout:
-            if set_redis_ttl_readheavy:
-                raise ValueError("`set_redis_ttl_readheavy` requires `timeout`")
         self.redis = redis
         self.serialize = serialize  # type: ignore[method-assign, assignment]
         self.deserialize = deserialize  # type: ignore[method-assign, assignment]

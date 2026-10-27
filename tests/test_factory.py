@@ -12,6 +12,7 @@ from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import Union
 import unittest
+from unittest.mock import patch
 
 # pypi
 from pyramid import testing
@@ -2304,7 +2305,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
         return
 
-    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self):
+    @patch("pyramid_session_redis.util.time_time", return_value=1000.0)
+    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self, _clock):
+        # Simulate expiry changes without racing a wall-clock second boundary.
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         session_args["timeout"] = 100
         session_args["timeout_trigger"] = 50

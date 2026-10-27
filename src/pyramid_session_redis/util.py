@@ -90,11 +90,24 @@ class SessionPayload(_OptionalSessionPayload):
 # ------------------------------------------------------------------------------
 
 
-def warn_future(message: str) -> None:
-    warnings.warn(message, FutureWarning, stacklevel=2)
+def warn_future(message: str, *, stacklevel: int = 2) -> None:
+    """Emit a visible warning for a planned deprecation when that feature is used.
+
+    This is an internal warning utility, not itself deprecated. The default
+    stacklevel reports the caller of this function. A compatibility wrapper
+    should pass stacklevel=3 to point to the application's call site instead
+    of the wrapper. Avoid emitting these warnings on unrelated hot paths.
+    """
+    warnings.warn(message, FutureWarning, stacklevel=stacklevel)
 
 
 def is_integer(n: typing.Any) -> bool:
+    """Deprecated compatibility helper; preserves legacy coercion and errors."""
+    warn_future(
+        "is_integer() is deprecated and will be removed in a future minor release; "
+        "use float(value).is_integer() with explicit error handling instead.",
+        stacklevel=3,
+    )
     try:
         r = float(n)
         return r.is_integer()
@@ -103,9 +116,37 @@ def is_integer(n: typing.Any) -> bool:
 
 
 def to_binary(value: typing.AnyStr, enc: str = "UTF-8") -> bytes:
+    """Deprecated compatibility helper; encode strings or pass bytes through."""
+    warn_future(
+        "to_binary() is deprecated and will be removed in a future minor release; "
+        "encode strings with str.encode() and pass bytes through unchanged.",
+        stacklevel=3,
+    )
     if isinstance(value, str):
         return value.encode(enc)
     return value
+
+
+def _validate_session_options(
+    timeout: Optional[int],
+    set_redis_ttl: bool,
+    set_redis_ttl_readheavy: Optional[bool],
+    timeout_trigger: Optional[int],
+    python_expires: Optional[bool],
+) -> None:
+    """Validate shared factory/session options before any backend operations."""
+    if timeout is not None and timeout < 0:
+        raise ValueError("`timeout` must be nonnegative or None")
+    if set_redis_ttl_readheavy:
+        if not timeout or not set_redis_ttl:
+            raise ValueError(
+                "`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`"
+            )
+        if timeout_trigger or python_expires:
+            raise ValueError(
+                "`set_redis_ttl_readheavy` is not compatible with"
+                "`timeout_trigger` and `python_expires`"
+            )
 
 
 def _generate_session_id() -> str:
@@ -572,10 +613,10 @@ class _StringSerializer(SignedSerializerInterface):
         try:
             return s.encode("utf-8", "strict")
         except Exception as exc:
-            raise InvalidSessionId_Serialization(exc)
+            raise InvalidSessionId_Serialization(exc) from exc
 
     def loads(self, s: bytes) -> str:
         try:
             return str(s, "utf-8", "strict")
         except Exception as exc:
-            raise InvalidSessionId_Deserialization(exc)
+            raise InvalidSessionId_Deserialization(exc) from exc

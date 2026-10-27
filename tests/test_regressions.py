@@ -2,6 +2,8 @@
 
 import datetime
 import pickle
+from typing import Any
+from typing import Dict
 from unittest.mock import patch
 
 from pyramid import testing
@@ -222,9 +224,28 @@ def test_decorated_methods_keep_names():
         ({"python_expires": False, "timeout_trigger": 20}, "not compatible"),
     ],
 )
-def test_invalid_readheavy_configuration_is_rejected(options, message):
+@pytest.mark.parametrize("factory_api", [True, False])
+def test_invalid_readheavy_configuration_is_rejected(
+    redis, options, message, factory_api
+):
+    session_options: Dict[str, Any] = {
+        "timeout": 1200,
+        "python_expires": True,
+        "set_redis_ttl_readheavy": True,
+    }
+    session_options.update(options)
     with pytest.raises(ValueError, match=message):
-        RedisSessionFactory(secret="secret", set_redis_ttl_readheavy=True, **options)
+        if factory_api:
+            RedisSessionFactory(secret="secret", **session_options)
+        else:
+            RedisSession(
+                redis=as_redis_client(redis),
+                session_id="sid",
+                new=False,
+                new_session=lambda: "new",
+                **session_options,
+            )
+    assert redis._history == []
 
 
 def test_factory_zero_timeout_creates_a_session_without_expiry(redis, clock):

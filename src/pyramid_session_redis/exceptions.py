@@ -84,13 +84,13 @@ class RawDeserializationError(Exception):
     pass
 
 
-class InvalidSessionId_Deserialization(Exception):
-    """Base class for Serialization Issues"""
+class InvalidSessionId_Deserialization(ValueError):
+    """Session-ID decoding failed; retains a specific type for diagnostics."""
 
     pass
 
 
-class InvalidSessionId_Serialization(Exception):
-    """Base class for Serialization Issues"""
+class InvalidSessionId_Serialization(ValueError):
+    """Session-ID encoding failed; retains a specific type for diagnostics."""
 
     pass
