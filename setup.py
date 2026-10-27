@@ -35,8 +35,12 @@ testing_extras = [
     "mypy",
     "nose",
     "pytest",
+    # Pyramid <2.1 imports pkg_resources but does not cap setuptools itself.
+    # Keep this test-only; Pyramid >=2.1 declares its own compatible dependency.
+    "setuptools<82",
     "types-setuptools",  # stubs
     "types-webob",  # stubs
+    "types-waitress",  # stubs for the development server
     "webob",  # in Pyramid
     "webtest",
     "waitress",

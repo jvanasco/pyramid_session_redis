@@ -69,7 +69,8 @@ TYPING_SESSION_ID = Union[str, Type[LazyCreateSession]]
 TYPING_COOKIE_EXPIRES__A = Union[
     datetime.timedelta, datetime.datetime, None, Type[NotSpecified]
 ]
-TYPING_COOKIE_MAX_AGE__A = Union[int, None, Type[NotSpecified]]
+TYPING_COOKIE_MAX_AGE = Union[int, datetime.timedelta, None]
+TYPING_COOKIE_MAX_AGE__A = Union[TYPING_COOKIE_MAX_AGE, Type[NotSpecified]]
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")

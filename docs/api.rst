@@ -47,7 +47,7 @@ flash messages, CSRF tokens, and the deferred lifecycle.
    * - ``please_recookie()``
      - Request a replacement cookie during response processing.
    * - ``adjust_cookie_max_age(max_age)``
-     - Override response cookie max-age; accepts seconds or ``None``.
+     - Override response cookie max-age; seconds, timedelta, or ``None``.
    * - ``adjust_cookie_expires(expires)``
      - Override response cookie expiry; datetime, timedelta, or ``None``.
    * - ``adjust_session_timeout(timeout_seconds)``

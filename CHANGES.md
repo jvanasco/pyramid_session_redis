@@ -2,6 +2,10 @@ Changelog
 =========
 
 * Unreleased
+  * Pin setuptools below 82 in the testing extra for older Pyramid releases
+    that import pkg_resources without declaring their own upper bound.
+  * Type-check the full test suite, explicitly adapt partial test clients, and
+    include supported timedelta cookie max-age overrides in the annotations.
   * Replace the obsolete package-local documentation skeleton with current
     top-level Sphinx guides and an independent documentation build in CI.
     Documentation is excluded from wheels and source archives.

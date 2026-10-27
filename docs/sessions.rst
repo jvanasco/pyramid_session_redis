@@ -89,7 +89,7 @@ when one is configured; it does not update Python expiry. Normal views should
 usually leave persistence to the finished callback. Explicit writes are useful
 when handling optimistic conflicts before producing a response.
 
-``adjust_cookie_max_age(seconds_or_none)`` and
+``adjust_cookie_max_age(seconds_or_timedelta_or_none)`` and
 ``adjust_cookie_expires(datetime_or_timedelta_or_none)`` request a replacement
 cookie on the response. ``please_recookie()`` requests a replacement without
 changing its attributes. These controls affect the response cookie only.

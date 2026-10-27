@@ -10,6 +10,12 @@ Create a virtual environment with a supported Python version, then install:
 
    python -m pip install -e '.[testing,docs]'
 
+The ``testing`` extra pins ``setuptools<82`` so older Pyramid releases can
+still import ``pkg_resources`` during test collection. Pyramid 2.1 declares
+this cap itself; keeping it in the test extra also covers older releases used
+by the supported Python matrix. It is not a runtime or build dependency of this
+package. See `Pyramid issue 3731 <https://github.com/Pylons/pyramid/issues/3731>`_.
+
 Unit tests and static checks
 ----------------------------
 
@@ -26,8 +32,8 @@ The configured tox environments also support::
     tox -e lint,mypy
 
 Install tox separately if it is not already available. The mypy environment
-checks source and consumer-side typing contracts, including preserved
-signatures of decorated session methods.
+checks source, the full test suite, and consumer-side typing contracts,
+including preserved signatures of decorated session methods.
 
 Real Redis and Valkey backends
 ------------------------------

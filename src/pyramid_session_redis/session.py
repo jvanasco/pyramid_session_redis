@@ -45,6 +45,7 @@ from .util import refresh
 from .util import SESSION_API_VERSION
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_COOKIE_EXPIRES__A
+from .util import TYPING_COOKIE_MAX_AGE
 from .util import TYPING_COOKIE_MAX_AGE__A
 from .util import TYPING_KEY
 from .util import TYPING_SESSION_ID
@@ -843,7 +844,7 @@ class RedisSession(object):
         self._session_state.cookie_expires = expires
 
     @recookie
-    def adjust_cookie_max_age(self, max_age: Optional[int]) -> None:
+    def adjust_cookie_max_age(self, max_age: TYPING_COOKIE_MAX_AGE) -> None:
         """
         Permanently adjusts the max-age for this cookie to ``max_age``
         This value is used as the Max-Age of the generated cookie

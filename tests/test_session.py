@@ -20,6 +20,8 @@ from pyramid_session_redis.session import RedisSession
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
+from . import as_redis_client
+from . import dummy_redis
 from . import DummyRedis
 
 if TYPE_CHECKING:
@@ -52,7 +54,7 @@ class TestRedisSession(unittest.TestCase):
         ):
             _set_redis_ttl_onexit = True
         return RedisSession(
-            redis=redis,
+            redis=as_redis_client(redis),
             session_id=session_id,
             new=new,
             new_session=func_new_session,
@@ -118,7 +120,7 @@ class TestRedisSession(unittest.TestCase):
             timeout=timeout,
         )
         return self._makeOne(
-            redis=redis,
+            redis=as_redis_client(redis),
             session_id=session_id,
             new=new,
             func_new_session=func_new_session,
@@ -338,7 +340,7 @@ class TestRedisSession(unittest.TestCase):
         inst = self._set_up_session_in_Redis_and_makeOne()
         first_session_id = inst.session_id
         inst.invalidate()
-        self.assertNotIn(first_session_id, inst.redis._store)
+        self.assertNotIn(first_session_id, dummy_redis(inst.redis)._store)
         self.assertIs(inst._invalidated, True)
 
     def test_dict_multilevel(self):
@@ -399,7 +401,9 @@ class TestRedisSession(unittest.TestCase):
         inst.invalidate()
         inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         second_session_id = inst.session_id
-        self.assertSetEqual(set(inst.redis._store.keys()), {second_session_id})
+        self.assertSetEqual(
+            set(dummy_redis(inst.redis)._store.keys()), {second_session_id}
+        )
         self.assertNotEqual(second_session_id, first_session_id)
         self.assertIs(bool(second_session_id), True)
         self.assertDictEqual(dict(inst), {})
@@ -437,7 +441,7 @@ class TestRedisSession(unittest.TestCase):
         # a new session was created after .managed_dict access. Here we note
         # down the session_ids in Redis right after .managed_dict access for an
         # additional check.
-        session_ids_in_redis = inst.redis._store.keys()
+        session_ids_in_redis = dummy_redis(inst.redis)._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -461,7 +465,7 @@ class TestRedisSession(unittest.TestCase):
         # a new session was created after .created access. Here we noted down
         # the session_ids in Redis right after .created access for an
         # additional check.
-        session_ids_in_redis = inst.redis._store.keys()
+        session_ids_in_redis = dummy_redis(inst.redis)._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -485,7 +489,7 @@ class TestRedisSession(unittest.TestCase):
         # a new session was created after .timeout access. Here we note down
         # the session_ids in Redis right after .timeout access for an
         # additional check.
-        session_ids_in_redis = inst.redis._store.keys()
+        session_ids_in_redis = dummy_redis(inst.redis)._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -508,7 +512,7 @@ class TestRedisSession(unittest.TestCase):
         # invalidate, so just asserting .session_id is not enough to prove that
         # a new session was created after .created access. Here we note down
         # session_ids in Redis right after .new access for an additional check.
-        session_ids_in_redis = inst.redis._store.keys()
+        session_ids_in_redis = dummy_redis(inst.redis)._store.keys()
         second_session_id = inst.session_id
         self.assertSetEqual(set(session_ids_in_redis), {second_session_id})
         self.assertNotEqual(second_session_id, first_session_id)
@@ -519,7 +523,7 @@ class TestRedisSession(unittest.TestCase):
         first_session_id = inst.session_id
         inst.invalidate()
         inst.invalidate()
-        self.assertNotIn(first_session_id, inst.redis._store)
+        self.assertNotIn(first_session_id, dummy_redis(inst.redis)._store)
         self.assertIs(inst._invalidated, True)
         second_session_id = inst.session_id
         self.assertNotEqual(second_session_id, first_session_id)
@@ -530,7 +534,7 @@ class TestRedisSession(unittest.TestCase):
         inst.invalidate()
         second_session_id = inst.session_id
         inst.invalidate()
-        session_ids_in_redis = inst.redis._store.keys()
+        session_ids_in_redis = dummy_redis(inst.redis)._store.keys()
         self.assertNotIn(second_session_id, session_ids_in_redis)
         self.assertIs(inst._invalidated, True)
 
@@ -546,7 +550,7 @@ class TestRedisSession(unittest.TestCase):
         inst.ensure_id()  # ensure we have an id in redis, which creates a null payload
         third_session_id = inst.session_id
 
-        session_ids_in_redis = inst.redis._store.keys()
+        session_ids_in_redis = dummy_redis(inst.redis)._store.keys()
         self.assertSetEqual(set(session_ids_in_redis), {third_session_id})
         self.assertNotEqual(third_session_id, second_session_id)
         self.assertIs(bool(third_session_id), True)
@@ -654,7 +658,7 @@ class _TestRedisSessionNew_CORE(object):
             _set_redis_ttl_onexit = True
 
         return RedisSession(
-            redis=redis,
+            redis=as_redis_client(redis),
             session_id=session_id,
             new=new,
             new_session=func_new_session,
@@ -708,7 +712,7 @@ class _TestRedisSessionNew_CORE(object):
                 payload["x"] = expires
         redis.set(session_id, serialize(payload))
         if reset_history:
-            redis._history_reset()
+            dummy_redis(redis)._history_reset()
         return session_id
 
     def _make_id_generator(self) -> Callable:
@@ -750,7 +754,7 @@ class _TestRedisSessionNew_CORE(object):
             python_expires=python_expires,
         )
         return self._makeOne(
-            redis=redis,
+            redis=as_redis_client(redis),
             session_id=session_id,
             new=new,
             func_new_session=func_new_session,
@@ -766,8 +770,8 @@ class _TestRedisSessionNew_CORE(object):
         session: RedisSession,
         deserialize=pickle.loads,
     ) -> dict:
-        _session_id = session.session_id
-        _session_data = session.redis._store[_session_id]
+        _session_id = session.ensure_id()
+        _session_data = dummy_redis(session.redis)._store[_session_id]
         _session_deserialized = deserialize(_session_data)
         return _session_deserialized
 
@@ -864,22 +868,22 @@ class TestRedisSessionNew(
         self.assertNotIn("t", _deserialized)
 
         # get, set
-        self.assertEqual(len(session.redis._history), 2)
-        _redis_op = session.redis._history[1]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 2)
+        _redis_op = dummy_redis(session.redis)._history[1]
         self.assertEqual(_redis_op[0], "set")
 
         # clear the history, `do_refresh` should do nothing (timeout=0)
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh()  # trigger the real session's set/setex
         self.assertEqual(
-            len(session.redis._history), 0
+            len(dummy_redis(session.redis)._history), 0
         )  # we shouldn't have any timeout at all
 
         # clear the history, `do_refresh+force_redis_ttl` ensures an "expire"
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 1)
+        _redis_op = dummy_redis(session.redis)._history[0]
         self.assertEqual(_redis_op[0], "expire")
         self.assertEqual(_redis_op[2], 47)
 
@@ -905,22 +909,22 @@ class TestRedisSessionNew(
         self.assertNotIn("t", _deserialized)
 
         # get, set
-        self.assertEqual(len(session.redis._history), 2)
-        _redis_op = session.redis._history[1]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 2)
+        _redis_op = dummy_redis(session.redis)._history[1]
         self.assertEqual(_redis_op[0], "set")
 
         # clear the history, `do_refresh` should do nothing (timeout=0)
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh()  # trigger the real session's set/setex
         self.assertEqual(
-            len(session.redis._history), 0
+            len(dummy_redis(session.redis)._history), 0
         )  # we shouldn't have any timeout at all
 
         # clear the history, `do_refresh+force_redis_ttl` ensures an "expire"
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 1)
+        _redis_op = dummy_redis(session.redis)._history[0]
         self.assertEqual(_redis_op[0], "expire")
         self.assertEqual(_redis_op[2], 47)
 
@@ -945,23 +949,23 @@ class TestRedisSessionNew(
         _deserialized = self._deserialize_session(session)
         self.assertIn("t", _deserialized)
         # get, set
-        self.assertEqual(len(session.redis._history), 2)
-        _redis_op = session.redis._history[1]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 2)
+        _redis_op = dummy_redis(session.redis)._history[1]
         self.assertEqual(_redis_op[0], "setex")
 
         # clear the history, `do_refresh` should issue an "expire" (timeout=60)
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh()  # trigger the real session's set/setex
         # we shouldn't have set a timeout
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 1)
+        _redis_op = dummy_redis(session.redis)._history[0]
         self.assertEqual(_redis_op[0], "expire")
 
         # clear the history, `do_refresh+force_redis_ttl` ensures an "expire"
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 1)
+        _redis_op = dummy_redis(session.redis)._history[0]
         self.assertEqual(_redis_op[0], "expire")
         self.assertEqual(_redis_op[2], 47)
 
@@ -984,20 +988,20 @@ class TestRedisSessionNew(
         self.assertDictEqual(dict(session), {})
         _deserialized = self._deserialize_session(session)
         self.assertIn("t", _deserialized)
-        self.assertEqual(len(session.redis._history), 2)
-        _redis_op = session.redis._history[1]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 2)
+        _redis_op = dummy_redis(session.redis)._history[1]
         self.assertEqual(_redis_op[0], "set")
 
         # clear the history, `do_refresh` should do nothing (timeout=60, set_redis_ttl=False)
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh()  # trigger the real session's set/setex
-        self.assertEqual(len(session.redis._history), 0)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 0)
 
         # clear the history, `do_refresh` should issue an "expire" (force_redis_ttl=60)
-        session.redis._history_reset()
+        dummy_redis(session.redis)._history_reset()
         session.do_refresh(force_redis_ttl=47)  # trigger the real session's set/setex
-        self.assertEqual(len(session.redis._history), 1)
-        _redis_op = session.redis._history[0]
+        self.assertEqual(len(dummy_redis(session.redis)._history), 1)
+        _redis_op = dummy_redis(session.redis)._history[0]
         self.assertEqual(_redis_op[0], "expire")
         self.assertEqual(_redis_op[2], 47)
 
@@ -1077,16 +1081,16 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
             getattr(session, variant)(self.adjusted_timeout)
         _request = testing.DummyRequest()
         session._deferred_callback(_request)  # trigger the real session's set/setex
-        self.assertEqual(len(session.redis._history), 3)
-        self.assertEqual(session.redis._history[0][0], "get")
-        self.assertEqual(session.redis._history[1][0], "get")
-        self.assertEqual(session.redis._history[2][0], "setex")
+        self.assertEqual(len(dummy_redis(session.redis)._history), 3)
+        self.assertEqual(dummy_redis(session.redis)._history[0][0], "get")
+        self.assertEqual(dummy_redis(session.redis)._history[1][0], "get")
+        self.assertEqual(dummy_redis(session.redis)._history[2][0], "setex")
 
         serialized_2 = (
             session.from_redis()
         )  # this executes a second get, the session doesn't save the raw value
-        self.assertEqual(len(session.redis._history), 4)
-        self.assertEqual(session.redis._history[3][0], "get")
+        self.assertEqual(len(dummy_redis(session.redis)._history), 4)
+        self.assertEqual(dummy_redis(session.redis)._history[3][0], "get")
 
         timestamp_expiry_new = serialized_2["x"]
         timeout_2 = serialized_2["t"]
@@ -1097,7 +1101,7 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
 
         # okay now check that redis got the correct commands
         # get, [get], setex, [get] || [] are our test commands, not part of the flow
-        self.assertEqual(len(session.redis._history), 4)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 4)
 
 
 class TestRedisSessionNew_TimeoutAdjustments_B(
@@ -1156,11 +1160,15 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         # 2 - GET
         # 3 - SETEX
         # 4 - GET
-        self.assertEqual(len(session.redis._history), 5)
-        self.assertEqual(session.redis._history[1][0], "setex")  # this is our foo
-        self.assertEqual(session.redis._history[1][2], self.timeout)
-        self.assertEqual(session.redis._history[3][0], "setex")
-        self.assertEqual(session.redis._history[3][2], self.adjusted_timeout)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 5)
+        self.assertEqual(
+            dummy_redis(session.redis)._history[1][0], "setex"
+        )  # this is our foo
+        self.assertEqual(dummy_redis(session.redis)._history[1][2], self.timeout)
+        self.assertEqual(dummy_redis(session.redis)._history[3][0], "setex")
+        self.assertEqual(
+            dummy_redis(session.redis)._history[3][2], self.adjusted_timeout
+        )
 
         # sleep post-trigger and pre-expire
         # this should create a new trigger, because we wake up within 1 second...
@@ -1179,7 +1187,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         # 4 - GET
         # 5 - GET
         # 6 - SETEX -- this is triggered by the _deferred_callback beine within the timeout
-        self.assertEqual(len(session.redis._history), 7)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 7)
 
         # now check that the timeout is in the payload...
         session2_redis = session2.from_redis()
@@ -1213,7 +1221,7 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         # 6 - SETEX -- this is triggered by the _deferred_callback beine within the timeout
         # 7 - GET
         # 8 - GET
-        self.assertEqual(len(session.redis._history), 9)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 9)
 
 
 class TestRedisSessionNew_RedisTTL_Classic(
@@ -1239,8 +1247,10 @@ class TestRedisSessionNew_RedisTTL_Classic(
         # okay now check that redis got the correct commands
         # 0 - GET
         # no setex, because the session is empty
-        self.assertEqual(len(session.redis._history), 1)
-        self.assertEqual(session.redis._history[0][0], "get")  # this is our foo
+        self.assertEqual(len(dummy_redis(session.redis)._history), 1)
+        self.assertEqual(
+            dummy_redis(session.redis)._history[0][0], "get"
+        )  # this is our foo
 
         # but if we store something it would have been different...
         session["FOO"] = "1"
@@ -1248,9 +1258,11 @@ class TestRedisSessionNew_RedisTTL_Classic(
 
         # 0 - GET
         # 1 - SETEX
-        self.assertEqual(len(session.redis._history), 2)
-        self.assertEqual(session.redis._history[1][0], "setex")  # this is our foo
-        self.assertEqual(session.redis._history[1][2], self.timeout)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 2)
+        self.assertEqual(
+            dummy_redis(session.redis)._history[1][0], "setex"
+        )  # this is our foo
+        self.assertEqual(dummy_redis(session.redis)._history[1][2], self.timeout)
 
         func_new_session = self._factory_new_session(session)
         session2 = self._session_get(session, func_new_session)
@@ -1261,9 +1273,9 @@ class TestRedisSessionNew_RedisTTL_Classic(
         # 1 - SETEX
         # 2 - GET
         # 3 - EXPIRE
-        self.assertEqual(len(session.redis._history), 4)
-        self.assertEqual(session.redis._history[2][0], "get")
-        self.assertEqual(session.redis._history[3][0], "expire")
+        self.assertEqual(len(dummy_redis(session.redis)._history), 4)
+        self.assertEqual(dummy_redis(session.redis)._history[2][0], "get")
+        self.assertEqual(dummy_redis(session.redis)._history[3][0], "expire")
 
         # will sleep for a moment...
         sleepy = self.timeout - 1
@@ -1282,9 +1294,9 @@ class TestRedisSessionNew_RedisTTL_Classic(
         # 3 - EXPIRE
         # 4 - GET
         # 5 - EXPIRE
-        self.assertEqual(len(session.redis._history), 6)
-        self.assertEqual(session.redis._history[4][0], "get")
-        self.assertEqual(session.redis._history[5][0], "expire")
+        self.assertEqual(len(dummy_redis(session.redis)._history), 6)
+        self.assertEqual(dummy_redis(session.redis)._history[4][0], "get")
+        self.assertEqual(dummy_redis(session.redis)._history[5][0], "expire")
 
 
 class TestRedisSessionNew_RedisTTL_ReadHeavy(
@@ -1310,7 +1322,7 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         # 0 - pipline.GET
         # 1 - pipline.EXPIRE
         # no setex, because the session is empty
-        self.assertEqual(len(session.redis._history), 2)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 2)
 
         # but if we store something it would have been different...
         session["FOO"] = "1"
@@ -1319,11 +1331,13 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         # 0 - pipline.GET
         # 1 - pipline.EXPIRE
         # 2 - SETEX
-        self.assertEqual(len(session.redis._history), 3)
-        self.assertEqual(session.redis._history[0][0], "pipeline.get")
-        self.assertEqual(session.redis._history[1][0], "pipeline.expire")
-        self.assertEqual(session.redis._history[2][0], "setex")  # this is our foo
-        self.assertEqual(session.redis._history[2][2], self.timeout)
+        self.assertEqual(len(dummy_redis(session.redis)._history), 3)
+        self.assertEqual(dummy_redis(session.redis)._history[0][0], "pipeline.get")
+        self.assertEqual(dummy_redis(session.redis)._history[1][0], "pipeline.expire")
+        self.assertEqual(
+            dummy_redis(session.redis)._history[2][0], "setex"
+        )  # this is our foo
+        self.assertEqual(dummy_redis(session.redis)._history[2][2], self.timeout)
 
         func_new_session = self._factory_new_session(session)
         session2 = self._session_get(session, func_new_session)
@@ -1337,9 +1351,9 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         # 2 - SETEX
         # 3 - pipline.GET
         # 4 - pipline.EXPIRE
-        self.assertEqual(len(session.redis._history), 5)
-        self.assertEqual(session.redis._history[3][0], "pipeline.get")
-        self.assertEqual(session.redis._history[4][0], "pipeline.expire")
+        self.assertEqual(len(dummy_redis(session.redis)._history), 5)
+        self.assertEqual(dummy_redis(session.redis)._history[3][0], "pipeline.get")
+        self.assertEqual(dummy_redis(session.redis)._history[4][0], "pipeline.expire")
 
         # will sleep for a moment...
         sleepy = self.timeout - 1
@@ -1359,6 +1373,6 @@ class TestRedisSessionNew_RedisTTL_ReadHeavy(
         # 4 - pipline.EXPIRE
         # 5 - pipline.GET
         # 6 - pipline.EXPIRE
-        self.assertEqual(len(session.redis._history), 7)
-        self.assertEqual(session.redis._history[5][0], "pipeline.get")
-        self.assertEqual(session.redis._history[6][0], "pipeline.expire")
+        self.assertEqual(len(dummy_redis(session.redis)._history), 7)
+        self.assertEqual(dummy_redis(session.redis)._history[5][0], "pipeline.get")
+        self.assertEqual(dummy_redis(session.redis)._history[6][0], "pipeline.expire")

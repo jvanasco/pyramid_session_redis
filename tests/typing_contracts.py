@@ -1,5 +1,6 @@
 """Consumer-side checks, run by mypy rather than pytest."""
 
+from datetime import timedelta
 from typing import Optional
 
 from pyramid_session_redis.session import RedisSession
@@ -12,6 +13,7 @@ def public_contract(session: RedisSession) -> None:
     expires: Optional[int] = session.expires
     version: Optional[int] = session.version
     session.adjust_cookie_max_age(None)
+    session.adjust_cookie_max_age(timedelta(seconds=60))
     session.adjust_session_timeout(None)
     session.adjust_cookie_max_age("invalid")  # type: ignore[arg-type]
     session.adjust_session_timeout("invalid")  # type: ignore[arg-type]

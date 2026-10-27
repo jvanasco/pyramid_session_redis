@@ -2,12 +2,18 @@
 # stdlib
 import pickle
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import Optional
+from typing import TYPE_CHECKING
+from typing import Union
 import warnings
 
 # pypi
 from redis.exceptions import WatchError
+
+if TYPE_CHECKING:
+    from redis.client import Redis as RedisClient
 
 warnings.filterwarnings(
     "ignore", message=".*pkg_resources.declare_namespace.*", category=DeprecationWarning
@@ -50,6 +56,8 @@ class DummySession(object):
 
 
 class DummyRedis(object):
+    host: str
+    port: int
     url: Optional[str]
     timeouts: Dict[str, int]
     _store: Dict[str, Any]
@@ -108,6 +116,21 @@ class DummyRedis(object):
 
     def keys(self):
         return self._store.keys()
+
+
+def as_redis_client(client: Union[DummyRedis, "RedisClient"]) -> "RedisClient":
+    """Adapt our deliberately partial test double at the library boundary.
+
+    DummyRedis implements only the commands these unit tests exercise. It is
+    not a real Redis subclass and must never be used as a live connection.
+    """
+    return cast("RedisClient", client)
+
+
+def dummy_redis(client: Union[DummyRedis, "RedisClient"]) -> DummyRedis:
+    """Narrow before accessing instrumentation absent from a real client."""
+    assert isinstance(client, DummyRedis)
+    return client
 
 
 class DummyPipeline(object):
