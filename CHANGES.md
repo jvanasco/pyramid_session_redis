@@ -1,6 +1,22 @@
 Changelog
 =========
 
+* Unreleased
+  * Replace the obsolete package-local documentation skeleton with current
+    top-level Sphinx guides and an independent documentation build in CI.
+    Documentation is excluded from wheels and source archives.
+  * Fix read-heavy pipelines so commands are executed and their results unpacked.
+  * Add opt-in `optimistic_concurrency` protection against stale writes and
+    recreation of invalidated sessions; the default fast write path is unchanged.
+  * Refresh Python expiry independently of nested-change detection, preserve
+    explicit expiry adjustments, and normalize zero/None timeout adjustments.
+  * Fix fractional and optional socket-timeout settings and malformed payload
+    handling; require binary backend responses.
+  * Preserve decorated method signatures, correct optional property annotations,
+    and run source type checking in CI.
+  * Add real-backend regression tests and a Redis/Valkey CI matrix, with backend
+    configuration and local test instructions.
+
 
 * v1.8.1
   * updated readme example, which still used the deprecated redis constructor args.  
@@ -276,4 +292,3 @@ Changelog
 
 * LEGACY CHANGELOG
 	* see https://github.com/ericrasmussen/pyramid_redis_sessions/blob/master/CHANGES.rst
-	

@@ -134,21 +134,20 @@ def RedisSessionFactory(
     set_redis_ttl_readheavy: Optional[bool] = None,
     detect_changes: bool = True,
     deserialized_fails_new: Optional[bool] = None,
-    func_check_response_allow_cookies: Optional[
-        Optional[Callable[["Response"], bool]]
-    ] = None,
-    func_invalid_logger: Optional[Callable] = None,
+    func_check_response_allow_cookies: Optional[Callable[["Response"], bool]] = None,
+    func_invalid_logger: Optional[Callable[["Request", InvalidSession], Any]] = None,
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
     cookie_signer: Optional[
         "SignedSerializerInterface"
     ] = None,  # alternate for `secret`
-    redis_socket_timeout: Optional[int] = None,
+    redis_socket_timeout: Optional[float] = None,
     redis_connection_pool: Optional["ConnectionPool"] = None,
     redis_encoding: Optional[str] = None,
     redis_encoding_errors: Optional[str] = None,
     redis_unix_socket_path: Optional[str] = None,
     invalidate_empty_session: bool = INVALIDATE_EMPTY_SESSION,
+    optimistic_concurrency: bool = False,
 ) -> Callable:
     """
     Constructs and returns a session factory that will provide session data
@@ -360,6 +359,13 @@ def RedisSessionFactory(
     * Defaulted to `True` in 1.8
     * Added in v1.7 with default as `False`
 
+    ``optimistic_concurrency``
+    Default: ``False``. If enabled, persistence uses WATCH/GET/MULTI/EXEC
+    to reject writes when the stored payload changed or was removed since
+    it was loaded. Raises ``SessionConflict`` without retrying stale data.
+    This adds Redis round trips only when enabled. All session writers
+    must enable it for consistent protection against lost updates.
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     Timeout Example
@@ -402,6 +408,8 @@ def RedisSessionFactory(
         redis_encoding_errors  | errors
         redis_unix_socket_path | unix_socket_path
     """
+    if timeout is not None and timeout < 0:
+        raise ValueError("`timeout` must be nonnegative or None")
     if timeout == 0:
         timeout = None
 
@@ -556,6 +564,7 @@ def RedisSessionFactory(
                 timeout_trigger=timeout_trigger,
                 timeout=timeout,
                 python_expires=python_expires,
+                optimistic_concurrency=optimistic_concurrency,
             )
         except InvalidSession as e:
             if func_invalid_logger is not None:
@@ -578,6 +587,7 @@ def RedisSessionFactory(
                 timeout_trigger=timeout_trigger,
                 timeout=timeout,
                 python_expires=python_expires,
+                optimistic_concurrency=optimistic_concurrency,
             )
 
         set_cookie_func = functools.partial(
@@ -640,7 +650,7 @@ def _set_cookie(
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
-    cookieval = cookie_signer.dumps(session.session_id)
+    cookieval = cookie_signer.dumps(session.ensure_id())
     # `.dumps` generates bytes; `.set_cookie` expects str
     response.set_cookie(cookie_name, cookieval.decode(), **kwargs)
 

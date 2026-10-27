@@ -7,6 +7,13 @@ Overview
 `pyramid_session_redis` is a mature, stable and actively maintained Server-Side
 Sessions plugin for the Pyramid web framework.
 
+Current documentation lives in the top-level [`docs/`](docs/index.rst) directory:
+[getting started](docs/getting_started.rst),
+[configuration](docs/configuration.rst), and
+[session behavior](docs/sessions.rst). It describes this checkout, including
+unreleased changes. Build instructions are in
+[the development guide](docs/contributing.rst).
+
 Originally, this library was a fork of
 [`pyramid_redis_sessions`](https://github.com/ericrasmussen/pyramid_redis_sessions), focused on
 improvements and API changes designed for high performance (particularly with
@@ -32,6 +39,67 @@ and
 * Pyramid 1.x
 * Pyramid 2.0
 
+
+Redis and Valkey backends
+------------------------
+
+Valkey can be used with the existing `redis` Python dependency and the same
+`redis.sessions.*` settings. Point the connection at your Valkey server using a
+`redis://` URL (or `rediss://` for TLS); no alternate client is required:
+
+```ini
+redis.sessions.secret = replace-with-your-secret
+redis.sessions.redis_url = redis://localhost:6379/0
+```
+
+The CI backend matrix runs the full suite against Redis 7.2, Valkey 7.2, and
+Valkey 8. See [Valkey's client compatibility notes](https://valkey.io/clients/).
+Connections must return bytes (`decode_responses=False`, the default).
+
+Optional concurrency protection
+-------------------------------
+
+The default write path remains a single `SET` or `SETEX`, without concurrency
+checks. Applications that need to reject stale concurrent writes can opt in:
+
+```ini
+redis.sessions.optimistic_concurrency = true
+```
+
+The equivalent factory argument is `optimistic_concurrency=True`. When enabled,
+the library compares the original serialized payload with the current value
+inside a `WATCH`/`GET`/`MULTI`/`EXEC` transaction. It rejects changed or deleted
+sessions by raising `pyramid_session_redis.exceptions.SessionConflict`, rather
+than recreating an invalidated session or overwriting another request's update.
+This uses the existing payload format; it adds no revision field. All writers
+must opt in for consistent lost-update protection. Identical payloads are treated
+as unchanged, and key expiration or eviction also causes a conflict.
+
+This option adds round trips to persistence, and one extra read when a new
+session ID is reserved. It does not add backend calls when disabled. Conflicts
+are not automatically retried. Persistence normally runs in Pyramid's finished
+callback, after response processing; applications that need to handle a conflict
+before producing a response should call `request.session.do_persist()` in their
+view and handle `SessionConflict` there.
+
+Testing either backend
+----------------------
+
+Install the test dependencies with `python -m pip install -e '.[testing]'`, then
+point the full suite at a disposable Redis or Valkey database:
+
+```sh
+PSR_TEST_REDIS_URL=redis://localhost:6379/9 python -m pytest
+```
+
+For example, start Valkey with
+`docker run --rm -p 6379:6379 valkey/valkey:8` before running that command.
+The new backend protocol tests use UUID-prefixed keys and remove them afterward;
+the existing application tests can leave session keys until their TTL expires.
+Without the environment variable, the new protocol tests are skipped, while
+the existing application tests still expect a backend on localhost, database 9.
+Use `python -m pytest --ignore=tests/test_pyramid.py` for a unit-only run without
+a backend (leave `PSR_TEST_REDIS_URL` unset).
 
 Versioning Policy
 -----------------
@@ -306,8 +374,9 @@ Configure `pyramid_session_redis` via your Paste config file or however you
 prefer to configure Pyramid. Only `redis.sessions.secret` is required.
 All other settings are optional.
 
-For complete documentation on the `RedisSessionFactory` that uses these
-settings, see :doc:`api`. Otherwise, keep reading for the quick list:
+For the current `RedisSessionFactory` settings and defaults, see the
+[configuration reference](docs/configuration.rst). Otherwise, keep reading for
+the quick list:
 
 
     # session settings

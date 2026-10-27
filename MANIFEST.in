@@ -1,5 +1,7 @@
 graft src
 graft tests
+prune docs
+prune src/pyramid_session_redis/docs
 
 include setup.cfg pyproject.toml
 include tox.ini

@@ -1,3 +1,11 @@
+class SessionConflict(Exception):
+    """An optimistic write found a changed or removed session.
+
+    The stale request is not retried automatically; doing so could restore
+    invalidated authentication data or overwrite another request's changes.
+    """
+
+
 class InvalidSession(Exception):
     """
     The session is invalid

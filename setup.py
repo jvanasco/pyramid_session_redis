@@ -28,7 +28,7 @@ install_requires = [
     "redis>=4.0.0",
     "pyramid>=2",
     "zope.interface",  # in Pyramid
-    "typing_extensions",  # for 3.7 `Literal`; Protocol
+    "typing_extensions>=4.1",  # Literal, Protocol, ParamSpec and Concatenate
 ]
 testing_extras = [
     "coverage",
@@ -73,7 +73,6 @@ setup(
     package_data={
         "": [
             "py.typed",
-            "docs/*",
         ],
     },
     zip_safe=False,
