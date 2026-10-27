@@ -17,7 +17,7 @@ on:
 
 jobs:
   build:
-    name: core-tests--py-${{ matrix.python-version }}--${{ matrix.os }}
+    name: core-tests--py-${{ matrix.python-version }}--${{ matrix.backend }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -31,22 +31,26 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
+        backend:
+          - "redis:7.2"
+          - "valkey/valkey:7.2"
+          - "valkey/valkey:8"
 
     # Service containers to run with `container-job`
     services:
       # Label used to access the service container
-      redis:
+      backend:
         # Docker Hub image
-        image: redis
+        image: ${{ matrix.backend }}
         # Set health checks to wait until redis has started
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "redis-cli ping || valkey-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
           # Maps port 6379 on service container to the host
-          - 6379:6379
+          - 6379/tcp
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -56,10 +60,61 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install --upgrade tox setuptools flake8 pytest mypy
+        pip install --upgrade tox flake8 pytest mypy
         pip install ".[testing]"
         pip freeze
-    - name: Test with tox/pytest
+    - name: Test with coverage
       # tox is used to run pytest
+      env:
+        PSR_TEST_REDIS_URL: redis://localhost:${{ job.services.backend.ports['6379'] }}/9
       run: |
-        tox -e py -- ${{ matrix.pytest-args }}
+        tox -e coverage
+    - name: Save coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-py${{ matrix.python-version }}-${{ strategy.job-index }}
+        path: |
+          htmlcov/
+          coverage.xml
+          coverage.json
+        if-no-files-found: warn
+
+  typing:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.13"
+    - run: python -m pip install tox
+    - run: tox -e mypy
+
+  documentation:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.13"
+    - run: python -m pip install '.[docs]' build
+    - run: python -m sphinx -W --keep-going -b html docs docs/_build/html
+    - name: Check distribution contents
+      run: |
+        python -m build
+        python - <<'PY'
+        from pathlib import Path
+        import tarfile
+        import zipfile
+
+        wheel, = Path("dist").glob("*.whl")
+        source, = Path("dist").glob("*.tar.gz")
+        with zipfile.ZipFile(wheel) as archive:
+            names = archive.namelist()
+            assert "pyramid_session_redis/py.typed" in names
+            assert not any("docs" in name.split("/") for name in names)
+        with tarfile.open(source) as archive:
+            names = archive.getnames()
+            assert any(name.endswith("/src/pyramid_session_redis/py.typed") for name in names)
+            assert not any("docs" in name.split("/") for name in names)
+        PY

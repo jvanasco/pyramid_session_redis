@@ -1,4 +1,5 @@
 # stdlib
+import os
 from typing import Dict
 from typing import Optional
 from typing import Union
@@ -27,6 +28,8 @@ TEST_PSR_CONFIG: Dict[str, Union[str, int]] = {
 LIVE_PSR_CONFIG = TEST_PSR_CONFIG.copy()
 del LIVE_PSR_CONFIG["redis.sessions.id_generator"]
 del LIVE_PSR_CONFIG["redis.sessions.redis_client_callable"]
+if os.environ.get("PSR_TEST_REDIS_URL"):
+    LIVE_PSR_CONFIG["redis.sessions.redis_url"] = os.environ["PSR_TEST_REDIS_URL"]
 
 
 class CustomCookieSigner(SignedSerializerInterface):
@@ -44,7 +47,7 @@ def _parse_cookie(header: str) -> Dict:
     _items = [i.strip() for i in header.split(";")]
     for _it in _items:
         if "=" in _it:
-            (k, v) = [i.strip() for i in _it.split("=", 1)]  # max 2 items
+            k, v = [i.strip() for i in _it.split("=", 1)]  # max 2 items
         else:
             k = _it
             v = None

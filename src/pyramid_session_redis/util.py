@@ -4,16 +4,19 @@
 import datetime
 from enum import Enum
 from functools import partial
+from functools import wraps
 from math import ceil
 from secrets import token_urlsafe
 from time import time as time_time
 import typing
 from typing import Any
 from typing import Callable
+from typing import cast
 from typing import Dict
 from typing import Optional
 from typing import Type
 from typing import TYPE_CHECKING
+from typing import TypeVar
 from typing import Union
 import warnings
 
@@ -21,7 +24,10 @@ import warnings
 from pyramid.exceptions import ConfigurationError
 from pyramid.settings import asbool
 from redis.exceptions import WatchError
+from typing_extensions import Concatenate
+from typing_extensions import ParamSpec
 from typing_extensions import Protocol
+from typing_extensions import TypedDict
 
 # local
 from .exceptions import InvalidSessionId_Deserialization
@@ -63,17 +69,45 @@ TYPING_SESSION_ID = Union[str, Type[LazyCreateSession]]
 TYPING_COOKIE_EXPIRES__A = Union[
     datetime.timedelta, datetime.datetime, None, Type[NotSpecified]
 ]
-TYPING_COOKIE_MAX_AGE__A = Union[int, None, Type[NotSpecified]]
+TYPING_COOKIE_MAX_AGE = Union[int, datetime.timedelta, None]
+TYPING_COOKIE_MAX_AGE__A = Union[TYPING_COOKIE_MAX_AGE, Type[NotSpecified]]
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+class _OptionalSessionPayload(TypedDict, total=False):
+    t: int
+    x: int
+
+
+class SessionPayload(_OptionalSessionPayload):
+    m: Dict
+    c: int
+    v: int
 
 
 # ------------------------------------------------------------------------------
 
 
-def warn_future(message: str) -> None:
-    warnings.warn(message, FutureWarning, stacklevel=2)
+def warn_future(message: str, *, stacklevel: int = 2) -> None:
+    """Emit a visible warning for a planned deprecation when that feature is used.
+
+    This is an internal warning utility, not itself deprecated. The default
+    stacklevel reports the caller of this function. A compatibility wrapper
+    should pass stacklevel=3 to point to the application's call site instead
+    of the wrapper. Avoid emitting these warnings on unrelated hot paths.
+    """
+    warnings.warn(message, FutureWarning, stacklevel=stacklevel)
 
 
 def is_integer(n: typing.Any) -> bool:
+    """Deprecated compatibility helper; preserves legacy coercion and errors."""
+    warn_future(
+        "is_integer() is deprecated and will be removed in a future minor release; "
+        "use float(value).is_integer() with explicit error handling instead.",
+        stacklevel=3,
+    )
     try:
         r = float(n)
         return r.is_integer()
@@ -82,9 +116,37 @@ def is_integer(n: typing.Any) -> bool:
 
 
 def to_binary(value: typing.AnyStr, enc: str = "UTF-8") -> bytes:
+    """Deprecated compatibility helper; encode strings or pass bytes through."""
+    warn_future(
+        "to_binary() is deprecated and will be removed in a future minor release; "
+        "encode strings with str.encode() and pass bytes through unchanged.",
+        stacklevel=3,
+    )
     if isinstance(value, str):
         return value.encode(enc)
     return value
+
+
+def _validate_session_options(
+    timeout: Optional[int],
+    set_redis_ttl: bool,
+    set_redis_ttl_readheavy: Optional[bool],
+    timeout_trigger: Optional[int],
+    python_expires: Optional[bool],
+) -> None:
+    """Validate shared factory/session options before any backend operations."""
+    if timeout is not None and timeout < 0:
+        raise ValueError("`timeout` must be nonnegative or None")
+    if set_redis_ttl_readheavy:
+        if not timeout or not set_redis_ttl:
+            raise ValueError(
+                "`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`"
+            )
+        if timeout_trigger or python_expires:
+            raise ValueError(
+                "`set_redis_ttl_readheavy` is not compatible with"
+                "`timeout_trigger` and `python_expires`"
+            )
 
 
 def _generate_session_id() -> str:
@@ -151,6 +213,7 @@ configs_bool = (
     "deserialized_fails_new",
     "detect_changes",
     "invalidate_empty_session",
+    "optimistic_concurrency",
     "python_expires",
     "set_redis_ttl_readheavy",
     "set_redis_ttl",
@@ -163,7 +226,6 @@ configs_int = (
 
 configs_int_none = (
     "cookie_max_age",
-    "redis_socket_timeout",
     "timeout",
     "timeout_trigger",
 )
@@ -193,7 +255,7 @@ def int_time() -> int:
 
 
 def empty_session_payload(
-    timeout: int = 0,
+    timeout: Optional[int] = 0,
     python_expires: Optional[bool] = None,
 ) -> Dict:
     """
@@ -203,7 +265,7 @@ def empty_session_payload(
     :param python_expires: bool. default None.
     """
     _created = int_time()
-    data = {
+    data: SessionPayload = {
         "m": {},  # managed_dict
         "c": _created,  # created
         "v": SESSION_API_VERSION,  # session
@@ -212,14 +274,14 @@ def empty_session_payload(
         data["t"] = timeout  # timeout
         if python_expires:
             data["x"] = _created + timeout
-    return data
+    return cast(Dict, data)
 
 
 def encode_session_payload(
     managed_dict: Dict,
     created: int,
-    timeout: int,  # = 0?
-    expires: int,  # = 0?
+    timeout: Optional[int],
+    expires: Optional[int],
     timeout_trigger: Optional[int] = None,
     python_expires: Optional[bool] = None,
 ) -> Dict:
@@ -234,7 +296,7 @@ def encode_session_payload(
     :param timeout_trigger: int. default None.
     :param python_expires: bool. default None.
     """
-    data = {
+    data: SessionPayload = {
         "m": managed_dict,  # managed_dict
         "c": created,  # created
         "v": SESSION_API_VERSION,  # session_api version
@@ -245,9 +307,13 @@ def encode_session_payload(
         data["t"] = timeout  # timeout
         if python_expires:
             time_now = int_time()
-            if not timeout_trigger or (time_now >= (expires - timeout_trigger)):
+            if (
+                not timeout_trigger
+                or expires is None
+                or (time_now >= (expires - timeout_trigger))
+            ):
                 data["x"] = time_now + timeout  # expires
-    return data
+    return cast(Dict, data)
 
 
 def decode_session_payload(payload: Dict) -> Dict:
@@ -269,7 +335,7 @@ def decode_session_payload(payload: Dict) -> Dict:
 
 def _insert_session_id_if_unique(
     redis: "RedisClient",
-    timeout: int,
+    timeout: Optional[int],
     session_id: str,
     serialize: Callable[[Any], bytes],
     set_redis_ttl: bool,
@@ -336,7 +402,7 @@ def _insert_session_id_if_unique(
 
 def create_unique_session_id(
     redis: "RedisClient",
-    timeout: int,
+    timeout: Optional[int],
     serialize: Callable[[Any], bytes],
     generator: Callable[[], str] = _generate_session_id,
     set_redis_ttl: bool = True,
@@ -420,7 +486,7 @@ def _parse_settings(settings: Dict) -> Dict:
     # allow "None" to be a value for some ints
     for i in configs_int_none:
         if i in options:
-            if options[i] == "None":
+            if options[i] is None or options[i] == "None":
                 options[i] = None
             else:
                 options[i] = int(options[i])
@@ -429,7 +495,10 @@ def _parse_settings(settings: Dict) -> Dict:
 
     # coerce float
     if "redis_socket_timeout" in options:
-        options["redis_socket_timeout"] = float(options["redis_socket_timeout"])
+        value = options["redis_socket_timeout"]
+        options["redis_socket_timeout"] = (
+            None if value is None or value == "None" else float(value)
+        )
 
     # check for settings conflict
     if "prefix" in options and "id_generator" in options:
@@ -444,7 +513,9 @@ def _parse_settings(settings: Dict) -> Dict:
     return options
 
 
-def persist(wrapped: Callable) -> Callable:
+def persist(
+    wrapped: Callable[Concatenate["RedisSession", _P], _R],
+) -> Callable[Concatenate["RedisSession", _P], _R]:
     """
     Decorator to persist in Redis all the data that needs to be persisted for
     this session and reset the expire time.
@@ -456,7 +527,8 @@ def persist(wrapped: Callable) -> Callable:
     :returns wrapped_refresh: a wrapped function.
     """
 
-    def wrapped_persist(session: "RedisSession", *arg, **kw):
+    @wraps(wrapped)
+    def wrapped_persist(session: "RedisSession", *arg: _P.args, **kw: _P.kwargs) -> _R:
         result = wrapped(session, *arg, **kw)
         session._session_state.please_persist = True
         return result
@@ -464,7 +536,9 @@ def persist(wrapped: Callable) -> Callable:
     return wrapped_persist
 
 
-def recookie(wrapped: Callable) -> Callable:
+def recookie(
+    wrapped: Callable[Concatenate["RedisSession", _P], _R],
+) -> Callable[Concatenate["RedisSession", _P], _R]:
     """
     Decorator to mark a session as needing to recookie.
     This is necessary when setting a new max-age/etc
@@ -473,7 +547,8 @@ def recookie(wrapped: Callable) -> Callable:
     :returns wrapped_recookie: a wrapped function.
     """
 
-    def wrapped_recookie(session: "RedisSession", *arg, **kw):
+    @wraps(wrapped)
+    def wrapped_recookie(session: "RedisSession", *arg: _P.args, **kw: _P.kwargs) -> _R:
         result = wrapped(session, *arg, **kw)
         session._session_state.please_recookie = True
         return result
@@ -481,7 +556,9 @@ def recookie(wrapped: Callable) -> Callable:
     return wrapped_recookie
 
 
-def refresh(wrapped: Callable) -> Callable:
+def refresh(
+    wrapped: Callable[Concatenate["RedisSession", _P], _R],
+) -> Callable[Concatenate["RedisSession", _P], _R]:
     """
     Decorator to reset the expire time for this session's key in Redis.
     This will mark the `_session_state.please_refresh` as True, to be
@@ -492,7 +569,8 @@ def refresh(wrapped: Callable) -> Callable:
     :returns wrapped_refresh: a wrapped function.
     """
 
-    def wrapped_refresh(session: "RedisSession", *arg, **kw):
+    @wraps(wrapped)
+    def wrapped_refresh(session: "RedisSession", *arg: _P.args, **kw: _P.kwargs) -> _R:
         result = wrapped(session, *arg, **kw)
         session._session_state.please_refresh = True
         return result
@@ -535,10 +613,10 @@ class _StringSerializer(SignedSerializerInterface):
         try:
             return s.encode("utf-8", "strict")
         except Exception as exc:
-            raise InvalidSessionId_Serialization(exc)
+            raise InvalidSessionId_Serialization(exc) from exc
 
     def loads(self, s: bytes) -> str:
         try:
             return str(s, "utf-8", "strict")
         except Exception as exc:
-            raise InvalidSessionId_Deserialization(exc)
+            raise InvalidSessionId_Deserialization(exc) from exc

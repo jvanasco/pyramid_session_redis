@@ -1,6 +1,40 @@
 Changelog
 =========
 
+* Unreleased
+  * Keep specific session-ID serialization exceptions as ValueError subclasses
+    and preserve their original causes so malformed cookies are rejected safely.
+  * Share factory/session configuration validation before backend access.
+  * Deprecate the unused compatibility helpers `is_integer` and `to_binary`
+    with caller-directed FutureWarning messages; retain their behavior.
+    Keep `warn_future` as the internal deprecation-warning utility.
+  * Add pytest-cov line and branch coverage through `tox -e coverage`, with
+    terminal, HTML, XML, and JSON reports saved by the Python/backend CI matrix.
+    Add focused regression cases for configuration validation, cookie policy,
+    expiry boundaries, lazy refresh, and optimistic writes without a TTL.
+  * Move packaging metadata and dependencies from setup.py into setup.cfg,
+    along with tox environments. Consolidate mypy and pytest settings in
+    pyproject.toml and declare the setuptools build backend. Remove obsolete
+    easy_install aliases and nose-only configuration.
+  * Pin setuptools below 82 in the testing extra for older Pyramid releases
+    that import pkg_resources without declaring their own upper bound.
+  * Type-check the full test suite, explicitly adapt partial test clients, and
+    include supported timedelta cookie max-age overrides in the annotations.
+  * Replace the obsolete package-local documentation skeleton with current
+    top-level Sphinx guides and an independent documentation build in CI.
+    Documentation is excluded from wheels and source archives.
+  * Fix read-heavy pipelines so commands are executed and their results unpacked.
+  * Add opt-in `optimistic_concurrency` protection against stale writes and
+    recreation of invalidated sessions; the default fast write path is unchanged.
+  * Refresh Python expiry independently of nested-change detection, preserve
+    explicit expiry adjustments, and normalize zero/None timeout adjustments.
+  * Fix fractional and optional socket-timeout settings and malformed payload
+    handling; require binary backend responses.
+  * Preserve decorated method signatures, correct optional property annotations,
+    and run source type checking in CI.
+  * Add real-backend regression tests and a Redis/Valkey CI matrix, with backend
+    configuration and local test instructions.
+
 
 * v1.8.1
   * updated readme example, which still used the deprecated redis constructor args.  
@@ -276,4 +310,3 @@ Changelog
 
 * LEGACY CHANGELOG
 	* see https://github.com/ericrasmussen/pyramid_redis_sessions/blob/master/CHANGES.rst
-	

@@ -12,6 +12,7 @@ from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import Union
 import unittest
+from unittest.mock import patch
 
 # pypi
 from pyramid import testing
@@ -37,6 +38,8 @@ from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
+from . import as_redis_client
+from . import dummy_redis
 from . import DummyRedis  # redis Client
 from ._util import CustomCookieSigner
 from ._util import is_cookie_setter
@@ -85,7 +88,9 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
             kw["new"] = False
         if "new_session" not in kw:
             kw["new_session"] = self._set_up_session_in_redis
-        session = RedisSession(redis=redis, session_id=session_id, **kw)
+        session = RedisSession(
+            redis=as_redis_client(redis), session_id=session_id, **kw
+        )
         return session
 
     def _register_callback(
@@ -797,7 +802,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertNotIn("; Max-Age=", set_cookie_headers[0])
 
         def client_callable(_request: testing.DummyRequest, **kw) -> DummyRedis:
-            return session.redis
+            return dummy_redis(session.redis)
 
         # set to 100
         request2 = self._make_request(request_old=request)
@@ -868,7 +873,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         inst = self._makeOneForRequest(request)
         getattr(inst, variant)(555)
         inst._deferred_callback(request)  # native callback for persistance
-        session_id = inst.session_id
+        session_id = inst.ensure_id()
         cookieval = self._serialize(session_id)
         request.cookies["session"] = cookieval.decode()  # these are str, not bytes
         new_session = self._makeOneForRequest(request)
@@ -1029,10 +1034,8 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         self, session: RedisSession, deserialize: Callable = pickle.loads
     ) -> dict:
         """loads session from backend via id, deserializes"""
-        _session_id = session.session_id
-        # "Redis" has no attribute "store"
-        # "DummyRedis" uses an internal storage though
-        _session_data = session.redis._store[_session_id]  # type: ignore[attr-defined]
+        _session_id = session.ensure_id()
+        _session_data = dummy_redis(session.redis)._store[_session_id]
         _session_deserialized = deserialize(_session_data)
         return _session_deserialized
 
@@ -1197,7 +1200,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
 
         # reserialize the session and store it in the backend
         _session_serialized = serialize(_session_deserialized)
-        request.session.redis._store[_session_id] = _session_serialized
+        dummy_redis(request.session.redis)._store[_session_id] = _session_serialized
         request.session._resync()
 
 
@@ -2302,7 +2305,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
         return
 
-    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self):
+    @patch("pyramid_session_redis.util.time_time", return_value=1000.0)
+    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self, _clock):
+        # Simulate expiry changes without racing a wall-clock second boundary.
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         session_args["timeout"] = 100
         session_args["timeout_trigger"] = 50

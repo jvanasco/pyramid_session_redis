@@ -20,6 +20,7 @@ from .session import RedisSession
 from .util import _generate_session_id
 from .util import _parse_settings
 from .util import _StringSerializer
+from .util import _validate_session_options
 from .util import configs_bool  # noqa: F401 ; included for legacy
 from .util import configs_dotable
 from .util import create_unique_session_id
@@ -134,21 +135,20 @@ def RedisSessionFactory(
     set_redis_ttl_readheavy: Optional[bool] = None,
     detect_changes: bool = True,
     deserialized_fails_new: Optional[bool] = None,
-    func_check_response_allow_cookies: Optional[
-        Optional[Callable[["Response"], bool]]
-    ] = None,
-    func_invalid_logger: Optional[Callable] = None,
+    func_check_response_allow_cookies: Optional[Callable[["Response"], bool]] = None,
+    func_invalid_logger: Optional[Callable[["Request", InvalidSession], Any]] = None,
     timeout_trigger: Optional[int] = None,
     python_expires: bool = True,
     cookie_signer: Optional[
         "SignedSerializerInterface"
     ] = None,  # alternate for `secret`
-    redis_socket_timeout: Optional[int] = None,
+    redis_socket_timeout: Optional[float] = None,
     redis_connection_pool: Optional["ConnectionPool"] = None,
     redis_encoding: Optional[str] = None,
     redis_encoding_errors: Optional[str] = None,
     redis_unix_socket_path: Optional[str] = None,
     invalidate_empty_session: bool = INVALIDATE_EMPTY_SESSION,
+    optimistic_concurrency: bool = False,
 ) -> Callable:
     """
     Constructs and returns a session factory that will provide session data
@@ -360,6 +360,13 @@ def RedisSessionFactory(
     * Defaulted to `True` in 1.8
     * Added in v1.7 with default as `False`
 
+    ``optimistic_concurrency``
+    Default: ``False``. If enabled, persistence uses WATCH/GET/MULTI/EXEC
+    to reject writes when the stored payload changed or was removed since
+    it was loaded. Raises ``SessionConflict`` without retrying stale data.
+    This adds Redis round trips only when enabled. All session writers
+    must enable it for consistent protection against lost updates.
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     Timeout Example
@@ -402,24 +409,18 @@ def RedisSessionFactory(
         redis_encoding_errors  | errors
         redis_unix_socket_path | unix_socket_path
     """
+    _validate_session_options(
+        timeout=timeout,
+        set_redis_ttl=set_redis_ttl,
+        set_redis_ttl_readheavy=set_redis_ttl_readheavy,
+        timeout_trigger=timeout_trigger,
+        python_expires=python_expires,
+    )
     if timeout == 0:
         timeout = None
 
     if timeout_trigger and not python_expires:  # fix this
         python_expires = True
-
-    # optimize a `TTL refresh` under certain conditions
-    if set_redis_ttl_readheavy:
-        if (not timeout) or (not set_redis_ttl):
-            raise ValueError(
-                "`set_redis_ttl_readheavy` requires a `timeout` and `set_redis_ttl`"
-            )
-        if timeout_trigger or python_expires:
-            raise ValueError(
-                "`set_redis_ttl_readheavy` is not compatible with"
-                "`timeout_trigger` and `python_expires`"
-            )
-    # optimize_redis_ttl = False
 
     _set_redis_ttl_onexit = False
     if (timeout and set_redis_ttl) and (
@@ -556,6 +557,7 @@ def RedisSessionFactory(
                 timeout_trigger=timeout_trigger,
                 timeout=timeout,
                 python_expires=python_expires,
+                optimistic_concurrency=optimistic_concurrency,
             )
         except InvalidSession as e:
             if func_invalid_logger is not None:
@@ -578,6 +580,7 @@ def RedisSessionFactory(
                 timeout_trigger=timeout_trigger,
                 timeout=timeout,
                 python_expires=python_expires,
+                optimistic_concurrency=optimistic_concurrency,
             )
 
         set_cookie_func = functools.partial(
@@ -640,7 +643,7 @@ def _set_cookie(
     `session` is via functools.partial
     `request` and `response` are appended by add_response_callback
     """
-    cookieval = cookie_signer.dumps(session.session_id)
+    cookieval = cookie_signer.dumps(session.ensure_id())
     # `.dumps` generates bytes; `.set_cookie` expects str
     response.set_cookie(cookie_name, cookieval.decode(), **kwargs)
 

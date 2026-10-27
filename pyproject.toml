@@ -1,2 +1,31 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
 [tool.black]
-target-version = ['py36']
+target-version = ['py37']
+
+[tool.mypy]
+files = ["src/pyramid_session_redis", "tests"]
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# These third-party dependencies do not provide usable typing information.
+module = ["pyramid.*", "zope.interface.*", "webtest.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.typing_contracts"]
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["pyramid_session_redis"]
+branch = true
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
