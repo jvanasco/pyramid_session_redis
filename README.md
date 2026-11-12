@@ -23,7 +23,7 @@ convenience.
 Compatibility
 -------------
 
-`main` and `1.7` branches require:
+`main` and `1.7`(and later) branches require:
 
 * Python 3.7+
 * Pyramid 2.0
@@ -118,24 +118,25 @@ Users should pin projects to use "less than" the next minor version.  For exampl
 Breaking Changes
 ----------------
 
+In `1.8`:
+* `invalidate_empty_session` defaults to True
+* the deprecated `pyramid_session_redis.legacy` namespace has been removed
+
 In the `1.7` branch, there are several breaking changes:
-    * Drop Python 3.6
-    * removed deprecated redis commands
-    * minimum redis library is now 4.0
-    * util._NullSerializer will ensure data is serialized into a string.
-    * util._NullSerializer is deprecated; renamed to _util._StringSerializer
-    * util.SerializerInterface is deprecated and replaced with util.SignedSerializerInterface
-    * the entire `pyramid_session_redis.legacy` namespace has been deprecated;
-    * there were serveral (de)serialization issues tied to issues with upstream typing
-
-Planned changes for `1.8` branch:
-    * remove the pyramid_session_redis.legacy namespace
-    * set `invalidate_empty_session` to True
-
+* Drop Python 3.6
+* removed deprecated redis commands
+* minimum redis library is now 4.0
+* `util._NullSerializer` will ensure data is serialized into a string.
+* `util._NullSerializer` is deprecated; renamed to `_util._StringSerializer`
+* `util.SerializerInterface` is deprecated and replaced with `util.SignedSerializerInterface`
+* the entire `pyramid_session_redis.legacy` namespace has been deprecated;
+* there were serveral (de)serialization issues tied to issues with upstream typing
 
 
 Prior Branches
 --------------
+
+The 1.6 and 1.8 branches are in maintenance mode.
 
 The 1.6.x branch is in maintenance mode. This is the last branch to support
 Python2 and Pyramid1.
