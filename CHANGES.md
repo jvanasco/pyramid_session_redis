@@ -1,7 +1,10 @@
 Changelog
 =========
 
-* 2.0 (unreleased)
+* 2.0 (2026.11.12)
+  * There are numerous potential breaking changes.
+  * Support for Python 3.9 and below is deprecated and will be removed in the next release.
+  - Replaced the deprecated `setex` Redis API function. Thank you, @nezda.
   * Allow two retries on timestamp comparison failures in session factory and
     timeout adjustment tests affected by clock boundaries.
   * Keep specific session-ID serialization exceptions as ValueError subclasses
