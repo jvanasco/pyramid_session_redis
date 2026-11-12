@@ -23,6 +23,8 @@ convenience.
 Compatibility
 -------------
 
+The 3.0 branch will require Python 3.10
+
 `main` and `1.7`(and later) branches require:
 
 * Python 3.7+
