@@ -2,12 +2,18 @@
 # stdlib
 import pickle
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import Optional
+from typing import TYPE_CHECKING
+from typing import Union
 import warnings
 
 # pypi
 from redis.exceptions import WatchError
+
+if TYPE_CHECKING:
+    from redis.client import Redis as RedisClient
 
 warnings.filterwarnings(
     "ignore", message=".*pkg_resources.declare_namespace.*", category=DeprecationWarning
@@ -50,6 +56,8 @@ class DummySession(object):
 
 
 class DummyRedis(object):
+    host: str
+    port: int
     url: Optional[str]
     timeouts: Dict[str, int]
     _store: Dict[str, Any]
@@ -94,7 +102,7 @@ class DummyRedis(object):
 
     def delete(self, *keys):
         for key in keys:
-            del self._store[key]
+            self._store.pop(key, None)
 
     def exists(self, key):
         return key in self._store
@@ -110,12 +118,30 @@ class DummyRedis(object):
         return self._store.keys()
 
 
+def as_redis_client(client: Union[DummyRedis, "RedisClient"]) -> "RedisClient":
+    """Adapt our deliberately partial test double at the library boundary.
+
+    DummyRedis implements only the commands these unit tests exercise. It is
+    not a real Redis subclass and must never be used as a live connection.
+    """
+    return cast("RedisClient", client)
+
+
+def dummy_redis(client: Union[DummyRedis, "RedisClient"]) -> DummyRedis:
+    """Narrow before accessing instrumentation absent from a real client."""
+    assert isinstance(client, DummyRedis)
+    return client
+
+
 class DummyPipeline(object):
     def __init__(self, store, redis_con, raise_watcherror=False):
         self._store = store
         self.raise_watcherror = raise_watcherror
         self._redis_con = redis_con
         self._history = []
+        self._commands = []
+        self._watching = False
+        self._in_multi = False
 
     def __enter__(self):
         return self
@@ -124,24 +150,28 @@ class DummyPipeline(object):
         pass
 
     def multi(self):
-        pass
+        self._in_multi = True
 
     def set(self, key, value, debug=None):
-        self._store[key] = value
+        self._commands.append(("set", key, value))
         self._history.append(("set", key, debug))
         self._redis_con._history.append(("pipeline.set", key, value, debug))
 
     def get(self, key):
         self._history.append(("get", key))
         self._redis_con._history.append(("pipeline.get", key))
-        return self._store.get(key)
+        if self._watching and not self._in_multi:
+            return self._store.get(key)
+        self._commands.append(("get", key))
+        return self
 
     def expire(self, key, timeout):
+        self._commands.append(("expire", key, timeout))
         self._history.append(("expire", key, timeout))
         self._redis_con._history.append(("pipeline.expire", key, timeout))
 
     def setex(self, key, timeout, value, debug=None):
-        self._store[key] = value
+        self._commands.append(("setex", key, timeout, value))
         self._history.append(("setex", key, timeout, debug))
         self._redis_con._history.append(
             ("pipeline.setex", key, timeout, value, debug)
@@ -150,6 +180,23 @@ class DummyPipeline(object):
     def watch(self, key):
         if self.raise_watcherror:
             raise WatchError
+        self._watching = True
 
     def execute(self):
-        pass
+        results = []
+        for command in self._commands:
+            op, key = command[:2]
+            if op == "get":
+                results.append(self._store.get(key))
+            elif op == "set":
+                self._store[key] = command[2]
+                results.append(True)
+            elif op == "setex":
+                self._store[key] = command[3]
+                self._redis_con.timeouts[key] = command[2]
+                results.append(True)
+            elif op == "expire":
+                self._redis_con.timeouts[key] = command[2]
+                results.append(key in self._store)
+        self._commands.clear()
+        return results

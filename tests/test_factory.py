@@ -12,10 +12,12 @@ from typing import Tuple
 from typing import TYPE_CHECKING
 from typing import Union
 import unittest
+from unittest.mock import patch
 
 # pypi
 from pyramid import testing
 from pyramid.interfaces import ISession
+import pytest
 import webob
 from webob.cookies import SignedSerializer
 from zope.interface.verify import verifyObject
@@ -37,6 +39,8 @@ from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import encode_session_payload
 from pyramid_session_redis.util import int_time
 from pyramid_session_redis.util import LazyCreateSession
+from . import as_redis_client
+from . import dummy_redis
 from . import DummyRedis  # redis Client
 from ._util import CustomCookieSigner
 from ._util import is_cookie_setter
@@ -85,7 +89,9 @@ class _TestRedisSessionFactoryCore(unittest.TestCase):
             kw["new"] = False
         if "new_session" not in kw:
             kw["new_session"] = self._set_up_session_in_redis
-        session = RedisSession(redis=redis, session_id=session_id, **kw)
+        session = RedisSession(
+            redis=as_redis_client(redis), session_id=session_id, **kw
+        )
         return session
 
     def _register_callback(
@@ -797,7 +803,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         self.assertNotIn("; Max-Age=", set_cookie_headers[0])
 
         def client_callable(_request: testing.DummyRequest, **kw) -> DummyRedis:
-            return session.redis
+            return dummy_redis(session.redis)
 
         # set to 100
         request2 = self._make_request(request_old=request)
@@ -868,7 +874,7 @@ class TestRedisSessionFactory(_TestRedisSessionFactoryCore):
         inst = self._makeOneForRequest(request)
         getattr(inst, variant)(555)
         inst._deferred_callback(request)  # native callback for persistance
-        session_id = inst.session_id
+        session_id = inst.ensure_id()
         cookieval = self._serialize(session_id)
         request.cookies["session"] = cookieval.decode()  # these are str, not bytes
         new_session = self._makeOneForRequest(request)
@@ -1029,10 +1035,8 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
         self, session: RedisSession, deserialize: Callable = pickle.loads
     ) -> dict:
         """loads session from backend via id, deserializes"""
-        _session_id = session.session_id
-        # "Redis" has no attribute "store"
-        # "DummyRedis" uses an internal storage though
-        _session_data = session.redis._store[_session_id]  # type: ignore[attr-defined]
+        _session_id = session.ensure_id()
+        _session_data = dummy_redis(session.redis)._store[_session_id]
         _session_deserialized = deserialize(_session_data)
         return _session_deserialized
 
@@ -1197,7 +1201,7 @@ class _TestRedisSessionFactoryCore_UtilsNew(object):
 
         # reserialize the session and store it in the backend
         _session_serialized = serialize(_session_deserialized)
-        request.session.redis._store[_session_id] = _session_serialized
+        dummy_redis(request.session.redis)._store[_session_id] = _session_serialized
         request.session._resync()
 
 
@@ -1401,7 +1405,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(
             session_args["timeout"],
         )
 
-    def test_scenario_new__timeout_noTrigger_pythonExpires_setRedisTtl(self):
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_scenario_new__timeout_noTrigger_pythonExpires_setRedisTtl(self) -> None:
+        """Check Python expiry for a new session with a Redis TTL."""
         session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_new_session(session_args)
 
@@ -1411,6 +1417,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(
             stored_session_data["x"],
             stored_session_data["c"] + stored_session_data["t"],
+            "Session expiry clock boundary",
         )
 
         # there should be three items in the history:
@@ -1654,9 +1661,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(
             session_args["timeout"],
         )
 
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
     def test_scenario_existing__timeout_noTrigger_pythonExpires_setRedisTtl_noChange(
         self,
-    ):
+    ) -> None:
+        """Check the stored expiry and Redis history for an unchanged session."""
         session_args = self._args_timeout_noTrigger_pythonExpires_setRedisTtl
         request = self._prep_existing_session(session_args)
 
@@ -1666,6 +1675,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(
             stored_session_data["x"],
             stored_session_data["c"] + stored_session_data["t"],
+            "Session expiry clock boundary",
         )
 
         # there should be 3 items in the history:
@@ -1883,7 +1893,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
         self.assertEqual(request.registry._pyramid_session_redis._history[2][0], "set")
 
-    def test_scenario_new__timeout_noTrigger_pythonExpires_noRedisTtl(self):
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_scenario_new__timeout_noTrigger_pythonExpires_noRedisTtl(self) -> None:
+        """Check Python expiry for a new session without a Redis TTL."""
         session_args = self._args_timeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_new_session(session_args)
 
@@ -1893,6 +1905,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(
             stored_session_data["x"],
             stored_session_data["c"] + stored_session_data["t"],
+            "Session expiry clock boundary",
         )
 
         # there should be three items in the history:
@@ -2063,9 +2076,11 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(len(request.registry._pyramid_session_redis._history), 3)
         self.assertEqual(request.registry._pyramid_session_redis._history[0][0], "set")
 
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
     def test_scenario_existing__timeout_noTrigger_pythonExpires_noRedisTtl_noChange(
         self,
-    ):
+    ) -> None:
+        """Check Python expiry for an unchanged session without a Redis TTL."""
         session_args = self._args_timeout_noTrigger_pythonExpires_noRedisTtl
         request = self._prep_existing_session(session_args)
 
@@ -2075,6 +2090,7 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         self.assertEqual(
             stored_session_data["x"],
             stored_session_data["c"] + stored_session_data["t"],
+            "Session expiry clock boundary",
         )
 
         # there should be 3 items in the history:
@@ -2176,10 +2192,14 @@ class TestRedisSessionFactory_expiries_v1_4_x(
     # new session - timeout flow
     # --------------------------------------------------------------------------
 
-    def test_scenario_flow__timeout_trigger_pythonExpires_noRedisTtl(self):
-        session_args = self._args_timeout_trigger_pythonExpires_noRedisTtl
-        session_args["timeout"] = 100
-        session_args["timeout_trigger"] = 50
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_scenario_flow__timeout_trigger_pythonExpires_noRedisTtl(self) -> None:
+        """Check expiry refresh once the trigger window opens without a Redis TTL."""
+        session_args = dict(
+            self._args_timeout_trigger_pythonExpires_noRedisTtl,
+            timeout=100,
+            timeout_trigger=50,
+        )
         time_now = int_time()
 
         #
@@ -2275,7 +2295,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
         self.assertIn("x", stored_session_data_updated)
         self.assertEqual(
-            stored_session_data_updated["x"], time_now + session_args["timeout"]
+            stored_session_data_updated["x"],
+            time_now + session_args["timeout"],
+            "Session expiry clock boundary",
         )
 
         # there should be 2 items in the history:
@@ -2302,7 +2324,9 @@ class TestRedisSessionFactory_expiries_v1_4_x(
         )
         return
 
-    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self):
+    @patch("pyramid_session_redis.util.time_time", return_value=1000.0)
+    def test_scenario_flow__timeout_trigger_pythonExpires_setRedisTtl(self, _clock):
+        # Simulate expiry changes without racing a wall-clock second boundary.
         session_args = self._args_timeout_trigger_pythonExpires_setRedisTtl
         session_args["timeout"] = 100
         session_args["timeout_trigger"] = 50

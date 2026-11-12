@@ -3,6 +3,7 @@
 # stdlib
 import os
 from typing import Any
+from typing import cast
 from typing import Dict
 from typing import Optional
 from typing import Tuple
@@ -16,6 +17,9 @@ from webob.cookies import SignedSerializer
 from pyramid_session_redis import _get_session_id_from_cookie
 from pyramid_session_redis.exceptions import InvalidSessionId_Serialization
 from pyramid_session_redis.util import _StringSerializer
+
+if TYPE_CHECKING:
+    from webob.request import Request
 
 # ==============================================================================
 
@@ -102,7 +106,9 @@ class Test_GetSessionIdFromCookie(unittest.TestCase):
         req, res, serializer = self._makeOne(cookie_name, value_in)
         if TYPE_CHECKING:
             assert res.cookies is not None
-        _decoded = _get_session_id_from_cookie(req, cookie_name, serializer)
+        _decoded = _get_session_id_from_cookie(
+            cast("Request", req), cookie_name, serializer
+        )
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_encoded)
         self.assertEqual(value_decoded, _decoded)
@@ -202,7 +208,9 @@ class Test_CookieSigner_StringSerializer(unittest.TestCase):
             assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_signed)
-        value_out = _get_session_id_from_cookie(req, cookie_name, cookie_signer)
+        value_out = _get_session_id_from_cookie(
+            cast("Request", req), cookie_name, cookie_signer
+        )
         self.assertEqual(value_expected, value_out)
 
     def test_string(self):
@@ -293,7 +301,9 @@ class Test_CookieSigner_DefaultSerializer(unittest.TestCase):
             assert res.cookies is not None
         self.assertIn(cookie_name, res.cookies)
         self.assertEqual(res.cookies[cookie_name], value_signed)
-        value_out = _get_session_id_from_cookie(req, cookie_name, cookie_signer)
+        value_out = _get_session_id_from_cookie(
+            cast("Request", req), cookie_name, cookie_signer
+        )
         self.assertEqual(value_expected, value_out)
 
     def test_string(self):

@@ -4,9 +4,14 @@
 *~
 \#*\#
 .coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
 build/
 dist/
 env*/
 _env*/
 tmp/
 __pycache__
+docs/_build/

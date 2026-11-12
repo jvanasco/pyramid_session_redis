@@ -124,7 +124,7 @@ class _Test_InvalidateEmptySession(AppTest):
             res = self._testapp.app.invoke_request(request)
             assert res.text == "<body><h1>session_access__set</h1></body>"
             assert "Set-Cookie" in res.headers
-            session_id = request.session.session_id  # noqa: F841
+            session_id = request.session.ensure_id()  # noqa: F841
             session_cookie = res.headers["Set-Cookie"]
             # this will look like `session=X'; Path=/; HttpOnly"
             session_cookie = (session_cookie.split(";")[0]).strip()

@@ -7,6 +7,7 @@ from secrets import token_hex
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from typing import cast
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -19,6 +20,7 @@ from typing import Union
 # pypi
 from pyramid.decorator import reify
 from pyramid.interfaces import ISession
+from redis.exceptions import WatchError
 from typing_extensions import Literal
 from zope.interface import implementer
 
@@ -30,6 +32,8 @@ from .exceptions import InvalidSession_NotInBackend
 from .exceptions import InvalidSession_PayloadLegacy
 from .exceptions import InvalidSession_PayloadTimeout
 from .exceptions import RawDeserializationError
+from .exceptions import SessionConflict
+from .util import _validate_session_options
 from .util import decode_session_payload as decode_session_payload_func
 from .util import empty_session_payload
 from .util import encode_session_payload as encode_session_payload_func
@@ -42,6 +46,7 @@ from .util import refresh
 from .util import SESSION_API_VERSION
 from .util import TYPING_COOKIE_EXPIRES
 from .util import TYPING_COOKIE_EXPIRES__A
+from .util import TYPING_COOKIE_MAX_AGE
 from .util import TYPING_COOKIE_MAX_AGE__A
 from .util import TYPING_KEY
 from .util import TYPING_SESSION_ID
@@ -89,6 +94,7 @@ class _SessionState(object):
     # these markers are consulted in cleanup routines
     dont_persist: Optional[bool] = None
     dont_refresh: Optional[bool] = None
+    expires_overridden: bool = False
 
     # optional attributes, not set by default
     cookie_expires: TYPING_COOKIE_EXPIRES__A = (
@@ -136,8 +142,17 @@ class _SessionState(object):
         """
         if self.dont_persist:
             return False
-        if self.expires and session._timeout_trigger:
-            if session.timestamp >= (self.expires - session._timeout_trigger):
+        if self.expires and session._python_expires:
+            if session._timeout_trigger and session.timestamp >= (
+                self.expires - session._timeout_trigger
+            ):
+                self.please_persist = True
+            elif (
+                not session._detect_changes
+                and not session._timeout_trigger
+                and session.timeout
+                and session.timestamp + session.timeout > self.expires
+            ):
                 self.please_persist = True
         if self.please_persist:
             return session.to_redis()
@@ -260,7 +275,7 @@ class RedisSession(object):
         redis: "RedisClient",
         session_id: TYPING_SESSION_ID,
         new: bool,
-        new_session: Callable[[], TYPING_SESSION_ID],
+        new_session: Callable[[], str],
         new_payload_func: Optional[Callable[..., Dict]] = None,
         serialize: Callable[
             [
@@ -279,12 +294,18 @@ class RedisSession(object):
         python_expires: Optional[bool] = None,
         set_redis_ttl_readheavy: Optional[bool] = None,
         _set_redis_ttl_onexit: Optional[bool] = None,
+        optimistic_concurrency: bool = False,
     ):
+        _validate_session_options(
+            timeout=timeout,
+            set_redis_ttl=set_redis_ttl,
+            set_redis_ttl_readheavy=set_redis_ttl_readheavy,
+            timeout_trigger=timeout_trigger,
+            python_expires=python_expires,
+        )
+        timeout = timeout or None
         if timeout_trigger and not python_expires:  # fix this
             python_expires = True
-        if not timeout:
-            if set_redis_ttl_readheavy:
-                raise ValueError("`set_redis_ttl_readheavy` requires `timeout`")
         self.redis = redis
         self.serialize = serialize  # type: ignore[method-assign, assignment]
         self.deserialize = deserialize  # type: ignore[method-assign, assignment]
@@ -303,10 +324,14 @@ class RedisSession(object):
         self._timeout_trigger = timeout_trigger
         self._python_expires = python_expires
         self._new = new  # only used for testing/resync
+        self._optimistic_concurrency = optimistic_concurrency
+        self._persisted_payload: Optional[bytes] = None
         self._session_state = self._make_session_state(
             session_id=session_id,
             new=new,
         )
+        if set_redis_ttl_readheavy:
+            self._session_state.dont_refresh = True
         if _set_redis_ttl_onexit:
             self._session_state.please_refresh = True
 
@@ -316,7 +341,7 @@ class RedisSession(object):
             session_id=self.session_id, new=self._new
         )
 
-    def new_session(self) -> TYPING_SESSION_ID:
+    def new_session(self) -> str:
         # this should be set via __init__
         raise NotImplementedError()
 
@@ -388,10 +413,12 @@ class RedisSession(object):
             # self.from_redis needs to take a session_id here, because
             # otherwise it would look up self.session_id, which is not ready
             # yet as session_state has not been created yet.
-            (persisted, persisted_hash) = self.from_redis(
+            persisted, persisted_hash = self.from_redis(
                 session_id=session_id,
                 persisted_hash=(True if self._detect_changes else False),
             )
+            if self._optimistic_concurrency:
+                self._persisted_payload = self._last_read_payload
             expires = persisted.get("x")
             if expires:
                 if self.timestamp > expires:
@@ -415,7 +442,7 @@ class RedisSession(object):
         )
 
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> TYPING_SESSION_ID:
         """
         note:
         accessing this will create a new `_session_state` and `session_id`
@@ -432,15 +459,15 @@ class RedisSession(object):
         return self._session_state.created
 
     @property
-    def timeout(self) -> int:
+    def timeout(self) -> Optional[int]:
         return self._session_state.timeout
 
     @property
-    def expires(self) -> int:
+    def expires(self) -> Optional[int]:
         return self._session_state.expires
 
     @property
-    def version(self) -> int:
+    def version(self) -> Optional[int]:
         return self._session_state.version
 
     @property
@@ -462,6 +489,11 @@ class RedisSession(object):
             timeout_trigger=self._timeout_trigger,
             python_expires=self._python_expires,
         )
+        if self._session_state.expires_overridden and self._python_expires:
+            if self.expires is None:
+                data.pop("x", None)
+            else:
+                data["x"] = self.expires
         return self.serialize(data)
 
     @overload
@@ -505,18 +537,17 @@ class RedisSession(object):
             assert isinstance(_session_id, str)
 
         # optimize a `TTL refresh` under certain conditions
-        persisted: Union[Awaitable, bytes, None] = None
+        persisted: Union[Awaitable, bytes, str, None]
         if self._set_redis_ttl_readheavy:
             if TYPE_CHECKING:
                 assert self._timeout is not None
             with self.redis.pipeline() as pipe:
-                persisted = pipe.get(_session_id)  # type: ignore[assignment]
-                _updated = pipe.expire(  # noqa: F841
+                pipe.get(_session_id)
+                pipe.expire(
                     _session_id,
                     self._timeout,
                 )
-            # mark that we shouldn't refresh
-            self._session_state.dont_refresh = True
+                persisted, _updated = pipe.execute()
         else:
             persisted = self.redis.get(_session_id)
 
@@ -528,18 +559,22 @@ class RedisSession(object):
                 "`session_id` (%s) not in Redis" % _session_id
             )
 
-        if TYPE_CHECKING:
-            assert isinstance(persisted, bytes)
-
         try:
+            if not isinstance(persisted, bytes):
+                raise TypeError(
+                    "Session storage must return bytes; use decode_responses=False"
+                )
             deserialized = self.deserialize(persisted)
+            self._validate_payload(deserialized)
         except Exception as e:
             if self._deserialized_fails_new:
                 raise InvalidSession_DeserializationError(
                     "`session_id` (%s) did not deserialize correctly"
                     % _session_id  # noaq: E501
-                )
-            raise RawDeserializationError(e)
+                ) from e
+            raise RawDeserializationError(e) from e
+        if self._optimistic_concurrency:
+            self._last_read_payload = persisted
         # TODO: typing on return can be better?
         if persisted_hash is True:
             # -> tuple[dict, str]
@@ -550,10 +585,31 @@ class RedisSession(object):
         # -> dict
         return deserialized
 
+    @staticmethod
+    def _validate_payload(payload: Any) -> None:
+        """Reject malformed envelopes while retaining the legacy-version path."""
+        if not isinstance(payload, dict):
+            raise ValueError("Session payload must be a dict")
+        # Older versions are handled by _make_session_state, as before.
+        version = payload.get("v")
+        if version is not None and type(version) is not int:
+            raise ValueError("Session version must be an integer")
+        if not version or version < SESSION_API_VERSION:
+            return
+        if not isinstance(payload.get("m"), dict) or type(payload.get("c")) is not int:
+            raise ValueError("Session payload requires a dict 'm' and integer 'c'")
+        for field in ("t", "x"):
+            value = payload.get(field)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError(
+                    "Session '%s' must be a nonnegative integer or None" % field
+                )
+
     def invalidate(self) -> None:
         """Invalidate the session."""
-        if self.session_id != LazyCreateSession:
-            self.redis.delete(self.session_id)
+        session_id = self.session_id
+        if isinstance(session_id, str):
+            self.redis.delete(session_id)
         # Delete the self._session_state attribute so that direct access to or
         # indirect access via other methods and properties to .session_id,
         # .managed_dict, .created, .timeout and .new (i.e. anything stored in
@@ -561,12 +617,21 @@ class RedisSession(object):
         # session with a new session_id via the `_session_state()` reified
         # property.
         del self._session_state
+        self._persisted_payload = None
 
     def ensure_id(self) -> str:
         # this ensures we have a session_id
         if self._session_state.session_id is LazyCreateSession:
             self._session_state.session_id = self.new_session()
-        return self._session_state.session_id
+            if self._optimistic_concurrency:
+                # new_session reserves an empty payload before the final write.
+                payload = self.redis.get(self._session_state.session_id)
+                if payload is not None and not isinstance(payload, bytes):
+                    raise TypeError(
+                        "Session storage must return bytes; use decode_responses=False"
+                    )
+                self._persisted_payload = cast(Optional[bytes], payload)
+        return cast(str, self._session_state.session_id)
 
     @property
     def session_id_safecheck(self) -> Optional[str]:
@@ -575,7 +640,7 @@ class RedisSession(object):
             return None
         return self.ensure_id()
 
-    def do_persist(self, serialized_session=None) -> None:
+    def do_persist(self, serialized_session: Optional[bytes] = None) -> None:
         """
         Actually and immediately persist to Redis backend
         Only set a timeout in Redis timeout if we have timeouts AND are not
@@ -583,35 +648,56 @@ class RedisSession(object):
         Note: this package uses StrictRedis(`key, timeout, value`)
               not Redis(`key, value, timeout`)
         """
-        self.ensure_id()
+        session_id = self.ensure_id()
         if serialized_session is None:
             serialized_session = self.to_redis()
-        serverside_timeout = (
-            True
-            if ((self.timeout is not None) and (self._set_redis_ttl))
-            else False  # noaq: E501
-        )
-        if serverside_timeout:
-            self.redis.setex(self.session_id, self.timeout, serialized_session)
+        timeout = self.timeout
+        if self._optimistic_concurrency:
+            self._persist_if_unchanged(session_id, serialized_session)
+        elif timeout and self._set_redis_ttl:
+            self.redis.setex(session_id, timeout, serialized_session)
         else:
-            self.redis.set(self.session_id, serialized_session)
+            self.redis.set(session_id, serialized_session)
         self._session_state.please_persist = False
         self._session_state.dont_refresh = True
 
-    def do_refresh(self, force_redis_ttl=None) -> None:
+    def _persist_if_unchanged(self, session_id: str, payload: bytes) -> None:
+        """Compare the loaded bytes and write atomically, only when opted in."""
+        with self.redis.pipeline() as pipe:
+            try:
+                pipe.watch(session_id)
+                current = pipe.get(session_id)
+                if current is None or current != self._persisted_payload:
+                    raise SessionConflict(
+                        "Session changed or was invalidated during this request"
+                    )
+                pipe.multi()
+                if self.timeout and self._set_redis_ttl:
+                    pipe.setex(session_id, self.timeout, payload)
+                else:
+                    pipe.set(session_id, payload)
+                pipe.execute()
+            except WatchError as exc:
+                raise SessionConflict("Session changed during persistence") from exc
+        self._persisted_payload = payload
+
+    def do_refresh(self, force_redis_ttl: Optional[int] = None) -> None:
         """
         Actually and immediately refresh the TTL to Redis backend.
         Does nothing if no timeout set (in LRU mode).
         Optional kwarg for developers ``force_redis_ttl`` (default None)
         can be provided to force a new Redis TTL.
         """
+        session_id = self.session_id
+        if not isinstance(session_id, str):
+            return
         if force_redis_ttl is not None:
-            self.redis.expire(self.session_id, force_redis_ttl)
+            self.redis.expire(session_id, force_redis_ttl)
         else:
             if self.timeout is not None:
                 if self._set_redis_ttl:
                     # set a TTL if unless we're in LRU mode
-                    self.redis.expire(self.session_id, self.timeout)
+                    self.redis.expire(session_id, self.timeout)
         self._session_state.please_refresh = False
 
     # dict modifying methods decorated with @persist
@@ -761,7 +847,7 @@ class RedisSession(object):
         self._session_state.cookie_expires = expires
 
     @recookie
-    def adjust_cookie_max_age(self, max_age: int) -> None:
+    def adjust_cookie_max_age(self, max_age: TYPING_COOKIE_MAX_AGE) -> None:
         """
         Permanently adjusts the max-age for this cookie to ``max_age``
         This value is used as the Max-Age of the generated cookie
@@ -783,16 +869,21 @@ class RedisSession(object):
         Updates the epoch used for Python timeout on expiry logic.
         """
         self._session_state.expires = expires_epoch
+        self._session_state.expires_overridden = True
 
     @persist
-    def adjust_session_timeout(self, timeout_seconds: int) -> None:
+    def adjust_session_timeout(self, timeout_seconds: Optional[int]) -> None:
         """
         Permanently adjusts the `timeout` for this Session to
         ``timeout_seconds`` for as long as this Session is active.
         Useful in situations where you want to change the expiry time for
         a Session dynamically.
         """
-        self._session_state.timeout = timeout_seconds
+        if timeout_seconds is not None and timeout_seconds < 0:
+            raise ValueError("`timeout_seconds` must be nonnegative or None")
+        self._session_state.timeout = timeout_seconds or None
+        if not timeout_seconds:
+            self._session_state.expires = None
 
     # rename these
     adjust_expires_for_session = adjust_session_expires

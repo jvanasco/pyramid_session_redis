@@ -6,20 +6,72 @@ from typing import Any
 from typing import Dict
 import unittest
 
+# pypi
+import pytest
+
 # local
 from pyramid_session_redis.util import _generate_session_id
 from pyramid_session_redis.util import _insert_session_id_if_unique
 from pyramid_session_redis.util import _parse_settings
 from pyramid_session_redis.util import create_unique_session_id
 from pyramid_session_redis.util import int_time
+from pyramid_session_redis.util import is_integer
 from pyramid_session_redis.util import persist
 from pyramid_session_redis.util import prefixed_id
 from pyramid_session_redis.util import refresh
+from pyramid_session_redis.util import to_binary
+from pyramid_session_redis.util import warn_future
 from . import DummyRedis
 from . import DummySession
 
-
 # ==============================================================================
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [(0, True), (1.5, False), ("2", True), ("2.5", False), ("bad", False)],
+)
+def test_deprecated_integer_helper_preserves_results(value, expected):
+    match = r"is_integer\(\).*deprecated"
+    with pytest.warns(FutureWarning, match=match) as caught:
+        assert is_integer(value) is expected
+    assert caught[0].filename == __file__
+
+
+def test_deprecated_integer_helper_preserves_type_errors():
+    with pytest.warns(FutureWarning, match=r"is_integer\(\).*deprecated"):
+        with pytest.raises(TypeError):
+            is_integer(None)
+
+
+@pytest.mark.parametrize(
+    "value,encoding,expected",
+    [
+        ("text", "utf-8", b"text"),
+        ("caf\u00e9", "latin-1", b"caf\xe9"),
+        (b"\xff", "utf-8", b"\xff"),
+    ],
+)
+def test_deprecated_binary_encoding(value, encoding, expected):
+    match = r"to_binary\(\).*deprecated"
+    with pytest.warns(FutureWarning, match=match) as caught:
+        result = to_binary(value, encoding)
+    assert result == expected
+    if isinstance(value, bytes):
+        assert result is value
+    assert caught[0].filename == __file__
+
+
+def test_deprecated_binary_helper_preserves_encoding_errors():
+    with pytest.warns(FutureWarning, match=r"to_binary\(\).*deprecated"):
+        with pytest.raises(UnicodeEncodeError):
+            to_binary("\ud800")
+
+
+def test_internal_warning_helper_reports_its_caller():
+    with pytest.warns(FutureWarning, match="planned deprecation") as caught:
+        warn_future("planned deprecation")
+    assert caught[0].filename == __file__
 
 
 class Test_parse_settings(unittest.TestCase):
