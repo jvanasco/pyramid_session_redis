@@ -1,7 +1,7 @@
 Changelog
 =========
 
-* Unreleased
+* 2.0 (unreleased)
   * Keep specific session-ID serialization exceptions as ValueError subclasses
     and preserve their original causes so malformed cookies are rejected safely.
   * Share factory/session configuration validation before backend access.
@@ -34,7 +34,7 @@ Changelog
     and run source type checking in CI.
   * Add real-backend regression tests and a Redis/Valkey CI matrix, with backend
     configuration and local test instructions.
-
+  * Supporting Py3.15
 
 * v1.8.1
   * updated readme example, which still used the deprecated redis constructor args.  
