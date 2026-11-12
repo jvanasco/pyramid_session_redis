@@ -88,7 +88,9 @@ class DummyRedis(object):
         self._history.append(("get", key))
         return self._store.get(key)
 
-    def set(self, key, value, debug=None):
+    def set(self, key, value, ex=None, debug=None):
+        if ex is not None:
+            return self.setex(key, ex, value, debug=debug)
         self._store[key] = value
         self._history.append(("set", key, value, debug))
 
@@ -152,7 +154,9 @@ class DummyPipeline(object):
     def multi(self):
         self._in_multi = True
 
-    def set(self, key, value, debug=None):
+    def set(self, key, value, ex=None, debug=None):
+        if ex is not None:
+            return self.setex(key, ex, value, debug=debug)
         self._commands.append(("set", key, value))
         self._history.append(("set", key, debug))
         self._redis_con._history.append(("pipeline.set", key, value, debug))

@@ -655,7 +655,7 @@ class RedisSession(object):
         if self._optimistic_concurrency:
             self._persist_if_unchanged(session_id, serialized_session)
         elif timeout and self._set_redis_ttl:
-            self.redis.setex(session_id, timeout, serialized_session)
+            self.redis.set(session_id, serialized_session, ex=timeout)
         else:
             self.redis.set(session_id, serialized_session)
         self._session_state.please_persist = False

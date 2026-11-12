@@ -389,7 +389,7 @@ def _insert_session_id_if_unique(
             # enter buffered mode
             pipe.multi()
             if timeout and set_redis_ttl:
-                pipe.setex(session_id, timeout, _payload)
+                pipe.set(session_id, _payload, ex=timeout)
             else:
                 pipe.set(session_id, _payload)
             pipe.execute()
