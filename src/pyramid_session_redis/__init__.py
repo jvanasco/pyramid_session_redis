@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     # from pyramid.response import Response  # webob has stubs; pyramid does not
 
 
-__VERSION__ = "1.8.1"
+__VERSION__ = "2.0.0"
 
 
 # ==============================================================================

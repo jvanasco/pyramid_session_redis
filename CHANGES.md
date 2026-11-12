@@ -2,6 +2,8 @@ Changelog
 =========
 
 * 2.0 (unreleased)
+  * Allow two retries on timestamp comparison failures in session factory and
+    timeout adjustment tests affected by clock boundaries.
   * Keep specific session-ID serialization exceptions as ValueError subclasses
     and preserve their original causes so malformed cookies are rejected safely.
   * Share factory/session configuration validation before backend access.

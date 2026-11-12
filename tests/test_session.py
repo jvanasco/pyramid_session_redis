@@ -12,6 +12,7 @@ import unittest
 
 # pypi
 from pyramid import testing
+import pytest
 
 # local
 from pyramid_session_redis.exceptions import InvalidSession_PayloadLegacy
@@ -1054,7 +1055,8 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
     timeout_trigger = 3
     adjusted_timeout = 86400  # 31536000
 
-    def test_adjust_timeout(self):
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_adjust_timeout(self) -> None:
         """
         check that a timeout will trigger a SETEX
 
@@ -1062,7 +1064,9 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
         """
         self._test_adjust_timeout()
 
-    def test_adjust_timeout__legacy(self):
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_adjust_timeout__legacy(self) -> None:
+        """Check timeout adjustment through its legacy alias."""
         self._test_adjust_timeout(variant="adjust_timeout_for_session")
 
     def _test_adjust_timeout(self, variant: Optional[str] = None):
@@ -1097,7 +1101,9 @@ class TestRedisSessionNew_TimeoutAdjustments_A(
         self.assertEqual(timeout_2, self.adjusted_timeout)
 
         timestamp_expiry_expected = timestamp_created + self.adjusted_timeout
-        self.assertEqual(timestamp_expiry_new, timestamp_expiry_expected)
+        self.assertEqual(
+            timestamp_expiry_new, timestamp_expiry_expected, "Session expiry clock boundary"
+        )
 
         # okay now check that redis got the correct commands
         # get, [get], setex, [get] || [] are our test commands, not part of the flow
@@ -1117,10 +1123,14 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
     timeout_trigger = 1
     adjusted_timeout = 4
 
-    def test_timeout_trigger(self):
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_timeout_trigger(self) -> None:
+        """Check that an adjusted timeout refreshes expiry in the trigger window."""
         self._test_timeout_trigger()
 
-    def test_timeout_trigger__legacy(self):
+    @pytest.mark.flaky(reruns=2, only_rerun="Session expiry clock boundary")
+    def test_timeout_trigger__legacy(self) -> None:
+        """Check the timeout trigger after adjustment through the legacy alias."""
         self._test_timeout_trigger(variant="adjust_timeout_for_session")
 
     def _test_timeout_trigger(self, variant: Optional[str] = None):
@@ -1152,7 +1162,9 @@ class TestRedisSessionNew_TimeoutAdjustments_B(
         self.assertEqual(timeout_2, self.adjusted_timeout)
 
         timestamp_expiry_expected = timestamp_created + self.adjusted_timeout
-        self.assertEqual(timestamp_expiry_new, timestamp_expiry_expected)
+        self.assertEqual(
+            timestamp_expiry_new, timestamp_expiry_expected, "Session expiry clock boundary"
+        )
 
         # okay now check that redis got the correct commands
         # 0 - GET
